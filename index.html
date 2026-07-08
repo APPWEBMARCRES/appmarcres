@@ -905,7 +905,7 @@ table.hid-table{width:100%;border-collapse:collapse;font-size:12px;}
 
 <script>
 const GAS_URL='https://script.google.com/macros/s/AKfycbxDNNvIc8ouF8KqjEgEUvdoBJJN74baY06EYLTXE47B1xgNUsl7sWXxkBJD0x_KDwlM/exec';
-let empresaChecklist=null,empresaAlbaran=null,tipoAlbaran=null,currentFotoKey=null,currentFotoSlot=null;
+let empresaChecklist=null,empresaAlbaran=null,tipoAlbaran=null,tipoChecklist=null,currentFotoKey=null,currentFotoSlot=null;
 const fotosData={mant:Array(5).fill(null),simple:Array(5).fill(null),elec:Array(5).fill(null),hid:Array(5).fill(null),descal:Array(5).fill(null)};
 const fotosExtra={mant:[],simple:[],elec:[],hid:[],descal:[]};
 const ausenteState={elec:false,hid:false,mant:false,simple:false,bomba:false,preparacion:false,taller:false};
@@ -923,6 +923,8 @@ function abrirPdfFinal(){
   if(_urlPdfFinal) window.location.href = _urlPdfFinal;
 }
 function mostrarPantallaFinal(urlPdf){
+  if(_autosaveInterval){ clearInterval(_autosaveInterval); _autosaveInterval=null; }
+  borrarEstadoGuardado();
   detenerTimer();
   _urlPdfFinal = urlPdf || null;
   const pf=document.getElementById('pantalla-final');
@@ -1042,7 +1044,7 @@ function desbloquearTecnicoSiProcede(){
     ta.disabled=true;ta.placeholder='Selecciona empresa primero...';
   }
 }
-function switchChecklist(tab){document.getElementById('panel-elec').classList.toggle('active',tab==='elec');document.getElementById('panel-hid').classList.toggle('active',tab==='hid');document.getElementById('ptab-elec').classList.toggle('active',tab==='elec');document.getElementById('ptab-hid').classList.toggle('active',tab==='hid');}
+function switchChecklist(tab){tipoChecklist=tab==='elec'?'Checklist Eléctrico':'Checklist Hidráulico';document.getElementById('panel-elec').classList.toggle('active',tab==='elec');document.getElementById('panel-hid').classList.toggle('active',tab==='hid');document.getElementById('ptab-elec').classList.toggle('active',tab==='elec');document.getElementById('ptab-hid').classList.toggle('active',tab==='hid');}
 function selectEmpresa(e,prefix){if(prefix==='c'){empresaChecklist=e;document.getElementById('c-btn-rivagua').classList.toggle('active',e==='rivagua');document.getElementById('c-btn-marcres').classList.toggle('active',e==='marcres');var av=document.getElementById('c-empresa-aviso');if(av)av.classList.remove('show');}else{empresaAlbaran=e;document.getElementById('a-btn-rivagua').classList.toggle('active',e==='rivagua');document.getElementById('a-btn-marcres').classList.toggle('active',e==='marcres');var av2=document.getElementById('a-empresa-aviso');if(av2)av2.classList.remove('show');}document.getElementById('header-empresa-label').textContent=e==='rivagua'?'Rivagua':'Marcres';desbloquearTecnicoSiProcede();}
 function selectTipo(t){
   tipoAlbaran=t;
@@ -2718,6 +2720,7 @@ function comprobarPermisoUbicacion() {
 
 buildAlbaranTables();buildChecklistTables();
 comprobarPermisoUbicacion();buildElec();initFotos();initFirmas();
+chequearParteGuardado();
 addMatRowFor('simple');addMatRowFor('mant');addMatRowFor('elec');addMatRowFor('hid');
 const nowInit=new Date();
 const horaStr=String(nowInit.getHours()).padStart(2,'0')+':'+String(nowInit.getMinutes()).padStart(2,'0');
@@ -2854,6 +2857,8 @@ var _orig_arrancarParte = _arrancarParte;
 _arrancarParte = function(prefix) {
   _orig_arrancarParte(prefix);
   iniciarTrackingGPS();
+  iniciarAutoguardado();
+  guardarEstadoParte(prefix);
 };
 
 var _orig_detenerTimer = detenerTimer;
@@ -2862,10 +2867,365 @@ detenerTimer = function() {
   detenerTrackingGPS();
 };
 
-// Guarda cada 30s mientras hay un parte en curso.
-// Al recargar, detecta el parte y ofrece recuperarlo.
 // ══════════════════════════════════════════════════════════════
-var _SAVE_KEY = 'marcres_parte_activo';
+// AUTOGUARDADO Y RECUPERACIÓN DE PARTE / CHECKLIST
+// Guarda el progreso cada 30s mientras hay un parte en curso.
+// Al recargar la página, si detecta un parte sin enviar, ofrece recuperarlo.
+// ══════════════════════════════════════════════════════════════
+var _SAVE_KEY_C = 'marcres_parte_activo_c';
+var _SAVE_KEY_A = 'marcres_parte_activo_a';
+var _autosaveInterval = null;
+var _MATKEYS = ['elec','hid','mant','simple','preparacion','descal','taller'];
+
+function _saveKeyFor(prefix){ return prefix==='c' ? _SAVE_KEY_C : _SAVE_KEY_A; }
+
+function _capturarPills(root){
+  var out=[];
+  root.querySelectorAll('.pill[data-group]').forEach(function(el){
+    var cls = el.classList.contains('p-ok')?'p-ok':el.classList.contains('p-warn')?'p-warn':el.classList.contains('p-bad')?'p-bad':null;
+    if(!cls) return;
+    out.push({group:el.dataset.group, text:el.textContent.trim(), cls:cls});
+  });
+  return out;
+}
+
+function _restaurarPills(root, pills){
+  (pills||[]).forEach(function(p){
+    var candidatos;
+    if(/-corte$/.test(p.group)){
+      var pre=p.group.slice(0,-6);
+      candidatos = Array.from(root.querySelectorAll('.pill')).filter(function(el){
+        var oc=el.getAttribute('onclick')||'';
+        return oc.indexOf("selectCorte(this,'"+pre+"'")>-1;
+      });
+    } else {
+      candidatos = Array.from(root.querySelectorAll('.pill')).filter(function(el){
+        var oc=el.getAttribute('onclick')||'';
+        return oc.indexOf("'"+p.group+"'")>-1;
+      });
+    }
+    var el = candidatos.find(function(e){return e.textContent.trim()===p.text;});
+    if(!el) return;
+    el.parentElement.querySelectorAll('.pill').forEach(function(h){h.className='pill';delete h.dataset.group;});
+    el.classList.add(p.cls);
+    el.dataset.group=p.group;
+    if(/-corte$/.test(p.group)){
+      var pre2=p.group.slice(0,-6);
+      var cajaHoras=document.getElementById(pre2+'-corte-horas');
+      if(cajaHoras) cajaHoras.classList.toggle('show', p.text==='Sí'||p.text==='Si');
+    }
+  });
+  root.querySelectorAll('.elec-obs').forEach(function(box){
+    var ta=box.querySelector('textarea');
+    if(ta && ta.value && ta.value.trim()) box.classList.add('show');
+  });
+}
+
+function _capturarMateriales(){
+  var out={};
+  _MATKEYS.forEach(function(key){
+    var tbody=document.getElementById('mat-tbody-'+key);
+    if(!tbody) return;
+    var filas=[];
+    tbody.querySelectorAll('tr').forEach(function(tr){
+      var uid=tr.id.replace('mat-row-','');
+      var d=document.getElementById('mat-desc-'+uid), c=document.getElementById('mat-cant-'+uid), p=document.getElementById('mat-precio-'+uid);
+      filas.push({desc:d?d.value:'', cant:c?c.value:'', precio:p?p.value:''});
+    });
+    if(filas.length) out[key]=filas;
+  });
+  return out;
+}
+
+function _restaurarMateriales(materiales){
+  Object.keys(materiales||{}).forEach(function(key){
+    var tbody=document.getElementById('mat-tbody-'+key);
+    if(!tbody) return;
+    tbody.innerHTML='';
+    matIdxMap[key]=0;
+    var filas=materiales[key];
+    filas.forEach(function(){ addMatRowFor(key); });
+    var trs=tbody.querySelectorAll('tr');
+    trs.forEach(function(tr,i){
+      var uid=tr.id.replace('mat-row-','');
+      var d=document.getElementById('mat-desc-'+uid), c=document.getElementById('mat-cant-'+uid), p=document.getElementById('mat-precio-'+uid);
+      if(d) d.value=filas[i].desc;
+      if(c) c.value=filas[i].cant;
+      if(p) p.value=filas[i].precio;
+      if(typeof calcTotalFor==='function'){ try{ calcTotalFor(uid,key); }catch(e){} }
+    });
+  });
+}
+
+function _capturarFirmas(root){
+  var out={};
+  root.querySelectorAll('canvas.firma-canvas').forEach(function(canvas){
+    if(firmaData[canvas.id] && firmaData[canvas.id].signed){
+      out[canvas.id]=canvas.toDataURL('image/png');
+    }
+  });
+  return out;
+}
+
+function _restaurarFirmas(firmas){
+  Object.keys(firmas||{}).forEach(function(id){
+    var canvas=document.getElementById(id);
+    if(!canvas) return;
+    var img=new Image();
+    img.onload=function(){
+      canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+      firmaData[id]={signed:true};
+      canvas.classList.add('signed');
+    };
+    img.src=firmas[id];
+  });
+}
+
+function _capturarCamposGenericos(root){
+  var texto={}, checks={};
+  root.querySelectorAll('input[type="text"],input[type="number"],input[type="tel"],input:not([type]),textarea').forEach(function(el){
+    if(!el.id) return;
+    if(/^mat-(desc|cant|precio)-/.test(el.id)) return; // gestionado en _capturarMateriales
+    texto[el.id]=el.value;
+  });
+  root.querySelectorAll('input[type="checkbox"],input[type="radio"]').forEach(function(el){
+    if(!el.id) return;
+    checks[el.id]=el.checked;
+  });
+  return {texto:texto, checks:checks};
+}
+
+function _restaurarCamposGenericos(campos){
+  if(!campos) return;
+  Object.keys(campos.texto||{}).forEach(function(id){
+    var el=document.getElementById(id);
+    if(el) el.value=campos.texto[id];
+  });
+  Object.keys(campos.checks||{}).forEach(function(id){
+    var el=document.getElementById(id);
+    if(el) el.checked=campos.checks[id];
+  });
+}
+
+function _pintarSlotSimple(slotId, dataUrl, quitarOnclick){
+  var slot=document.getElementById(slotId);
+  if(!slot||!dataUrl) return;
+  slot.className='taller-slot filled';
+  slot.onclick=null;
+  slot.innerHTML='<img src="'+dataUrl+'" alt="foto"><button class="taller-remove" onclick="'+quitarOnclick+'">&#x2715;</button>';
+}
+
+function capturarEstadoParte(prefix){
+  var root=document.getElementById(prefix==='c'?'app-checklist':'app-albaran');
+  if(!root) return null;
+  return {
+    v:1, prefix:prefix, ts:Date.now(),
+    empresa: prefix==='c'?empresaChecklist:empresaAlbaran,
+    tipoAlbaran: prefix==='a'?tipoAlbaran:null,
+    tipoChecklist: prefix==='c'?tipoChecklist:null,
+    tallerEstado: tallerEstado,
+    ausenteState: JSON.parse(JSON.stringify(ausenteState)),
+    tecnicosExtra: JSON.parse(JSON.stringify(_tecnicosExtra[prefix]||[])),
+    fotosData: JSON.parse(JSON.stringify(fotosData)),
+    fotosExtra: JSON.parse(JSON.stringify(fotosExtra)),
+    bombaFotoData: bombaFotoData.slice(),
+    tallerAntesData: tallerAntesData.slice(),
+    tallerDespuesData: tallerDespuesData.slice(),
+    tallerFotoData: tallerFotoData,
+    pdfData: JSON.parse(JSON.stringify(pdfData)),
+    materiales: _capturarMateriales(),
+    pills: _capturarPills(root),
+    firmas: _capturarFirmas(root),
+    campos: _capturarCamposGenericos(root),
+    timerStart: timerStart,
+    ubicacionInicio: window._ubicacionInicio||null,
+    fechaTexto: fechaTexto
+  };
+}
+
+function guardarEstadoParte(prefix){
+  try{
+    var estado=capturarEstadoParte(prefix);
+    if(!estado) return;
+    localStorage.setItem(_saveKeyFor(prefix), JSON.stringify(estado));
+  }catch(e){ /* almacenamiento lleno o no disponible: se ignora, no debe romper el envío */ }
+}
+
+function borrarEstadoGuardado(prefix){
+  try{
+    if(prefix){ localStorage.removeItem(_saveKeyFor(prefix)); }
+    else { localStorage.removeItem(_SAVE_KEY_C); localStorage.removeItem(_SAVE_KEY_A); }
+  }catch(e){}
+}
+
+function iniciarAutoguardado(){
+  if(_autosaveInterval) clearInterval(_autosaveInterval);
+  _autosaveInterval=setInterval(function(){
+    if(parteEnCurso && timerPrefix){ guardarEstadoParte(timerPrefix); }
+  }, 30000);
+}
+
+function restaurarEstadoParte(estado){
+  var prefix=estado.prefix;
+  var root=document.getElementById(prefix==='c'?'app-checklist':'app-albaran');
+  if(!root) return;
+
+  if(estado.empresa) selectEmpresa(estado.empresa, prefix);
+
+  if(prefix==='a' && estado.tipoAlbaran){ selectTipo(estado.tipoAlbaran); }
+  if(prefix==='c' && estado.tipoChecklist){
+    tipoChecklist = estado.tipoChecklist;
+    switchChecklist(estado.tipoChecklist.indexOf('Hidrá')>-1 ? 'hid':'elec');
+  }
+
+  _restaurarCamposGenericos(estado.campos);
+  _restaurarMateriales(estado.materiales);
+  _restaurarPills(root, estado.pills);
+  _restaurarFirmas(estado.firmas);
+
+  Object.keys(estado.fotosData||{}).forEach(function(key){
+    fotosData[key]=estado.fotosData[key];
+    fotosExtra[key]=estado.fotosExtra[key]||[];
+    if(document.getElementById('fotos-grid-'+key)) buildFotoGrid(key);
+  });
+
+  if(estado.bombaFotoData){
+    bombaFotoData = estado.bombaFotoData;
+    bombaFotoData.forEach(function(d,i){ if(d) _pintarSlotSimple('bomba-foto-slot-'+i, d, 'quitarFotoBomba(event,'+i+')'); });
+  }
+  if(estado.tallerAntesData){
+    tallerAntesData = estado.tallerAntesData;
+    tallerAntesData.forEach(function(d,i){ if(d) _pintarSlotSimple('taller-antes-slot-'+i, d, 'quitarTallerAntes(event,'+i+')'); });
+  }
+  if(estado.tallerDespuesData){
+    tallerDespuesData = estado.tallerDespuesData;
+    tallerDespuesData.forEach(function(d,i){ if(d) _pintarSlotSimple('taller-despues-slot-'+i, d, 'quitarTallerDespues(event,'+i+')'); });
+  }
+  if(estado.tallerFotoData){
+    tallerFotoData = estado.tallerFotoData;
+    var slotNuevo=document.getElementById('taller-slot-nuevo');
+    if(slotNuevo){ slotNuevo.className='taller-slot filled'; slotNuevo.onclick=null; slotNuevo.innerHTML='<img src="'+tallerFotoData+'" alt="Foto taller"><button class="taller-remove" onclick="quitarFotoTaller(event)">&#x2715;</button>'; }
+  }
+  if(estado.tallerEstado){
+    tallerEstado = estado.tallerEstado;
+    var siBtn=document.getElementById('taller-btn-si'), noBtn=document.getElementById('taller-btn-no'), fotoBox=document.getElementById('taller-nueva-foto');
+    if(siBtn&&noBtn){
+      siBtn.className='taller-btn'; noBtn.className='taller-btn';
+      if(tallerEstado==='Si'){ siBtn.className='taller-btn si-activo'; if(fotoBox) fotoBox.classList.remove('show'); }
+      else{ noBtn.className='taller-btn no-activo'; if(fotoBox) fotoBox.classList.add('show'); }
+    }
+  }
+
+  Object.keys(estado.pdfData||{}).forEach(function(key){
+    var d=estado.pdfData[key];
+    if(!d) return;
+    pdfData[key]=d;
+    var nameEl=document.getElementById('pdf-name-'+key), labelEl=document.getElementById('pdf-label-'+key), clearEl=document.getElementById('pdf-clear-'+key);
+    if(nameEl){ nameEl.textContent='✅ '+(d.nombre||'presupuesto.pdf'); nameEl.style.color='var(--ok)'; }
+    if(labelEl) labelEl.style.borderColor='var(--ok)';
+    if(clearEl) clearEl.style.display='inline-block';
+  });
+
+  Object.keys(estado.ausenteState||{}).forEach(function(k){
+    ausenteState[k]=estado.ausenteState[k];
+    if(ausenteState[k]){
+      var btn=document.getElementById('btn-ausente-'+k), obs=document.getElementById('ausente-obs-'+k), canvas=document.getElementById('firma-cliente-'+k);
+      if(btn) btn.classList.add('active');
+      if(obs) obs.classList.add('show');
+      if(canvas){ canvas.style.opacity='0.3'; canvas.style.pointerEvents='none'; }
+    }
+  });
+
+  if(estado.tecnicosExtra && estado.tecnicosExtra.length){
+    estado.tecnicosExtra.forEach(function(t){
+      addTecnicoExtra(prefix);
+      var idx=_tecnicosExtra[prefix][_tecnicosExtra[prefix].length-1].idx;
+      _tecnicosExtra[prefix][_tecnicosExtra[prefix].length-1].valor=t.valor;
+      var inp=document.getElementById('tecnico-extra-'+idx);
+      if(inp) inp.value=t.valor;
+    });
+  }
+
+  if(estado.ubicacionInicio) window._ubicacionInicio=estado.ubicacionInicio;
+  if(estado.fechaTexto) fechaTexto = estado.fechaTexto;
+
+  if(prefix==='a') empresaAlbaran = estado.empresa;
+  else empresaChecklist = estado.empresa;
+  timerStart = estado.timerStart || Date.now();
+  parteEnCurso = true;
+  timerPrefix = prefix;
+  bloquearEmpresa(prefix);
+  document.body.style.overscrollBehaviorY='contain';
+  document.addEventListener('keydown', bloquearTeclaRefresco);
+  document.addEventListener('touchstart', bloquarPullRefresh, { passive:false });
+  var contenido=document.getElementById('contenido-parte-'+prefix);
+  if(contenido) contenido.classList.add('visible');
+  window.onbeforeunload=function(e){ var msg='⚠️ Tienes un parte en curso. ¿Seguro que quieres salir?'; e.preventDefault(); e.returnValue=msg; return msg; };
+  var btnInicio=document.getElementById('btn-inicio-'+prefix);
+  if(btnInicio){
+    btnInicio.classList.remove('esperando-ubic'); btnInicio.classList.add('activo'); btnInicio.onclick=null;
+    btnInicio.innerHTML='<div style="text-align:center;width:100%;"><div class="timer-label">⏱ Parte en curso</div><div class="timer-display" id="timer-display-'+prefix+'">00:00:00</div></div>';
+  }
+  if(timerInterval) clearInterval(timerInterval);
+  timerInterval=setInterval(function(){
+    var elapsed=Date.now()-timerStart;
+    var totalSec=Math.floor(elapsed/1000);
+    var h=String(Math.floor(totalSec/3600)).padStart(2,'0');
+    var m=String(Math.floor((totalSec%3600)/60)).padStart(2,'0');
+    var s=String(totalSec%60).padStart(2,'0');
+    var display=document.getElementById('timer-display-'+prefix);
+    if(display) display.textContent=h+':'+m+':'+s;
+  }, 1000);
+
+  iniciarAutoguardado();
+  showToast('✅ Parte recuperado correctamente', 'success');
+}
+
+function _formatEdadGuardado(ts){
+  var mins=Math.round((Date.now()-ts)/60000);
+  if(mins<1) return 'hace un momento';
+  if(mins<60) return 'hace '+mins+' min';
+  var horas=Math.round(mins/60);
+  return 'hace '+horas+'h';
+}
+
+function mostrarAvisoRecuperacion(estado){
+  var tipoTxt = estado.prefix==='c' ? 'checklist' : 'albarán';
+  var cliente = (estado.campos && estado.campos.texto && estado.campos.texto[estado.prefix+'-cliente']) || 'Sin cliente';
+  var div=document.createElement('div');
+  div.id='aviso-recuperacion-'+estado.prefix;
+  div.style.cssText='position:fixed;left:12px;right:12px;bottom:12px;z-index:9999;background:#184595;color:#fff;border-radius:12px;padding:14px 16px;box-shadow:0 6px 24px rgba(0,0,0,.3);font-family:var(--font);';
+  div.innerHTML =
+    '<div style="font-weight:700;font-size:14px;margin-bottom:4px;">⚠️ Tienes un '+tipoTxt+' sin enviar</div>'+
+    '<div style="font-size:12px;opacity:.9;margin-bottom:10px;">Cliente: '+cliente+' · '+_formatEdadGuardado(estado.ts)+'</div>'+
+    '<div style="display:flex;gap:8px;">'+
+      '<button id="btn-recuperar-'+estado.prefix+'" style="flex:1;background:#fff;color:#184595;border:none;border-radius:8px;padding:10px;font-weight:700;font-size:13px;cursor:pointer;">Recuperar</button>'+
+      '<button id="btn-descartar-'+estado.prefix+'" style="flex:1;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.4);border-radius:8px;padding:10px;font-weight:700;font-size:13px;cursor:pointer;">Descartar</button>'+
+    '</div>';
+  document.body.appendChild(div);
+  document.getElementById('btn-recuperar-'+estado.prefix).onclick=function(){
+    restaurarEstadoParte(estado);
+    div.remove();
+  };
+  document.getElementById('btn-descartar-'+estado.prefix).onclick=function(){
+    borrarEstadoGuardado(estado.prefix);
+    div.remove();
+  };
+}
+
+function chequearParteGuardado(){
+  [_SAVE_KEY_C,_SAVE_KEY_A].forEach(function(key){
+    try{
+      var raw=localStorage.getItem(key);
+      if(!raw) return;
+      var estado=JSON.parse(raw);
+      if(!estado || !estado.ts || (Date.now()-estado.ts) > 18*3600000){
+        localStorage.removeItem(key); return;
+      }
+      mostrarAvisoRecuperacion(estado);
+    }catch(e){ localStorage.removeItem(key); }
+  });
+}
 
 
 // -- DESCALCIFICADORES --
