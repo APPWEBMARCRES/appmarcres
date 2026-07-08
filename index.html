@@ -2700,7 +2700,7 @@ function _enviarUbicacionGAS(activo) {
   }).catch(function(){});
 }
 
-function detenerTrackingGPS() {
+function detenerTrackingGPS(prefixFinalizado) {
   if (_gpsWatchId !== null) {
     navigator.geolocation.clearWatch(_gpsWatchId);
     _gpsWatchId = null;
@@ -2710,8 +2710,8 @@ function detenerTrackingGPS() {
     _gpsEnvioInterval = null;
   }
   // Avisar al GAS que el técnico terminó el parte — queda en mapa sin trabajo asignado
-  if (timerPrefix) {
-    var prefix = timerPrefix;
+  var prefix = prefixFinalizado || timerPrefix;
+  if (prefix) {
     var tecnico = document.getElementById(prefix+'-tecnico')?.value || '';
     var empresa = prefix === 'c' ? empresaChecklist : empresaAlbaran;
     if (tecnico) {
@@ -2751,8 +2751,9 @@ _arrancarParte = function(prefix) {
 
 var _orig_detenerTimer = detenerTimer;
 detenerTimer = function() {
+  var _prefixFinalizado = timerPrefix; // capturar ANTES de que _orig_detenerTimer lo ponga a null
   _orig_detenerTimer();
-  detenerTrackingGPS();
+  detenerTrackingGPS(_prefixFinalizado);
 };
 
 // ══════════════════════════════════════════════════════════════
