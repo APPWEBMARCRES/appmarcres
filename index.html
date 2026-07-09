@@ -2608,7 +2608,6 @@ function comprobarPermisoUbicacion() {
 
 buildAlbaranTables();buildChecklistTables();
 comprobarPermisoUbicacion();buildElec();initFotos();initFirmas();
-chequearParteGuardado();
 addMatRowFor('simple');addMatRowFor('mant');addMatRowFor('elec');addMatRowFor('hid');
 const nowInit=new Date();
 const horaStr=String(nowInit.getHours()).padStart(2,'0')+':'+String(nowInit.getMinutes()).padStart(2,'0');
@@ -3317,6 +3316,8 @@ function resetTecnico(prefix){
   }
 }
 
+// Comprobar parte guardado — se hace aquí, al final, para asegurar que todo lo necesario ya está definido
+chequearParteGuardado();
 
 </script>
 
