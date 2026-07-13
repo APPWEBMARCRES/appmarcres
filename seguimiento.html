@@ -234,6 +234,9 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
   </div>
   <div class="header-right">
     <span class="status-dot" id="status-dot"></span>
+    <button class="btn-refresh" onclick="toggleAutoRefresh()" id="btn-pausa">
+      <span id="pausa-icon">⏸</span> Pausar
+    </button>
     <button class="btn-refresh" onclick="cargarPosiciones()" id="btn-refresh">
       <span id="refresh-icon">🔄</span> Actualizar
     </button>
@@ -278,6 +281,7 @@ var GAS_URL = localStorage.getItem('marcres_gas_url') || '';
 var map = null;
 var markers = {};
 var autoRefreshInterval = null;
+var autoRefreshPausado = false;
 
 // Mostrar URL guardada
 document.getElementById('gas-url-input').value = GAS_URL;
@@ -604,6 +608,26 @@ if (GAS_URL) cargarPosiciones();
 
 // Auto-refresh cada 60 segundos
 autoRefreshInterval = setInterval(cargarPosiciones, 15 * 1000); // cada 15 segundos
+
+function toggleAutoRefresh(){
+  var btn = document.getElementById('btn-pausa');
+  var icon = document.getElementById('pausa-icon');
+  if(!autoRefreshPausado){
+    // Pausar: detener el refresco automático, sin tocar nada más del panel
+    if(autoRefreshInterval){ clearInterval(autoRefreshInterval); autoRefreshInterval = null; }
+    autoRefreshPausado = true;
+    if(icon) icon.textContent = '▶';
+    if(btn) btn.innerHTML = '<span id="pausa-icon">▶</span> Reanudar';
+    if(btn) btn.style.background = '#E53935';
+  } else {
+    // Reanudar: volver a arrancar el mismo refresco de siempre (15s)
+    autoRefreshInterval = setInterval(cargarPosiciones, 15 * 1000);
+    autoRefreshPausado = false;
+    if(btn) btn.innerHTML = '<span id="pausa-icon">⏸</span> Pausar';
+    if(btn) btn.style.background = '';
+    cargarPosiciones(); // refresco inmediato al reanudar, para no esperar 15s
+  }
+}
 
 // Mostrar config si el usuario quiere cambiar la URL
 document.querySelector('.header-logo').addEventListener('click', function() {
