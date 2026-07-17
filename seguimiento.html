@@ -198,11 +198,17 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
   .tecnicos-grid { grid-template-columns: 1fr; }
 }
 
-.notif-toast {
+#notif-stack {
   position: fixed;
   top: 70px;
   right: 16px;
   z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-end;
+}
+.notif-toast {
   background: #184595;
   color: #fff;
   padding: 12px 18px;
@@ -556,13 +562,19 @@ function borrarTecnico(tecnico) {
 var _tecnicosAnteriores = {};
 
 function mostrarNotificacion(tecnico, empresa, cliente) {
+  var stack = document.getElementById('notif-stack');
+  if (!stack) {
+    stack = document.createElement('div');
+    stack.id = 'notif-stack';
+    document.body.appendChild(stack);
+  }
   var toast = document.createElement('div');
   toast.className = 'notif-toast' + (empresa === 'rivagua' ? ' rivagua' : '');
   var primerNombre = tecnico.split(' ')[0];
   toast.innerHTML = ['🔔 <div><div>', primerNombre, ' inició un parte</div>',
     '<div style="font-size:11px;font-weight:400;opacity:.85;">', (cliente || ''), '</div></div>'].join('');
   toast.onclick = function() { toast.remove(); };
-  document.body.appendChild(toast);
+  stack.appendChild(toast);
 
   // Notificación real del sistema operativo (aparece aunque el navegador esté minimizado u otra pestaña activa)
   try {
