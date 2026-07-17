@@ -234,6 +234,9 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
   </div>
   <div class="header-right">
     <span class="status-dot" id="status-dot"></span>
+    <button class="btn-refresh" onclick="activarNotificacionesSistema()" id="btn-notif">
+      <span id="notif-icon">🔕</span> Activar avisos
+    </button>
     <button class="btn-refresh" onclick="toggleAutoRefresh()" id="btn-pausa">
       <span id="pausa-icon">⏸</span> Pausar
     </button>
@@ -280,6 +283,40 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
 var GAS_URL = localStorage.getItem('marcres_gas_url') || '';
 var map = null;
 var markers = {};
+function activarNotificacionesSistema(){
+  var btn=document.getElementById('btn-notif');
+  if(!window.Notification){
+    alert('Tu navegador no soporta notificaciones del sistema.');
+    return;
+  }
+  if(Notification.permission==='granted'){
+    actualizarBotonNotif();
+    new Notification('🔔 Avisos activados', {body:'Recibirás un aviso cada vez que un técnico inicie un parte.'});
+    return;
+  }
+  if(Notification.permission==='denied'){
+    alert('Tienes las notificaciones bloqueadas para esta página. Para activarlas, entra en la configuración del navegador (icono del candado junto a la URL) y permite las notificaciones manualmente.');
+    return;
+  }
+  Notification.requestPermission().then(function(permiso){
+    actualizarBotonNotif();
+    if(permiso==='granted'){
+      new Notification('🔔 Avisos activados', {body:'Recibirás un aviso cada vez que un técnico inicie un parte.'});
+    }
+  });
+}
+function actualizarBotonNotif(){
+  var btn=document.getElementById('btn-notif');
+  if(!btn||!window.Notification) return;
+  if(Notification.permission==='granted'){
+    btn.innerHTML='<span id="notif-icon">🔔</span> Avisos activos';
+    btn.style.background='#2E7D32';
+  }else{
+    btn.innerHTML='<span id="notif-icon">🔕</span> Activar avisos';
+    btn.style.background='';
+  }
+}
+
 var autoRefreshInterval = null;
 var autoRefreshPausado = false;
 
@@ -419,6 +456,7 @@ function renderizarTecnicos(posiciones) {
         + (p.tipo    ? '<div style="font-size:12px;margin-bottom:2px;">📋 ' + p.tipo + '</div>' : '')
         + (p.tecnicosExtra ? '<div style="font-size:12px;color:#184595;font-weight:600;margin-bottom:2px;">🤝 Con: ' + p.tecnicosExtra + '</div>' : '')
         + '<div style="font-size:11px;color:#aaa;margin-top:6px;">🕐 ' + (p.timestamp || '') + '</div>'
+        + (p.horaInicio ? '<div style="font-size:11px;color:#aaa;">▶ Inicio: ' + p.horaInicio + '</div>' : '')
         + '<div style="margin-top:8px;"><a href="' + mapsUrlPopup + '" target="_blank" style="font-size:12px;color:#184595;font-weight:600;">📍 Ver en Maps</a></div>'
         + '</div>';
       if (markers[p.tecnico]) {
@@ -452,6 +490,7 @@ function renderizarTecnicos(posiciones) {
       + (p.tipo    ? '<div class="tecnico-row"><b>📋</b> ' + p.tipo + '</div>' : '')
       + (p.tecnicosExtra ? '<div class="tecnico-row" style="color:#184595;font-weight:600;"><b>🤝</b> Con: ' + p.tecnicosExtra + '</div>' : '')
       +   '<div class="tecnico-row"><b>📍</b> ' + p.lat + ', ' + p.lng + (p.precision ? '  <span style="color:#bbb">±' + p.precision + 'm</span>' : '') + '</div>'
+      + (p.horaInicio ? '<div class="tecnico-row"><b>▶</b> Inicio: ' + p.horaInicio + '</div>' : '')
       + (p.timestamp ? '<div class="tecnico-row"><b>🕐</b> ' + p.timestamp + '</div>' : '')
       + '</div>'
       + '<div class="tecnico-card-footer">'
@@ -524,6 +563,19 @@ function mostrarNotificacion(tecnico, empresa, cliente) {
     '<div style="font-size:11px;font-weight:400;opacity:.85;">', (cliente || ''), '</div></div>'].join('');
   toast.onclick = function() { toast.remove(); };
   document.body.appendChild(toast);
+
+  // Notificación real del sistema operativo (aparece aunque el navegador esté minimizado u otra pestaña activa)
+  try {
+    if (window.Notification && Notification.permission === 'granted') {
+      var notifSistema = new Notification((empresa === 'rivagua' ? '🟨' : '🟦') + ' ' + tecnico + ' inició un parte', {
+        body: cliente || 'Sin trabajo asignado',
+        tag: 'marcres-' + tecnico, // evita duplicados si llegan varias actualizaciones seguidas
+        renotify: false
+      });
+      notifSistema.onclick = function() { window.focus(); notifSistema.close(); };
+      setTimeout(function() { notifSistema.close(); }, 10000);
+    }
+  } catch(eNotif) {}
 
   // Sonido de notificación
   try {
@@ -636,6 +688,8 @@ document.querySelector('.header-logo').addEventListener('click', function() {
   var bar = document.getElementById('config-bar');
   bar.style.display = bar.style.display === 'none' ? 'flex' : 'none';
 });
+
+actualizarBotonNotif();
 </script>
 </body>
 </html>
