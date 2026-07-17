@@ -2786,6 +2786,7 @@ function _enviarUbicacionGAS(activo) {
       cliente: cliente,
       tipo: tipo,
       activo: activo,
+      horaInicio: timerStart ? new Date(timerStart).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}) : '',
       tecnicosExtra: getTecnicosExtra(prefix)
     })
   }).catch(function(){});
