@@ -325,7 +325,7 @@ table.hid-table{width:100%;border-collapse:collapse;font-size:12px;}
     <div class="field-group"><label class="field-label">Técnico <span style="color:var(--bad)">*</span> <span class="holded-badge">Holded</span></label>
       <div style="position:relative;">
         <div style="display:flex;align-items:center;gap:6px;">
-          <input type="text" class="field-input" id="c-tecnico" placeholder="Selecciona empresa primero..." autocomplete="off" oninput="mayusAuto(this);buscarEmpleado(this.value,'c')" onfocus="buscarEmpleado(this.value,'c')" style="flex:1;" disabled>
+          <input type="text" class="field-input" id="c-tecnico" placeholder="Selecciona empresa primero..." autocomplete="off" oninput="mayusAuto(this);buscarEmpleado(this.value,'c');refrescarFirmasTecnicosActivo('c')" onfocus="buscarEmpleado(this.value,'c')" style="flex:1;" disabled>
           <button onclick="resetTecnico('c')" title="Borrar técnico" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--muted);flex-shrink:0;">✕</button>
         </div>
         <div class="holded-dropdown" id="c-tecnico-drop" style="display:none;"></div>
@@ -474,7 +474,7 @@ table.hid-table{width:100%;border-collapse:collapse;font-size:12px;}
     <div class="field-group"><label class="field-label">Técnico <span style="color:var(--bad)">*</span> <span class="holded-badge">Holded</span></label>
       <div style="position:relative;">
         <div style="display:flex;align-items:center;gap:6px;">
-          <input type="text" class="field-input" id="a-tecnico" placeholder="Selecciona empresa primero..." autocomplete="off" oninput="mayusAuto(this);buscarEmpleado(this.value,'a')" onfocus="buscarEmpleado(this.value,'a')" style="flex:1;" disabled>
+          <input type="text" class="field-input" id="a-tecnico" placeholder="Selecciona empresa primero..." autocomplete="off" oninput="mayusAuto(this);buscarEmpleado(this.value,'a');refrescarFirmasTecnicosActivo('a')" onfocus="buscarEmpleado(this.value,'a')" style="flex:1;" disabled>
           <button onclick="resetTecnico('a')" title="Borrar técnico" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--muted);flex-shrink:0;">✕</button>
         </div>
         <div class="holded-dropdown" id="a-tecnico-drop" style="display:none;"></div>
@@ -667,6 +667,15 @@ table.hid-table{width:100%;border-collapse:collapse;font-size:12px;}
     <div class="card" id="sec-inc-preparacion">
       <div class="section-header" onclick="toggleSec('sec-inc-preparacion')"><span class="sec-title">Incidencia</span><span class="chevron">⌄</span></div>
       <div class="section-body"><div class="obs-section"><textarea class="obs-textarea" id="preparacion-incidencia" placeholder="Describe la incidencia detectada..."></textarea></div></div>
+    </div>
+    <div class="card" id="sec-fotos-preparacion">
+      <div class="section-header section-open" onclick="toggleSec('sec-fotos-preparacion')"><span class="sec-title">📷 Fotografías</span><span class="chevron">⌄</span></div>
+      <div class="section-body" style="display:block;">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">Adjunta una o varias fotografías si es necesario</div>
+        <input type="file" accept="image/*" capture="environment" id="foto-input-preparacion" style="display:none">
+        <div class="fotos-grid" id="fotos-grid-preparacion"></div>
+        <div style="margin-top:8px;font-size:12px;" id="cnt-fotos-preparacion"></div>
+      </div>
     </div>
     <div class="card" id="sec-mat-preparacion">
       <div class="section-header section-open" onclick="toggleSec('sec-mat-preparacion')"><span class="sec-title">Presupuesto Materiales</span><span class="chevron">⌄</span></div>
@@ -936,8 +945,8 @@ function mayusAuto(el){
   el.value=el.value.toUpperCase();
   if(el.setSelectionRange) el.setSelectionRange(inicio,fin);
 }
-const fotosData={mant:Array(5).fill(null),simple:Array(5).fill(null),elec:Array(5).fill(null),hid:Array(5).fill(null),descal:Array(5).fill(null)};
-const fotosExtra={mant:[],simple:[],elec:[],hid:[],descal:[]};
+const fotosData={mant:Array(5).fill(null),simple:Array(5).fill(null),elec:Array(5).fill(null),hid:Array(5).fill(null),descal:Array(5).fill(null),preparacion:Array(5).fill(null)};
+const fotosExtra={mant:[],simple:[],elec:[],hid:[],descal:[],preparacion:[]};
 const ausenteState={elec:false,hid:false,mant:false,simple:false,bomba:false,preparacion:false,taller:false,descal:false};
 const firmaData={};
 const pdfData={elec:null,hid:null,mant:null,simple:null};
@@ -1104,9 +1113,16 @@ function renderFirmasTecnicos(panelKey, prefix){
   var nombrePrincipal=(document.getElementById(prefix+'-tecnico')?.value||'').trim()||'Técnico 1';
   var extras=(_tecnicosExtra[prefix]||[]).map(function(t){return (t.valor||'').trim();}).filter(Boolean);
   var nombres=[nombrePrincipal].concat(extras);
-  // Si ya hay el mismo número de firmas renderizadas, no se toca nada (no se pierden firmas ya hechas)
+  // Si ya hay el mismo número de firmas renderizadas, solo se actualizan las etiquetas de nombre
+  // (por si el técnico se escribió/cambió después de crear las cajas), sin tocar los canvas para no perder firmas ya hechas
   var actuales=wrap.querySelectorAll('.firma-canvas');
-  if(actuales.length===nombres.length) return;
+  if(actuales.length===nombres.length){
+    wrap.querySelectorAll('.firma-section').forEach(function(sec,i){
+      var label=sec.querySelector('.firma-label');
+      if(label && nombres[i]) label.innerHTML='Firma de '+nombres[i]+' <span style="color:var(--bad);font-size:10px;">*obligatoria</span>';
+    });
+    return;
+  }
   var html='';
   nombres.forEach(function(nombre,i){
     var id='tecnico-'+panelKey+'-'+i;
@@ -1279,7 +1295,7 @@ function removePhoto(key,slot,e){e.stopPropagation();fotosData[key][slot]=null;b
 function removePhotoExtra(key,idx,e){e.stopPropagation();fotosExtra[key].splice(idx,1);buildFotoGrid(key);}
 function openCameraExtra(key){currentFotoKey=key;currentFotoSlot='extra';const inp=document.getElementById('foto-input-'+key);if(inp){inp.value='';inp.click();}}
 function updateFotoCounter(key){const cnt=fotosData[key].filter(Boolean).length;const extra=(fotosExtra[key]||[]).length;const el=document.getElementById('cnt-fotos-'+key)||document.getElementById('cnt-'+key);if(!el)return;el.textContent=cnt+'/5'+(extra>0?' +'+extra:'');el.style.background=cnt===5?'var(--ok-bg)':'var(--bad-bg)';el.style.color=cnt===5?'var(--ok)':'var(--bad)';el.style.borderColor=cnt===5?'var(--ok)':'var(--bad)';}
-function initFotos(){['mant','simple','elec','hid','descal'].forEach(key=>{const inp=document.getElementById('foto-input-'+key);if(!inp)return;inp.addEventListener('change',function(){const file=this.files[0];if(!file)return;const reader=new FileReader();reader.onload=e=>{const img=new Image();img.onload=()=>{const canvas=document.createElement('canvas'),MAX=800;let w=img.width,h=img.height;if(w>MAX){h=Math.round(h*MAX/w);w=MAX;}if(h>MAX){w=Math.round(w*MAX/h);h=MAX;}canvas.width=w;canvas.height=h;canvas.getContext('2d').drawImage(img,0,0,w,h);if(currentFotoSlot==='extra'){fotosExtra[currentFotoKey].push(canvas.toDataURL('image/jpeg',0.75));showToast('✅ Foto extra añadida','success');}else{fotosData[currentFotoKey][currentFotoSlot]=canvas.toDataURL('image/jpeg',0.75);}buildFotoGrid(currentFotoKey);};img.src=e.target.result;};reader.readAsDataURL(file);});buildFotoGrid(key);});}
+function initFotos(){['mant','simple','elec','hid','descal','preparacion'].forEach(key=>{const inp=document.getElementById('foto-input-'+key);if(!inp)return;inp.addEventListener('change',function(){const file=this.files[0];if(!file)return;const reader=new FileReader();reader.onload=e=>{const img=new Image();img.onload=()=>{const canvas=document.createElement('canvas'),MAX=800;let w=img.width,h=img.height;if(w>MAX){h=Math.round(h*MAX/w);w=MAX;}if(h>MAX){w=Math.round(w*MAX/h);h=MAX;}canvas.width=w;canvas.height=h;canvas.getContext('2d').drawImage(img,0,0,w,h);if(currentFotoSlot==='extra'){fotosExtra[currentFotoKey].push(canvas.toDataURL('image/jpeg',0.75));showToast('✅ Foto extra añadida','success');}else{fotosData[currentFotoKey][currentFotoSlot]=canvas.toDataURL('image/jpeg',0.75);}buildFotoGrid(currentFotoKey);};img.src=e.target.result;};reader.readAsDataURL(file);});buildFotoGrid(key);});}
 
 function activarFirmaCanvas(canvas){const id=canvas.id;firmaData[id]={signed:false};let drawing=false,lx=0,ly=0;const ctx=canvas.getContext('2d');ctx.strokeStyle='#184595';ctx.lineWidth=2.5;ctx.lineCap='round';ctx.lineJoin='round';function getPos(e){const r=canvas.getBoundingClientRect();const src=e.touches?e.touches[0]:e;return{x:(src.clientX-r.left)*(canvas.width/r.width),y:(src.clientY-r.top)*(canvas.height/r.height)};}function start(e){e.preventDefault();drawing=true;const p=getPos(e);lx=p.x;ly=p.y;ctx.beginPath();ctx.arc(lx,ly,1,0,Math.PI*2);ctx.fill();}function move(e){e.preventDefault();if(!drawing)return;const p=getPos(e);ctx.beginPath();ctx.moveTo(lx,ly);ctx.lineTo(p.x,p.y);ctx.stroke();lx=p.x;ly=p.y;firmaData[id].signed=true;canvas.classList.add('signed');}function end(){drawing=false;}canvas.width=canvas.offsetWidth||300;canvas.height=140;canvas.addEventListener('mousedown',start);canvas.addEventListener('mousemove',move);canvas.addEventListener('mouseup',end);canvas.addEventListener('touchstart',start,{passive:false});canvas.addEventListener('touchmove',move,{passive:false});canvas.addEventListener('touchend',end);}
 function initFirmas(){document.querySelectorAll('.firma-canvas').forEach(activarFirmaCanvas);}
@@ -1453,7 +1469,7 @@ async function enviarAlbaran(panel){
     btn.disabled=true;btn.textContent='📍 Obteniendo ubicación...';
     const ubicacion=await obtenerUbicacionFinal();
     btn.textContent='⏳ Generando PDF...';
-    const payload={empresa:empresaAlbaran,tipo:'Preparación Materiales',fecha:fechaTexto,horaInicio:document.getElementById('a-hora-inicio').value,horaFin:calcHoraFin(),totalHoras:calcDuracion(),tiempoTranscurrido:getTiempoTranscurrido(),cliente,direccion:document.getElementById('a-direccion').value.trim(),poblacion:document.getElementById('a-poblacion').value.trim(),cp:document.getElementById('a-cp').value.trim(),tecnico,tecnicosExtra:getTecnicosExtra('a'),bloque:document.getElementById('a-bloque')?.value.trim()||'',observaciones:document.getElementById('preparacion-obs').value.trim(),incidencia:document.getElementById('preparacion-incidencia')?.value.trim()||'',materiales:getMaterilesFor('preparacion'),firmaTecnico:getFirmaBase64('tecnico-preparacion'),firmaCliente:null,clienteAusente:true,motivoAusencia:'No requerida',numDoc:genNumDoc(),idParte:_idParteActual.a,ubicacion,ubicacionInicio:window._ubicacionInicio||null,horaEnvio:calcHoraFin()};
+    const payload={empresa:empresaAlbaran,tipo:'Preparación Materiales',fecha:fechaTexto,horaInicio:document.getElementById('a-hora-inicio').value,horaFin:calcHoraFin(),totalHoras:calcDuracion(),tiempoTranscurrido:getTiempoTranscurrido(),cliente,direccion:document.getElementById('a-direccion').value.trim(),poblacion:document.getElementById('a-poblacion').value.trim(),cp:document.getElementById('a-cp').value.trim(),tecnico,tecnicosExtra:getTecnicosExtra('a'),bloque:document.getElementById('a-bloque')?.value.trim()||'',observaciones:document.getElementById('preparacion-obs').value.trim(),incidencia:document.getElementById('preparacion-incidencia')?.value.trim()||'',materiales:getMaterilesFor('preparacion'),fotos:[...fotosData['preparacion'].filter(Boolean),...(fotosExtra['preparacion']||[])],firmaTecnico:getFirmaBase64('tecnico-preparacion'),firmaCliente:null,clienteAusente:true,motivoAusencia:'No requerida',numDoc:genNumDoc(),idParte:_idParteActual.a,ubicacion,ubicacionInicio:window._ubicacionInicio||null,horaEnvio:calcHoraFin()};
     try{const ctrl=new AbortController();const timer=setTimeout(()=>ctrl.abort(),60000);const res=await fetch(GAS_URL,{method:'POST',body:JSON.stringify(payload),headers:{'Content-Type':'text/plain;charset=utf-8'},signal:ctrl.signal});clearTimeout(timer);const data=await res.json();if(data.ok)mostrarPantallaFinal(data.url||null);else throw new Error(data.error||'Error desconocido');}
     catch(err){showToast('❌ Error: '+(err.message||'sin conexión')+' — Espera 30s','error');btn.textContent='⏳ Espera 30s...';setTimeout(function(){btn.disabled=false;btn.textContent='📤 Enviar Preparación Materiales';},30000);}
     return;
@@ -3405,6 +3421,7 @@ function elegirTecnico(id,nombre,prefix){
   inp.style.fontWeight='600';
   document.getElementById(prefix+'-tecnico-drop').style.display='none';
   tecnicoElegido[prefix]=true;
+  refrescarFirmasTecnicosActivo(prefix);
   if(prefix==='c') cargarTareasChecklist(id, nombre);
   if(prefix==='a'){
     tecnicoAlbaranElegido=true;
