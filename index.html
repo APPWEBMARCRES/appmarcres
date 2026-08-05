@@ -1429,25 +1429,38 @@ function _pedirGPS(){
 
 function enviarConProgreso(payload,btn,tipoLabel){
   return new Promise(function(resolve,reject){
+    // NOTA: no usar xhr.upload.onprogress — el simple hecho de registrar un
+    // listener ahí obliga al navegador a hacer un preflight CORS (OPTIONS)
+    // antes de la petición real, y Google Apps Script no sabe responder a
+    // eso, así que la petición se bloquea siempre con "Failed to fetch".
+    // En su lugar simulamos el avance por tiempo estimado según el peso.
+    const pesoMB=(new Blob([JSON.stringify(payload)]).size)/1024/1024;
+    const segundosEstimados=Math.max(4,Math.min(60,pesoMB*3.5)); // ~3.5s por MB, entre 4 y 60s
+    let pct=0;
+    const pasoMs=300;
+    const pasos=Math.floor((segundosEstimados*1000)/pasoMs);
+    let pasoActual=0;
+    const progresoTimer=setInterval(function(){
+      pasoActual++;
+      pct=Math.min(92,Math.round((pasoActual/pasos)*92)); // se detiene en 92% hasta tener respuesta real
+      btn.textContent='⏳ Enviando... '+pct+'%';
+    },pasoMs);
+
     const xhr=new XMLHttpRequest();
     xhr.open('POST',GAS_URL,true);
     xhr.setRequestHeader('Content-Type','text/plain;charset=utf-8');
     xhr.timeout=120000;
-    xhr.upload.onprogress=function(e){
-      if(e.lengthComputable){
-        const pct=Math.round((e.loaded/e.total)*100);
-        btn.textContent='⏳ Enviando... '+pct+'%';
-      }
-    };
     xhr.onload=function(){
+      clearInterval(progresoTimer);
+      btn.textContent='⏳ Enviando... 100%';
       let data;
       try{data=JSON.parse(xhr.responseText);}
       catch(err){reject(new Error('Respuesta inválida del servidor'));return;}
       if(xhr.status>=200&&xhr.status<300&&data.ok)resolve(data);
       else reject(new Error(data.error||'Error desconocido'));
     };
-    xhr.onerror=function(){reject(new Error('sin conexión'));};
-    xhr.ontimeout=function(){reject(new Error('Tiempo de espera agotado (120s) — revisa tu señal'));};
+    xhr.onerror=function(){clearInterval(progresoTimer);reject(new Error('sin conexión'));};
+    xhr.ontimeout=function(){clearInterval(progresoTimer);reject(new Error('Tiempo de espera agotado (120s) — revisa tu señal'));};
     xhr.send(JSON.stringify(payload));
   });
 }
