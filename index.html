@@ -2369,9 +2369,10 @@ async function buscarProductosHolded(q,uid){
   if(si){si.value=q;setTimeout(function(){si.focus();},100);}
   try{
     if(!productosCache[EMPRESA_INVENTARIO]){
-      // Cargar ambas empresas en paralelo (con timeout de 20s cada una)
+      // Cargar ambas empresas en paralelo (con timeout de 60s cada una — el catálogo
+      // de Holded puede paginar varias veces si hay muchos productos)
       var ctrl1=new AbortController(),ctrl2=new AbortController();
-      var t1=setTimeout(()=>ctrl1.abort(),20000),t2=setTimeout(()=>ctrl2.abort(),20000);
+      var t1=setTimeout(()=>ctrl1.abort(),60000),t2=setTimeout(()=>ctrl2.abort(),60000);
       var [resMarcres,resRivagua]=await Promise.all([
         fetch(GAS_URL+'?action=productos&empresa=marcres',{signal:ctrl1.signal}),
         fetch(GAS_URL+'?action=productos&empresa=rivagua',{signal:ctrl2.signal})
