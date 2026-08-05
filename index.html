@@ -668,15 +668,6 @@ table.hid-table{width:100%;border-collapse:collapse;font-size:12px;}
       <div class="section-header" onclick="toggleSec('sec-inc-preparacion')"><span class="sec-title">Incidencia</span><span class="chevron">⌄</span></div>
       <div class="section-body"><div class="obs-section"><textarea class="obs-textarea" id="preparacion-incidencia" placeholder="Describe la incidencia detectada..."></textarea></div></div>
     </div>
-    <div class="card" id="sec-fotos-preparacion">
-      <div class="section-header section-open" onclick="toggleSec('sec-fotos-preparacion')"><span class="sec-title">📷 Fotografías</span><span class="chevron">⌄</span></div>
-      <div class="section-body" style="display:block;">
-        <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">Adjunta una o varias fotografías si es necesario</div>
-        <input type="file" accept="image/*" capture="environment" id="foto-input-preparacion" style="display:none">
-        <div class="fotos-grid" id="fotos-grid-preparacion"></div>
-        <div style="margin-top:8px;font-size:12px;" id="cnt-fotos-preparacion"></div>
-      </div>
-    </div>
     <div class="card" id="sec-mat-preparacion">
       <div class="section-header section-open" onclick="toggleSec('sec-mat-preparacion')"><span class="sec-title">Presupuesto Materiales</span><span class="chevron">⌄</span></div>
       <div class="section-body" style="display:block;">
@@ -945,8 +936,8 @@ function mayusAuto(el){
   el.value=el.value.toUpperCase();
   if(el.setSelectionRange) el.setSelectionRange(inicio,fin);
 }
-const fotosData={mant:Array(5).fill(null),simple:Array(5).fill(null),elec:Array(5).fill(null),hid:Array(5).fill(null),descal:Array(5).fill(null),preparacion:Array(5).fill(null)};
-const fotosExtra={mant:[],simple:[],elec:[],hid:[],descal:[],preparacion:[]};
+const fotosData={mant:Array(5).fill(null),simple:Array(5).fill(null),elec:Array(5).fill(null),hid:Array(5).fill(null),descal:Array(5).fill(null)};
+const fotosExtra={mant:[],simple:[],elec:[],hid:[],descal:[]};
 const ausenteState={elec:false,hid:false,mant:false,simple:false,bomba:false,preparacion:false,taller:false,descal:false};
 const firmaData={};
 const pdfData={elec:null,hid:null,mant:null,simple:null};
@@ -1295,7 +1286,7 @@ function removePhoto(key,slot,e){e.stopPropagation();fotosData[key][slot]=null;b
 function removePhotoExtra(key,idx,e){e.stopPropagation();fotosExtra[key].splice(idx,1);buildFotoGrid(key);}
 function openCameraExtra(key){currentFotoKey=key;currentFotoSlot='extra';const inp=document.getElementById('foto-input-'+key);if(inp){inp.value='';inp.click();}}
 function updateFotoCounter(key){const cnt=fotosData[key].filter(Boolean).length;const extra=(fotosExtra[key]||[]).length;const el=document.getElementById('cnt-fotos-'+key)||document.getElementById('cnt-'+key);if(!el)return;el.textContent=cnt+'/5'+(extra>0?' +'+extra:'');el.style.background=cnt===5?'var(--ok-bg)':'var(--bad-bg)';el.style.color=cnt===5?'var(--ok)':'var(--bad)';el.style.borderColor=cnt===5?'var(--ok)':'var(--bad)';}
-function initFotos(){['mant','simple','elec','hid','descal','preparacion'].forEach(key=>{const inp=document.getElementById('foto-input-'+key);if(!inp)return;inp.addEventListener('change',function(){const file=this.files[0];if(!file)return;const reader=new FileReader();reader.onload=e=>{const img=new Image();img.onload=()=>{const canvas=document.createElement('canvas'),MAX=800;let w=img.width,h=img.height;if(w>MAX){h=Math.round(h*MAX/w);w=MAX;}if(h>MAX){w=Math.round(w*MAX/h);h=MAX;}canvas.width=w;canvas.height=h;canvas.getContext('2d').drawImage(img,0,0,w,h);if(currentFotoSlot==='extra'){fotosExtra[currentFotoKey].push(canvas.toDataURL('image/jpeg',0.75));showToast('✅ Foto extra añadida','success');}else{fotosData[currentFotoKey][currentFotoSlot]=canvas.toDataURL('image/jpeg',0.75);}buildFotoGrid(currentFotoKey);};img.src=e.target.result;};reader.readAsDataURL(file);});buildFotoGrid(key);});}
+function initFotos(){['mant','simple','elec','hid','descal'].forEach(key=>{const inp=document.getElementById('foto-input-'+key);if(!inp)return;inp.addEventListener('change',function(){const file=this.files[0];if(!file)return;const reader=new FileReader();reader.onload=e=>{const img=new Image();img.onload=()=>{const canvas=document.createElement('canvas'),MAX=800;let w=img.width,h=img.height;if(w>MAX){h=Math.round(h*MAX/w);w=MAX;}if(h>MAX){w=Math.round(w*MAX/h);h=MAX;}canvas.width=w;canvas.height=h;canvas.getContext('2d').drawImage(img,0,0,w,h);if(currentFotoSlot==='extra'){fotosExtra[currentFotoKey].push(canvas.toDataURL('image/jpeg',0.75));showToast('✅ Foto extra añadida','success');}else{fotosData[currentFotoKey][currentFotoSlot]=canvas.toDataURL('image/jpeg',0.75);}buildFotoGrid(currentFotoKey);};img.src=e.target.result;};reader.readAsDataURL(file);});buildFotoGrid(key);});}
 
 function activarFirmaCanvas(canvas){const id=canvas.id;firmaData[id]={signed:false};let drawing=false,lx=0,ly=0;const ctx=canvas.getContext('2d');ctx.strokeStyle='#184595';ctx.lineWidth=2.5;ctx.lineCap='round';ctx.lineJoin='round';function getPos(e){const r=canvas.getBoundingClientRect();const src=e.touches?e.touches[0]:e;return{x:(src.clientX-r.left)*(canvas.width/r.width),y:(src.clientY-r.top)*(canvas.height/r.height)};}function start(e){e.preventDefault();drawing=true;const p=getPos(e);lx=p.x;ly=p.y;ctx.beginPath();ctx.arc(lx,ly,1,0,Math.PI*2);ctx.fill();}function move(e){e.preventDefault();if(!drawing)return;const p=getPos(e);ctx.beginPath();ctx.moveTo(lx,ly);ctx.lineTo(p.x,p.y);ctx.stroke();lx=p.x;ly=p.y;firmaData[id].signed=true;canvas.classList.add('signed');}function end(){drawing=false;}canvas.width=canvas.offsetWidth||300;canvas.height=140;canvas.addEventListener('mousedown',start);canvas.addEventListener('mousemove',move);canvas.addEventListener('mouseup',end);canvas.addEventListener('touchstart',start,{passive:false});canvas.addEventListener('touchmove',move,{passive:false});canvas.addEventListener('touchend',end);}
 function initFirmas(){document.querySelectorAll('.firma-canvas').forEach(activarFirmaCanvas);}
@@ -1311,7 +1302,7 @@ function getFirmasTecnicosArray(panelKey){
   return resultado;
 }
 function limpiarFirma(id){const canvas=document.getElementById('firma-'+id);if(!canvas)return;canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);firmaData['firma-'+id]={signed:false};canvas.classList.remove('signed');}
-function getFirmaBase64(id){const canvas=document.getElementById('firma-'+id);if(!canvas||!firmaData['firma-'+id]?.signed)return null;return canvas.toDataURL('image/png');}
+function getFirmaBase64(id){const canvas=document.getElementById('firma-'+id);if(!canvas||!firmaData['firma-'+id]?.signed)return null;const tmp=document.createElement('canvas');tmp.width=canvas.width;tmp.height=canvas.height;const tctx=tmp.getContext('2d');tctx.fillStyle='#fff';tctx.fillRect(0,0,tmp.width,tmp.height);tctx.drawImage(canvas,0,0);return tmp.toDataURL('image/jpeg',0.8);}
 function toggleAusente(panel){ausenteState[panel]=!ausenteState[panel];const btn=document.getElementById('btn-ausente-'+panel);const obs=document.getElementById('ausente-obs-'+panel);const canvas=document.getElementById('firma-cliente-'+panel);btn.classList.toggle('active',ausenteState[panel]);obs.classList.toggle('show',ausenteState[panel]);if(canvas){canvas.style.opacity=ausenteState[panel]?'0.3':'1';canvas.style.pointerEvents=ausenteState[panel]?'none':'auto';}}
 
 function validarFotos(key){const cnt=fotosData[key].filter(Boolean).length;const aviso=document.getElementById('fotos-aviso-'+key);if(cnt<5){if(aviso)aviso.classList.add('show');showToast('⚠ Debes adjuntar las 5 fotografías','error');return false;}if(aviso)aviso.classList.remove('show');return true;}
@@ -1436,6 +1427,31 @@ function _pedirGPS(){
 
 
 
+function enviarConProgreso(payload,btn,tipoLabel){
+  return new Promise(function(resolve,reject){
+    const xhr=new XMLHttpRequest();
+    xhr.open('POST',GAS_URL,true);
+    xhr.setRequestHeader('Content-Type','text/plain;charset=utf-8');
+    xhr.timeout=120000;
+    xhr.upload.onprogress=function(e){
+      if(e.lengthComputable){
+        const pct=Math.round((e.loaded/e.total)*100);
+        btn.textContent='⏳ Enviando... '+pct+'%';
+      }
+    };
+    xhr.onload=function(){
+      let data;
+      try{data=JSON.parse(xhr.responseText);}
+      catch(err){reject(new Error('Respuesta inválida del servidor'));return;}
+      if(xhr.status>=200&&xhr.status<300&&data.ok)resolve(data);
+      else reject(new Error(data.error||'Error desconocido'));
+    };
+    xhr.onerror=function(){reject(new Error('sin conexión'));};
+    xhr.ontimeout=function(){reject(new Error('Tiempo de espera agotado (120s) — revisa tu señal'));};
+    xhr.send(JSON.stringify(payload));
+  });
+}
+
 async function enviarAlbaran(panel){
   if(!empresaAlbaran){showToast('⚠ Selecciona Rivagua o Marcres','error');return;}
   if(!tipoAlbaran){showToast('⚠ Selecciona el tipo de albarán','error');return;}
@@ -1457,7 +1473,7 @@ async function enviarAlbaran(panel){
     const ubicacion=await obtenerUbicacionFinal();
     btn.textContent='⏳ Generando PDF...';
     const payload={empresa:empresaAlbaran,tipo:'Bombas o Equipos a Taller',fecha:fechaTexto,horaInicio:document.getElementById('a-hora-inicio').value,horaFin:calcHoraFin(),totalHoras:calcDuracion(),tiempoTranscurrido:getTiempoTranscurrido(),cliente,direccion:document.getElementById('a-direccion').value.trim(),poblacion:document.getElementById('a-poblacion').value.trim(),cp:document.getElementById('a-cp').value.trim(),tecnico,tecnicosExtra:getTecnicosExtra('a'),bloque:document.getElementById('a-bloque')?.value.trim()||'',observaciones:document.getElementById('bomba-obs').value.trim(),incidencia:document.getElementById('bomba-incidencia')?.value.trim()||'',fotos:bombaFotoData.filter(Boolean),firmaTecnico:getFirmaBase64('tecnico-bomba'),firmaCliente:null,clienteAusente:true,motivoAusencia:'No requerida',numDoc:genNumDoc(),idParte:_idParteActual.a,ubicacion,ubicacionInicio:window._ubicacionInicio||null,horaEnvio:calcHoraFin()};
-    try{const ctrl=new AbortController();const timer=setTimeout(()=>ctrl.abort(),60000);const res=await fetch(GAS_URL,{method:'POST',body:JSON.stringify(payload),headers:{'Content-Type':'text/plain;charset=utf-8'},signal:ctrl.signal});clearTimeout(timer);const data=await res.json();if(data.ok)mostrarPantallaFinal(data.url||null);else throw new Error(data.error||'Error desconocido');}
+    try{const data=await enviarConProgreso(payload,btn,'Bombas o Equipos a Taller');mostrarPantallaFinal(data.url||null);}
     catch(err){showToast('❌ Error: '+(err.message||'sin conexión')+' — Espera 30s','error');btn.textContent='⏳ Espera 30s...';setTimeout(function(){btn.disabled=false;btn.textContent='📤 Enviar Bombas o Equipos a Taller';},30000);}
     return;
   }
@@ -1469,8 +1485,8 @@ async function enviarAlbaran(panel){
     btn.disabled=true;btn.textContent='📍 Obteniendo ubicación...';
     const ubicacion=await obtenerUbicacionFinal();
     btn.textContent='⏳ Generando PDF...';
-    const payload={empresa:empresaAlbaran,tipo:'Preparación Materiales',fecha:fechaTexto,horaInicio:document.getElementById('a-hora-inicio').value,horaFin:calcHoraFin(),totalHoras:calcDuracion(),tiempoTranscurrido:getTiempoTranscurrido(),cliente,direccion:document.getElementById('a-direccion').value.trim(),poblacion:document.getElementById('a-poblacion').value.trim(),cp:document.getElementById('a-cp').value.trim(),tecnico,tecnicosExtra:getTecnicosExtra('a'),bloque:document.getElementById('a-bloque')?.value.trim()||'',observaciones:document.getElementById('preparacion-obs').value.trim(),incidencia:document.getElementById('preparacion-incidencia')?.value.trim()||'',materiales:getMaterilesFor('preparacion'),fotos:[...fotosData['preparacion'].filter(Boolean),...(fotosExtra['preparacion']||[])],firmaTecnico:getFirmaBase64('tecnico-preparacion'),firmaCliente:null,clienteAusente:true,motivoAusencia:'No requerida',numDoc:genNumDoc(),idParte:_idParteActual.a,ubicacion,ubicacionInicio:window._ubicacionInicio||null,horaEnvio:calcHoraFin()};
-    try{const ctrl=new AbortController();const timer=setTimeout(()=>ctrl.abort(),60000);const res=await fetch(GAS_URL,{method:'POST',body:JSON.stringify(payload),headers:{'Content-Type':'text/plain;charset=utf-8'},signal:ctrl.signal});clearTimeout(timer);const data=await res.json();if(data.ok)mostrarPantallaFinal(data.url||null);else throw new Error(data.error||'Error desconocido');}
+    const payload={empresa:empresaAlbaran,tipo:'Preparación Materiales',fecha:fechaTexto,horaInicio:document.getElementById('a-hora-inicio').value,horaFin:calcHoraFin(),totalHoras:calcDuracion(),tiempoTranscurrido:getTiempoTranscurrido(),cliente,direccion:document.getElementById('a-direccion').value.trim(),poblacion:document.getElementById('a-poblacion').value.trim(),cp:document.getElementById('a-cp').value.trim(),tecnico,tecnicosExtra:getTecnicosExtra('a'),bloque:document.getElementById('a-bloque')?.value.trim()||'',observaciones:document.getElementById('preparacion-obs').value.trim(),incidencia:document.getElementById('preparacion-incidencia')?.value.trim()||'',materiales:getMaterilesFor('preparacion'),firmaTecnico:getFirmaBase64('tecnico-preparacion'),firmaCliente:null,clienteAusente:true,motivoAusencia:'No requerida',numDoc:genNumDoc(),idParte:_idParteActual.a,ubicacion,ubicacionInicio:window._ubicacionInicio||null,horaEnvio:calcHoraFin()};
+    try{const data=await enviarConProgreso(payload,btn,'Preparación Materiales');mostrarPantallaFinal(data.url||null);}
     catch(err){showToast('❌ Error: '+(err.message||'sin conexión')+' — Espera 30s','error');btn.textContent='⏳ Espera 30s...';setTimeout(function(){btn.disabled=false;btn.textContent='📤 Enviar Preparación Materiales';},30000);}
     return;
   }
@@ -1484,7 +1500,7 @@ async function enviarAlbaran(panel){
     const ubicacion=await obtenerUbicacionFinal();
     btn.textContent='⏳ Generando PDF...';
     const payload={empresa:empresaAlbaran,tipo:'Descalcificadores',fecha:fechaTexto,horaInicio:document.getElementById('a-hora-inicio').value,horaFin:calcHoraFin(),totalHoras:calcDuracion(),tiempoTranscurrido:getTiempoTranscurrido(),cliente,direccion:document.getElementById('a-direccion').value.trim(),poblacion:document.getElementById('a-poblacion').value.trim(),cp:document.getElementById('a-cp').value.trim(),tecnico,tecnicosExtra:getTecnicosExtra('a'),bloque:document.getElementById('a-bloque')?.value.trim()||'',resumen:window._descalResumen||'',observaciones:window._descalObs||'',incidencia:window._descalIncidencia||'',materiales:window._descalMateriales||'',fotos:window._descalFotos||[],firmaTecnico:getFirmasTecnicosArray('descal')[0]?.firma||null,firmasTecnicos:getFirmasTecnicosArray('descal'),firmaCliente:ausenteState.descal?null:getFirmaBase64('cliente-descal'),nombreFirmanteCliente:document.getElementById('nombre-firma-cliente-descal')?.value.trim()||'',clienteAusente:ausenteState.descal,motivoAusencia:document.getElementById('ausente-motivo-descal')?.value.trim()||'',numDoc:genNumDoc(),idParte:_idParteActual.a,ubicacion,ubicacionInicio:window._ubicacionInicio||null,horaEnvio:calcHoraFin()};
-    try{const ctrl=new AbortController();const timer=setTimeout(()=>ctrl.abort(),60000);const res=await fetch(GAS_URL,{method:'POST',body:JSON.stringify(payload),headers:{'Content-Type':'text/plain;charset=utf-8'},signal:ctrl.signal});clearTimeout(timer);const data=await res.json();if(data.ok)mostrarPantallaFinal(data.url||null);else throw new Error(data.error||'Error desconocido');}
+    try{const data=await enviarConProgreso(payload,btn,'Descalcificadores');mostrarPantallaFinal(data.url||null);}
     catch(err){showToast('❌ Error: '+(err.message||'sin conexión')+' — Espera 30s','error');btn.textContent='⏳ Espera 30s...';setTimeout(function(){btn.disabled=false;btn.textContent='📤 Enviar Descalcificadores';},30000);}
     return;
   }
@@ -1501,7 +1517,7 @@ async function enviarAlbaran(panel){
     const ubicacion=await obtenerUbicacionFinal();
     btn.textContent='⏳ Generando PDF...';
     const payload={empresa:empresaAlbaran,tipo:'Trabajo en Taller',fecha:fechaTexto,horaInicio:document.getElementById('a-hora-inicio').value,horaFin:calcHoraFin(),totalHoras:calcDuracion(),tiempoTranscurrido:getTiempoTranscurrido(),cliente,direccion:document.getElementById('a-direccion').value.trim(),poblacion:document.getElementById('a-poblacion').value.trim(),cp:document.getElementById('a-cp').value.trim(),tecnico,tecnicosExtra:getTecnicosExtra('a'),bloque:document.getElementById('a-bloque')?.value.trim()||'',observaciones:document.getElementById('taller-obs').value.trim(),incidencia:document.getElementById('taller-incidencia')?.value.trim()||'',horasPresupuestadas:document.getElementById('horas-pres-taller')?.value.trim()||'',numTecnicos:document.getElementById('num-tec-taller')?.value.trim()||'',materiales:getMaterilesFor('taller'),fotosAntes:tallerAntesData.filter(Boolean),fotosDespues:tallerDespuesData.filter(Boolean),firmaTecnico:getFirmaBase64('tecnico-taller'),firmaCliente:null,clienteAusente:true,motivoAusencia:'No requerida',numDoc:genNumDoc(),idParte:_idParteActual.a,ubicacion,ubicacionInicio:window._ubicacionInicio||null,horaEnvio:calcHoraFin()};
-    try{const ctrl=new AbortController();const timer=setTimeout(()=>ctrl.abort(),60000);const res=await fetch(GAS_URL,{method:'POST',body:JSON.stringify(payload),headers:{'Content-Type':'text/plain;charset=utf-8'},signal:ctrl.signal});clearTimeout(timer);const data=await res.json();if(data.ok)mostrarPantallaFinal(data.url||null);else throw new Error(data.error||'Error desconocido');}
+    try{const data=await enviarConProgreso(payload,btn,'Trabajo en Taller');mostrarPantallaFinal(data.url||null);}
     catch(err){showToast('❌ Error: '+(err.message||'sin conexión')+' — Espera 30s','error');btn.textContent='⏳ Espera 30s...';setTimeout(function(){btn.disabled=false;btn.textContent='📤 Enviar Trabajo en Taller';},30000);}
     return;
   }
@@ -1519,7 +1535,7 @@ async function enviarAlbaran(panel){
   const ubicacion=await obtenerUbicacionFinal();
   btn.textContent='⏳ Generando PDF...';
   const payload={empresa:empresaAlbaran,tipo:tipoLabel,fecha:fechaTexto,horaInicio:document.getElementById('a-hora-inicio').value,horaFin:calcHoraFin(),totalHoras:calcDuracion(),tiempoTranscurrido:getTiempoTranscurrido(),cliente,direccion:document.getElementById('a-direccion').value.trim(),poblacion:document.getElementById('a-poblacion').value.trim(),cp:document.getElementById('a-cp').value.trim(),tecnico,tecnicosExtra:getTecnicosExtra('a'),corte:getPill('a-corte'),corteHoras:document.getElementById('a-corte-horas-val')?.value.trim()||'',bloque:document.getElementById('a-bloque')?.value.trim()||'',materialTaller:tallerEstado||'—',fotoTaller:tallerFotoData||null,estadoGeneral:getPill('estado-general'),resumen:isMant?buildResumenMant():'',observaciones:isMant?document.getElementById('mant-obs').value.trim():document.getElementById('simple-obs').value.trim(),incidencia:isMant?document.getElementById('mant-incidencia').value.trim():document.getElementById('simple-incidencia')?.value.trim()||'',horasPresupuestadas:document.getElementById('horas-pres-'+pKey)?.value.trim()||'',numTecnicos:document.getElementById('num-tec-'+pKey)?.value.trim()||'',materiales:getMaterilesFor(pKey),numDoc:genNumDoc(),idParte:_idParteActual.a,fotos:[...fotosData[fotoKey].filter(Boolean),...(fotosExtra[fotoKey]||[])],firmaTecnico:getFirmasTecnicosArray(pKey)[0]?.firma||null,firmasTecnicos:getFirmasTecnicosArray(pKey),firmaCliente:ausenteState[pKey]?null:getFirmaBase64('cliente-'+pKey),nombreFirmanteCliente:document.getElementById('nombre-firma-cliente-'+pKey)?.value.trim()||'',clienteAusente:ausenteState[pKey],motivoAusencia:document.getElementById('ausente-motivo-'+pKey)?.value.trim()||'',presupuestoPdf:pdfData[pKey]||null,ubicacion,ubicacionInicio:window._ubicacionInicio||null,horaEnvio:calcHoraFin()};
-  try{const ctrl=new AbortController();const timer=setTimeout(()=>ctrl.abort(),60000);const res=await fetch(GAS_URL,{method:'POST',body:JSON.stringify(payload),headers:{'Content-Type':'text/plain;charset=utf-8'},signal:ctrl.signal});clearTimeout(timer);const data=await res.json();if(data.ok)mostrarPantallaFinal(data.url||null);else throw new Error(data.error||'Error desconocido');}
+  try{const data=await enviarConProgreso(payload,btn,tipoLabel);mostrarPantallaFinal(data.url||null);}
   catch(err){showToast('❌ Error: '+(err.message||'sin conexión')+' — Espera 30s','error');btn.textContent='⏳ Espera 30s...';setTimeout(function(){btn.disabled=false;btn.textContent='📤 Enviar '+tipoLabel;},30000);}
 }
 
@@ -2340,9 +2356,14 @@ async function buscarProductosHolded(q,uid){
   if(si){si.value=q;setTimeout(function(){si.focus();},100);}
   try{
     if(!productosCache[EMPRESA_INVENTARIO]){
-      // Cargar ambas empresas en paralelo
-      var resMarcres=await fetch(GAS_URL+'?action=productos&empresa=marcres');
-      var resRivagua=await fetch(GAS_URL+'?action=productos&empresa=rivagua');
+      // Cargar ambas empresas en paralelo (con timeout de 20s cada una)
+      var ctrl1=new AbortController(),ctrl2=new AbortController();
+      var t1=setTimeout(()=>ctrl1.abort(),20000),t2=setTimeout(()=>ctrl2.abort(),20000);
+      var [resMarcres,resRivagua]=await Promise.all([
+        fetch(GAS_URL+'?action=productos&empresa=marcres',{signal:ctrl1.signal}),
+        fetch(GAS_URL+'?action=productos&empresa=rivagua',{signal:ctrl2.signal})
+      ]);
+      clearTimeout(t1);clearTimeout(t2);
       var dataMarcres=await resMarcres.json();
       var dataRivagua=await resRivagua.json();
       var listaM=dataMarcres.ok?dataMarcres.productos:[];
@@ -2362,7 +2383,7 @@ async function buscarProductosHolded(q,uid){
       productosCache[EMPRESA_INVENTARIO]=fusionados;
     }
     filtrarProductosPanel(q);
-  }catch(err){lista.innerHTML='<div style="padding:20px;text-align:center;color:var(--bad);">Error: '+err.message+'</div>';}
+  }catch(err){lista.innerHTML='<div style="padding:20px;text-align:center;color:var(--bad);">⚠ Sin conexión al cargar productos. <button onclick="delete productosCache[\'ambas\'];buscarProductosHolded(\''+q.replace(/'/g,"\\'")+'\',\''+uid+'\')" style="display:block;margin:10px auto 0;padding:8px 16px;background:var(--accent);color:#fff;border:none;border-radius:8px;">🔄 Reintentar</button></div>';}
 }
 function _sinAcentos(s){
   return (s||'').toLowerCase()
@@ -3344,7 +3365,7 @@ async function enviarChecklist(tipo){
   const ubicacion=await obtenerUbicacionFinal();
   btn.textContent='⏳ Enviando...';
   const payload={empresa:empresaChecklist,tipo:tipoNombre,fecha:fechaTexto,horaInicio:document.getElementById('c-hora-inicio').value,horaFin:calcHoraFin(),totalHoras:calcDuracion(),tiempoTranscurrido:getTiempoTranscurrido(),cliente,direccion:document.getElementById('c-direccion').value.trim(),poblacion:document.getElementById('c-poblacion').value.trim(),cp:document.getElementById('c-cp').value.trim(),tecnico,tecnicosExtra:getTecnicosExtra('c'),corte:getPill('c-'+tipo+'-corte'),corteHoras:document.getElementById('c-'+tipo+'-corte-horas-val')?.value.trim()||'',bloque:document.getElementById('c-bloque')?.value.trim()||'',resumen:buildResumenChecklist(tipo),observaciones:tipo==='elec'?document.getElementById('elec-obs').value.trim():document.getElementById('hid-obs').value.trim(),incidencia:tipo==='elec'?document.getElementById('elec-incidencia')?.value.trim()||'':document.getElementById('hid-incidencia')?.value.trim()||'',horasPresupuestadas:document.getElementById('horas-pres-'+tipo)?.value.trim()||'',numTecnicos:document.getElementById('num-tec-'+tipo)?.value.trim()||'',materiales:getMaterilesFor(tipo),estadoGeneral:null,numDoc:genNumDoc(),idParte:_idParteActual.c,fotos:[...fotosData[tipo].filter(Boolean),...(fotosExtra[tipo]||[])],firmaTecnico:getFirmasTecnicosArray(tipo)[0]?.firma||null,firmasTecnicos:getFirmasTecnicosArray(tipo),firmaCliente:ausenteState[tipo]?null:getFirmaBase64('cliente-'+tipo),nombreFirmanteCliente:document.getElementById('nombre-firma-cliente-'+tipo)?.value.trim()||'',clienteAusente:ausenteState[tipo],motivoAusencia:document.getElementById('ausente-motivo-'+tipo)?.value.trim()||'',presupuestoPdf:pdfData[tipo]||null,ubicacion,ubicacionInicio:window._ubicacionInicio||null,horaEnvio:calcHoraFin()};
-  try{const ctrl=new AbortController();const timer=setTimeout(()=>ctrl.abort(),60000);const res=await fetch(GAS_URL,{method:'POST',body:JSON.stringify(payload),headers:{'Content-Type':'text/plain;charset=utf-8'},signal:ctrl.signal});clearTimeout(timer);const data=await res.json();if(data.ok)mostrarPantallaFinal(data.url||null);else throw new Error(data.error||'Error desconocido');}
+  try{const data=await enviarConProgreso(payload,btn,tipoNombre);mostrarPantallaFinal(data.url||null);}
   catch(err){showToast('❌ Error: '+(err.message||'sin conexión')+' — Espera 30s antes de reintentar','error');btn.textContent='⏳ Espera 30s...';setTimeout(function(){btn.disabled=false;btn.textContent='📤 Enviar '+tipoNombre.toLowerCase();},30000);}
 }
 
