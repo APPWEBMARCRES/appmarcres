@@ -1406,20 +1406,26 @@ function obtenerUbicacionFinal(){
   // Para el ENVÍO — siempre pide coordenadas nuevas, ignora la caché
   return _pedirGPS();
 }
+
 function _pedirGPS(){
   return new Promise(resolve=>{
-    if(!navigator.geolocation){resolve(null);return;}
+    if(!navigator.geolocation){resolve({ok:false,motivo:'ubicacion'});return;}
     navigator.geolocation.getCurrentPosition(
       pos=>{
         var latInt = Math.round(pos.coords.latitude  * 1000000);
         var lngInt = Math.round(pos.coords.longitude * 1000000);
         resolve({
+          ok:true,
           lat: String(latInt / 1000000).replace(',','.'),
           lng: String(lngInt / 1000000).replace(',','.'),
           precision: Math.round(pos.coords.accuracy)
         });
       },
-      ()=>resolve(null),
+      err=>{
+        // code 1 = PERMISSION_DENIED (ubicación desactivada/denegada/modo avión)
+        // code 2 = POSITION_UNAVAILABLE, code 3 = TIMEOUT (activada, pero sin señal para calcular la posición)
+        resolve({ok:false, motivo:(err && err.code===1)?'ubicacion':'senal'});
+      },
       {timeout:10000,enableHighAccuracy:true}
     );
   });
@@ -1484,6 +1490,7 @@ async function enviarAlbaran(panel){
     const btn=document.getElementById('send-bomba-btn');
     btn.disabled=true;btn.textContent='📍 Obteniendo ubicación...';
     const ubicacion=await obtenerUbicacionFinal();
+    if(!ubicacion.ok){showToast(ubicacion.motivo==='senal'?'📡 Sin señal de ubicación — busca un sitio con mejor cobertura e inténtalo de nuevo.':'📍 Ubicación desactivada — actívala e inténtalo de nuevo.','error');btn.disabled=false;btn.textContent='📤 Enviar Bombas o Equipos a Taller';return;}
     btn.textContent='⏳ Generando PDF...';
     const payload={empresa:empresaAlbaran,tipo:'Bombas o Equipos a Taller',fecha:fechaTexto,horaInicio:document.getElementById('a-hora-inicio').value,horaFin:calcHoraFin(),totalHoras:calcDuracion(),tiempoTranscurrido:getTiempoTranscurrido(),cliente,direccion:document.getElementById('a-direccion').value.trim(),poblacion:document.getElementById('a-poblacion').value.trim(),cp:document.getElementById('a-cp').value.trim(),tecnico,tecnicosExtra:getTecnicosExtra('a'),bloque:document.getElementById('a-bloque')?.value.trim()||'',observaciones:document.getElementById('bomba-obs').value.trim(),incidencia:document.getElementById('bomba-incidencia')?.value.trim()||'',fotos:bombaFotoData.filter(Boolean),firmaTecnico:getFirmaBase64('tecnico-bomba'),firmaCliente:null,clienteAusente:true,motivoAusencia:'No requerida',numDoc:genNumDoc(),idParte:_idParteActual.a,ubicacion,ubicacionInicio:window._ubicacionInicio||null,horaEnvio:calcHoraFin()};
     try{const data=await enviarConProgreso(payload,btn,'Bombas o Equipos a Taller');mostrarPantallaFinal(data.url||null);}
@@ -1497,6 +1504,7 @@ async function enviarAlbaran(panel){
     const btn=document.getElementById('send-preparacion-btn');
     btn.disabled=true;btn.textContent='📍 Obteniendo ubicación...';
     const ubicacion=await obtenerUbicacionFinal();
+    if(!ubicacion.ok){showToast(ubicacion.motivo==='senal'?'📡 Sin señal de ubicación — busca un sitio con mejor cobertura e inténtalo de nuevo.':'📍 Ubicación desactivada — actívala e inténtalo de nuevo.','error');btn.disabled=false;btn.textContent='📤 Enviar Preparación Materiales';return;}
     btn.textContent='⏳ Generando PDF...';
     const payload={empresa:empresaAlbaran,tipo:'Preparación Materiales',fecha:fechaTexto,horaInicio:document.getElementById('a-hora-inicio').value,horaFin:calcHoraFin(),totalHoras:calcDuracion(),tiempoTranscurrido:getTiempoTranscurrido(),cliente,direccion:document.getElementById('a-direccion').value.trim(),poblacion:document.getElementById('a-poblacion').value.trim(),cp:document.getElementById('a-cp').value.trim(),tecnico,tecnicosExtra:getTecnicosExtra('a'),bloque:document.getElementById('a-bloque')?.value.trim()||'',observaciones:document.getElementById('preparacion-obs').value.trim(),incidencia:document.getElementById('preparacion-incidencia')?.value.trim()||'',materiales:getMaterilesFor('preparacion'),firmaTecnico:getFirmaBase64('tecnico-preparacion'),firmaCliente:null,clienteAusente:true,motivoAusencia:'No requerida',numDoc:genNumDoc(),idParte:_idParteActual.a,ubicacion,ubicacionInicio:window._ubicacionInicio||null,horaEnvio:calcHoraFin()};
     try{const data=await enviarConProgreso(payload,btn,'Preparación Materiales');mostrarPantallaFinal(data.url||null);}
@@ -1511,6 +1519,7 @@ async function enviarAlbaran(panel){
     const btn=document.getElementById('send-descal-btn');
     btn.disabled=true;btn.textContent='📍 Obteniendo ubicación...';
     const ubicacion=await obtenerUbicacionFinal();
+    if(!ubicacion.ok){showToast(ubicacion.motivo==='senal'?'📡 Sin señal de ubicación — busca un sitio con mejor cobertura e inténtalo de nuevo.':'📍 Ubicación desactivada — actívala e inténtalo de nuevo.','error');btn.disabled=false;btn.textContent='📤 Enviar Descalcificadores';return;}
     btn.textContent='⏳ Generando PDF...';
     const payload={empresa:empresaAlbaran,tipo:'Descalcificadores',fecha:fechaTexto,horaInicio:document.getElementById('a-hora-inicio').value,horaFin:calcHoraFin(),totalHoras:calcDuracion(),tiempoTranscurrido:getTiempoTranscurrido(),cliente,direccion:document.getElementById('a-direccion').value.trim(),poblacion:document.getElementById('a-poblacion').value.trim(),cp:document.getElementById('a-cp').value.trim(),tecnico,tecnicosExtra:getTecnicosExtra('a'),bloque:document.getElementById('a-bloque')?.value.trim()||'',resumen:window._descalResumen||'',observaciones:window._descalObs||'',incidencia:window._descalIncidencia||'',materiales:window._descalMateriales||'',fotos:window._descalFotos||[],firmaTecnico:getFirmasTecnicosArray('descal')[0]?.firma||null,firmasTecnicos:getFirmasTecnicosArray('descal'),firmaCliente:ausenteState.descal?null:getFirmaBase64('cliente-descal'),nombreFirmanteCliente:document.getElementById('nombre-firma-cliente-descal')?.value.trim()||'',clienteAusente:ausenteState.descal,motivoAusencia:document.getElementById('ausente-motivo-descal')?.value.trim()||'',numDoc:genNumDoc(),idParte:_idParteActual.a,ubicacion,ubicacionInicio:window._ubicacionInicio||null,horaEnvio:calcHoraFin()};
     try{const data=await enviarConProgreso(payload,btn,'Descalcificadores');mostrarPantallaFinal(data.url||null);}
@@ -1528,6 +1537,7 @@ async function enviarAlbaran(panel){
     const btn=document.getElementById('send-taller-btn');
     btn.disabled=true;btn.textContent='📍 Obteniendo ubicación...';
     const ubicacion=await obtenerUbicacionFinal();
+    if(!ubicacion.ok){showToast(ubicacion.motivo==='senal'?'📡 Sin señal de ubicación — busca un sitio con mejor cobertura e inténtalo de nuevo.':'📍 Ubicación desactivada — actívala e inténtalo de nuevo.','error');btn.disabled=false;btn.textContent='📤 Enviar Trabajo en Taller';return;}
     btn.textContent='⏳ Generando PDF...';
     const payload={empresa:empresaAlbaran,tipo:'Trabajo en Taller',fecha:fechaTexto,horaInicio:document.getElementById('a-hora-inicio').value,horaFin:calcHoraFin(),totalHoras:calcDuracion(),tiempoTranscurrido:getTiempoTranscurrido(),cliente,direccion:document.getElementById('a-direccion').value.trim(),poblacion:document.getElementById('a-poblacion').value.trim(),cp:document.getElementById('a-cp').value.trim(),tecnico,tecnicosExtra:getTecnicosExtra('a'),bloque:document.getElementById('a-bloque')?.value.trim()||'',observaciones:document.getElementById('taller-obs').value.trim(),incidencia:document.getElementById('taller-incidencia')?.value.trim()||'',horasPresupuestadas:document.getElementById('horas-pres-taller')?.value.trim()||'',numTecnicos:document.getElementById('num-tec-taller')?.value.trim()||'',materiales:getMaterilesFor('taller'),fotosAntes:tallerAntesData.filter(Boolean),fotosDespues:tallerDespuesData.filter(Boolean),firmaTecnico:getFirmaBase64('tecnico-taller'),firmaCliente:null,clienteAusente:true,motivoAusencia:'No requerida',numDoc:genNumDoc(),idParte:_idParteActual.a,ubicacion,ubicacionInicio:window._ubicacionInicio||null,horaEnvio:calcHoraFin()};
     try{const data=await enviarConProgreso(payload,btn,'Trabajo en Taller');mostrarPantallaFinal(data.url||null);}
@@ -1546,6 +1556,7 @@ async function enviarAlbaran(panel){
   if(tallerEstado==='No'&&!tallerFotoData){showToast('⚠ Adjunta la foto del material a taller','error');return;}
   btn.disabled=true;btn.textContent='📍 Obteniendo ubicación...';
   const ubicacion=await obtenerUbicacionFinal();
+  if(!ubicacion.ok){showToast(ubicacion.motivo==='senal'?'📡 Sin señal de ubicación — busca un sitio con mejor cobertura e inténtalo de nuevo.':'📍 Ubicación desactivada — actívala e inténtalo de nuevo.','error');btn.disabled=false;btn.textContent='📤 Enviar '+tipoLabel;return;}
   btn.textContent='⏳ Generando PDF...';
   const payload={empresa:empresaAlbaran,tipo:tipoLabel,fecha:fechaTexto,horaInicio:document.getElementById('a-hora-inicio').value,horaFin:calcHoraFin(),totalHoras:calcDuracion(),tiempoTranscurrido:getTiempoTranscurrido(),cliente,direccion:document.getElementById('a-direccion').value.trim(),poblacion:document.getElementById('a-poblacion').value.trim(),cp:document.getElementById('a-cp').value.trim(),tecnico,tecnicosExtra:getTecnicosExtra('a'),corte:getPill('a-corte'),corteHoras:document.getElementById('a-corte-horas-val')?.value.trim()||'',bloque:document.getElementById('a-bloque')?.value.trim()||'',materialTaller:tallerEstado||'—',fotoTaller:tallerFotoData||null,estadoGeneral:getPill('estado-general'),resumen:isMant?buildResumenMant():'',observaciones:isMant?document.getElementById('mant-obs').value.trim():document.getElementById('simple-obs').value.trim(),incidencia:isMant?document.getElementById('mant-incidencia').value.trim():document.getElementById('simple-incidencia')?.value.trim()||'',horasPresupuestadas:document.getElementById('horas-pres-'+pKey)?.value.trim()||'',numTecnicos:document.getElementById('num-tec-'+pKey)?.value.trim()||'',materiales:getMaterilesFor(pKey),numDoc:genNumDoc(),idParte:_idParteActual.a,fotos:[...fotosData[fotoKey].filter(Boolean),...(fotosExtra[fotoKey]||[])],firmaTecnico:getFirmasTecnicosArray(pKey)[0]?.firma||null,firmasTecnicos:getFirmasTecnicosArray(pKey),firmaCliente:ausenteState[pKey]?null:getFirmaBase64('cliente-'+pKey),nombreFirmanteCliente:document.getElementById('nombre-firma-cliente-'+pKey)?.value.trim()||'',clienteAusente:ausenteState[pKey],motivoAusencia:document.getElementById('ausente-motivo-'+pKey)?.value.trim()||'',presupuestoPdf:pdfData[pKey]||null,ubicacion,ubicacionInicio:window._ubicacionInicio||null,horaEnvio:calcHoraFin()};
   try{const data=await enviarConProgreso(payload,btn,tipoLabel);mostrarPantallaFinal(data.url||null);}
@@ -3377,6 +3388,7 @@ async function enviarChecklist(tipo){
   const btn=document.getElementById(btnId);
   btn.disabled=true;btn.textContent='📍 Obteniendo ubicación...';
   const ubicacion=await obtenerUbicacionFinal();
+  if(!ubicacion.ok){showToast(ubicacion.motivo==='senal'?'📡 Sin señal de ubicación — busca un sitio con mejor cobertura e inténtalo de nuevo.':'📍 Ubicación desactivada — actívala e inténtalo de nuevo.','error');btn.disabled=false;btn.textContent='📤 Enviar '+tipoNombre.toLowerCase();return;}
   btn.textContent='⏳ Enviando...';
   const payload={empresa:empresaChecklist,tipo:tipoNombre,fecha:fechaTexto,horaInicio:document.getElementById('c-hora-inicio').value,horaFin:calcHoraFin(),totalHoras:calcDuracion(),tiempoTranscurrido:getTiempoTranscurrido(),cliente,direccion:document.getElementById('c-direccion').value.trim(),poblacion:document.getElementById('c-poblacion').value.trim(),cp:document.getElementById('c-cp').value.trim(),tecnico,tecnicosExtra:getTecnicosExtra('c'),corte:getPill('c-'+tipo+'-corte'),corteHoras:document.getElementById('c-'+tipo+'-corte-horas-val')?.value.trim()||'',bloque:document.getElementById('c-bloque')?.value.trim()||'',resumen:buildResumenChecklist(tipo),observaciones:tipo==='elec'?document.getElementById('elec-obs').value.trim():document.getElementById('hid-obs').value.trim(),incidencia:tipo==='elec'?document.getElementById('elec-incidencia')?.value.trim()||'':document.getElementById('hid-incidencia')?.value.trim()||'',horasPresupuestadas:document.getElementById('horas-pres-'+tipo)?.value.trim()||'',numTecnicos:document.getElementById('num-tec-'+tipo)?.value.trim()||'',materiales:getMaterilesFor(tipo),estadoGeneral:null,numDoc:genNumDoc(),idParte:_idParteActual.c,fotos:[...fotosData[tipo].filter(Boolean),...(fotosExtra[tipo]||[])],firmaTecnico:getFirmasTecnicosArray(tipo)[0]?.firma||null,firmasTecnicos:getFirmasTecnicosArray(tipo),firmaCliente:ausenteState[tipo]?null:getFirmaBase64('cliente-'+tipo),nombreFirmanteCliente:document.getElementById('nombre-firma-cliente-'+tipo)?.value.trim()||'',clienteAusente:ausenteState[tipo],motivoAusencia:document.getElementById('ausente-motivo-'+tipo)?.value.trim()||'',presupuestoPdf:pdfData[tipo]||null,ubicacion,ubicacionInicio:window._ubicacionInicio||null,horaEnvio:calcHoraFin()};
   try{const data=await enviarConProgreso(payload,btn,tipoNombre);mostrarPantallaFinal(data.url||null);}
