@@ -374,6 +374,17 @@ table.hid-table{width:100%;border-collapse:collapse;font-size:12px;}
       <div><label class="field-label">C.P.</label><input type="text" class="field-input" id="c-cp" placeholder="Código postal" inputmode="numeric"></div>
     </div>
     <div class="field-group" style="margin-top:8px;"><label class="field-label">🏢 Bloque / Escalera</label><input type="text" class="field-input" id="c-bloque" placeholder="Ej: A, B, 1, 2... (opcional)" maxlength="30" style="max-width:260px;"></div>
+    <div class="field-group">
+      <label class="field-label">🚐 Furgoneta <span style="color:var(--bad)">*</span></label>
+      <div class="pill-group" id="c-furgo-pills">
+        <span class="pill" onclick="selectFurgo(this,'c','Si')">Sí</span>
+        <span class="pill" onclick="selectFurgo(this,'c','No')">No</span>
+      </div>
+      <div class="furgo-box" id="c-furgo-box">
+        <input type="text" placeholder="Matrícula de la furgoneta (ej: 1234 ABC)" id="c-furgo-val" maxlength="20" autocomplete="off" oninput="this.style.borderColor=''">
+        <div class="furgo-hint">Debes indicar la matrícula de la furgoneta utilizada en este trabajo.</div>
+      </div>
+    </div>
       <div class="btn-inicio-wrap">
         <button class="btn-inicio" id="btn-inicio-c" onclick="iniciarParte('c')">▶ INICIO</button>
         <div class="ubic-aviso" id="ubic-aviso-c">
@@ -402,17 +413,6 @@ table.hid-table{width:100%;border-collapse:collapse;font-size:12px;}
     <div class="card" id="csec-mat-elec">
       <div class="section-header" onclick="toggleSec('csec-mat-elec')"><span class="sec-title">Presupuesto Materiales</span><span class="chevron">⌄</span></div>
       <div class="section-body">
-        <div class="field-group">
-          <label class="field-label">🚐 Furgoneta</label>
-          <div class="pill-group">
-            <span class="pill" onclick="selectFurgo(this,'c-elec','Si')">Sí</span>
-            <span class="pill" onclick="selectFurgo(this,'c-elec','No')">No</span>
-          </div>
-          <div class="furgo-box" id="c-elec-furgo-box">
-            <input type="text" placeholder="Matrícula de la furgoneta (ej: 1234 ABC)" id="c-elec-furgo-val" maxlength="20" autocomplete="off">
-            <div class="furgo-hint">Debes indicar la matrícula de la furgoneta utilizada en este trabajo.</div>
-          </div>
-        </div>
         <div class="field-group">
           <label class="field-label">Corte de agua</label>
           <div class="pill-group">
@@ -446,17 +446,6 @@ table.hid-table{width:100%;border-collapse:collapse;font-size:12px;}
     <div class="card" id="csec-mat-hid">
       <div class="section-header" onclick="toggleSec('csec-mat-hid')"><span class="sec-title">Presupuesto Materiales</span><span class="chevron">⌄</span></div>
       <div class="section-body">
-        <div class="field-group">
-          <label class="field-label">🚐 Furgoneta</label>
-          <div class="pill-group">
-            <span class="pill" onclick="selectFurgo(this,'c-hid','Si')">Sí</span>
-            <span class="pill" onclick="selectFurgo(this,'c-hid','No')">No</span>
-          </div>
-          <div class="furgo-box" id="c-hid-furgo-box">
-            <input type="text" placeholder="Matrícula de la furgoneta (ej: 1234 ABC)" id="c-hid-furgo-val" maxlength="20" autocomplete="off">
-            <div class="furgo-hint">Debes indicar la matrícula de la furgoneta utilizada en este trabajo.</div>
-          </div>
-        </div>
         <div class="field-group">
           <label class="field-label">Corte de agua</label>
           <div class="pill-group">
@@ -547,13 +536,13 @@ table.hid-table{width:100%;border-collapse:collapse;font-size:12px;}
       <div><label class="field-label">C.P.</label><input type="text" class="field-input" id="a-cp" placeholder="Código postal" inputmode="numeric"></div>
     </div>
     <div class="field-group">
-      <label class="field-label">🚐 Furgoneta</label>
-      <div class="pill-group">
+      <label class="field-label">🚐 Furgoneta <span style="color:var(--bad)">*</span></label>
+      <div class="pill-group" id="a-furgo-pills">
         <span class="pill" onclick="selectFurgo(this,'a','Si')">Sí</span>
         <span class="pill" onclick="selectFurgo(this,'a','No')">No</span>
       </div>
       <div class="furgo-box" id="a-furgo-box">
-        <input type="text" placeholder="Matrícula de la furgoneta (ej: 1234 ABC)" id="a-furgo-val" maxlength="20" autocomplete="off">
+        <input type="text" placeholder="Matrícula de la furgoneta (ej: 1234 ABC)" id="a-furgo-val" maxlength="20" autocomplete="off" oninput="this.style.borderColor=''">
         <div class="furgo-hint">Debes indicar la matrícula de la furgoneta utilizada en este trabajo.</div>
       </div>
     </div>
@@ -1183,6 +1172,38 @@ function selectCorte(el,prefix,val){const yaActivo=el.classList.contains('p-ok')
 function selectFurgo(el,prefix,val){const yaActivo=el.classList.contains('p-ok')||el.classList.contains('p-warn');el.parentElement.querySelectorAll('.pill').forEach(p=>p.className='pill');const caja=document.getElementById(prefix+'-furgo-box');if(yaActivo){if(caja)caja.classList.remove('show');return;}if(val==='Si')el.classList.add('p-ok');else el.classList.add('p-warn');el.dataset.group=prefix+'-furgo';if(caja)caja.classList.toggle('show',val==='Si');}
 // Devuelve {furgoneta, matricula} para el payload; matrícula solo si se marcó "Sí".
 function getFurgoneta(prefix){var v=getPill(prefix+'-furgo');var m=(document.getElementById(prefix+'-furgo-val')?.value||'').trim().toUpperCase();return {furgoneta:v,matriculaFurgoneta:(v==='Sí'||v==='Si')?m:''};}
+// El apartado Furgoneta es obligatorio: hay que responder Sí o No.
+// Si es "Sí", además hay que escribir la matrícula. Si es "No", no se pide nada más.
+function validarFurgoneta(prefix){
+  var v=getPill(prefix+'-furgo');
+  var inp=document.getElementById(prefix+'-furgo-val');
+  var pills=document.getElementById(prefix+'-furgo-pills');
+  var caja=document.getElementById(prefix+'-furgo-box');
+  function resaltar(el){
+    if(!el) return;
+    el.style.outline='2px solid var(--bad)';
+    el.style.outlineOffset='3px';
+    el.style.borderRadius='6px';
+    setTimeout(function(){el.style.outline='';el.style.outlineOffset='';},3000);
+    try{el.scrollIntoView({block:'center',behavior:'smooth'});}catch(e){}
+  }
+  // 1) Sin responder
+  if(v!=='Sí'&&v!=='Si'&&v!=='No'){
+    showToast('⚠ Indica si este trabajo lleva furgoneta','error');
+    resaltar(pills);
+    return false;
+  }
+  // 2) "No": no lleva furgoneta, no hace falta nada más
+  if(v==='No'){ if(inp) inp.style.borderColor=''; return true; }
+  // 3) "Sí": la matrícula es obligatoria
+  if(!inp) return true;
+  if(inp.value.trim()){ inp.style.borderColor=''; return true; }
+  if(caja) caja.classList.add('show');
+  inp.style.borderColor='var(--bad)';
+  showToast('⚠ Has marcado que llevas furgoneta: indica la matrícula','error');
+  try{inp.scrollIntoView({block:'center',behavior:'smooth'});inp.focus();}catch(e){}
+  return false;
+}
 
 const OK_VALS=['Bien','OK','Si hay','Favorable'];
 const WARN_VALS=['Regular','Bajo','Sucio','Desfavorable','Alta'];
@@ -1519,6 +1540,7 @@ async function enviarAlbaran(panel){
   const tecnico=document.getElementById('a-tecnico').value.trim();
   if(!cliente){showToast('⚠ El cliente es obligatorio','error');return;}
   if(!tecnico){showToast('⚠ El técnico es obligatorio','error');return;}
+  if(!validarFurgoneta('a'))return;
 
   // Panel Bombas o Equipos a Taller
   if(panel==='bomba'){
@@ -1740,6 +1762,9 @@ function iniciarParte(prefix) {
     setTimeout(()=>{ cliente.style.border = ''; }, 3000);
     return;
   }
+
+  // Validar furgoneta obligatoria (Sí/No, y matrícula si es Sí)
+  if(!validarFurgoneta(prefix)) return;
 
   // Si la ubicación no está permitida, pedir permiso primero
   if(!ubicacionPermitida) {
@@ -3424,6 +3449,7 @@ async function enviarChecklist(tipo){
   const tecnico=document.getElementById('c-tecnico').value.trim();
   if(!cliente){showToast('⚠ El cliente es obligatorio','error');return;}
   if(!tecnico){showToast('⚠ El técnico es obligatorio','error');return;}
+  if(!validarFurgoneta('c'))return;
   if(!validarFotos(tipo))return;
   if(!validarFirmas(tipo))return;
   const tipoNombre=tipo==='elec'?'Checklist Eléctrico':'Checklist Hidráulico';
@@ -3433,7 +3459,7 @@ async function enviarChecklist(tipo){
   const ubicacion=await obtenerUbicacionFinal();
   if(!ubicacion.ok){showToast(ubicacion.motivo==='senal'?'📡 Sin señal de ubicación — busca un sitio con mejor cobertura e inténtalo de nuevo.':'📍 Ubicación desactivada — actívala e inténtalo de nuevo.','error');btn.disabled=false;btn.textContent='📤 Enviar '+tipoNombre.toLowerCase();return;}
   btn.textContent='⏳ Enviando...';
-  const payload={empresa:empresaChecklist,tipo:tipoNombre,fecha:fechaTexto,horaInicio:document.getElementById('c-hora-inicio').value,horaFin:calcHoraFin(),totalHoras:calcDuracion(),tiempoTranscurrido:getTiempoTranscurrido(),cliente,direccion:document.getElementById('c-direccion').value.trim(),poblacion:document.getElementById('c-poblacion').value.trim(),cp:document.getElementById('c-cp').value.trim(),tecnico,tecnicosExtra:getTecnicosExtra('c'),...getFurgoneta('c-'+tipo),corte:getPill('c-'+tipo+'-corte'),corteHoras:document.getElementById('c-'+tipo+'-corte-horas-val')?.value.trim()||'',bloque:document.getElementById('c-bloque')?.value.trim()||'',resumen:buildResumenChecklist(tipo),observaciones:tipo==='elec'?document.getElementById('elec-obs').value.trim():document.getElementById('hid-obs').value.trim(),incidencia:tipo==='elec'?document.getElementById('elec-incidencia')?.value.trim()||'':document.getElementById('hid-incidencia')?.value.trim()||'',horasPresupuestadas:document.getElementById('horas-pres-'+tipo)?.value.trim()||'',numTecnicos:document.getElementById('num-tec-'+tipo)?.value.trim()||'',materiales:getMaterilesFor(tipo),estadoGeneral:null,numDoc:genNumDoc(),idParte:_idParteActual.c,fotos:[...fotosData[tipo].filter(Boolean),...(fotosExtra[tipo]||[])],firmaTecnico:getFirmasTecnicosArray(tipo)[0]?.firma||null,firmasTecnicos:getFirmasTecnicosArray(tipo),firmaCliente:ausenteState[tipo]?null:getFirmaBase64('cliente-'+tipo),nombreFirmanteCliente:document.getElementById('nombre-firma-cliente-'+tipo)?.value.trim()||'',clienteAusente:ausenteState[tipo],motivoAusencia:document.getElementById('ausente-motivo-'+tipo)?.value.trim()||'',presupuestoPdf:pdfData[tipo]||null,ubicacion,ubicacionInicio:window._ubicacionInicio||null,horaEnvio:calcHoraFin()};
+  const payload={empresa:empresaChecklist,tipo:tipoNombre,fecha:fechaTexto,horaInicio:document.getElementById('c-hora-inicio').value,horaFin:calcHoraFin(),totalHoras:calcDuracion(),tiempoTranscurrido:getTiempoTranscurrido(),cliente,direccion:document.getElementById('c-direccion').value.trim(),poblacion:document.getElementById('c-poblacion').value.trim(),cp:document.getElementById('c-cp').value.trim(),tecnico,tecnicosExtra:getTecnicosExtra('c'),...getFurgoneta('c'),corte:getPill('c-'+tipo+'-corte'),corteHoras:document.getElementById('c-'+tipo+'-corte-horas-val')?.value.trim()||'',bloque:document.getElementById('c-bloque')?.value.trim()||'',resumen:buildResumenChecklist(tipo),observaciones:tipo==='elec'?document.getElementById('elec-obs').value.trim():document.getElementById('hid-obs').value.trim(),incidencia:tipo==='elec'?document.getElementById('elec-incidencia')?.value.trim()||'':document.getElementById('hid-incidencia')?.value.trim()||'',horasPresupuestadas:document.getElementById('horas-pres-'+tipo)?.value.trim()||'',numTecnicos:document.getElementById('num-tec-'+tipo)?.value.trim()||'',materiales:getMaterilesFor(tipo),estadoGeneral:null,numDoc:genNumDoc(),idParte:_idParteActual.c,fotos:[...fotosData[tipo].filter(Boolean),...(fotosExtra[tipo]||[])],firmaTecnico:getFirmasTecnicosArray(tipo)[0]?.firma||null,firmasTecnicos:getFirmasTecnicosArray(tipo),firmaCliente:ausenteState[tipo]?null:getFirmaBase64('cliente-'+tipo),nombreFirmanteCliente:document.getElementById('nombre-firma-cliente-'+tipo)?.value.trim()||'',clienteAusente:ausenteState[tipo],motivoAusencia:document.getElementById('ausente-motivo-'+tipo)?.value.trim()||'',presupuestoPdf:pdfData[tipo]||null,ubicacion,ubicacionInicio:window._ubicacionInicio||null,horaEnvio:calcHoraFin()};
   try{const data=await enviarConProgreso(payload,btn,tipoNombre);mostrarPantallaFinal(data.url||null);}
   catch(err){showToast('❌ Error: '+(err.message||'sin conexión')+' — Espera 30s antes de reintentar','error');btn.textContent='⏳ Espera 30s...';setTimeout(function(){btn.disabled=false;btn.textContent='📤 Enviar '+tipoNombre.toLowerCase();},30000);}
 }
