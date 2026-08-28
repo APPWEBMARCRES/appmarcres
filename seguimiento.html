@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Grupo Marcres · Seguimiento</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root {
   --azul: #184595;
@@ -19,7 +20,6 @@
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; }
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 .header {
   background: var(--azul);
@@ -78,6 +78,29 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
 }
 .map-placeholder .icon { font-size: 40px; }
 
+/* Controles propios del mapa (zoom y encuadre), sobre el mapa a la derecha */
+.map-controles {
+  position: absolute; top: 10px; right: 10px; z-index: 500;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 6px;
+}
+.btn-mapa {
+  width: 38px; height: 38px; border-radius: 9px;
+  border: 1px solid var(--border); background: rgba(255,255,255,.96);
+  color: var(--azul); font-size: 19px; font-weight: 700; line-height: 1;
+  cursor: pointer; font-family: var(--font);
+  box-shadow: 0 2px 8px rgba(0,0,0,.18);
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s, transform .1s;
+}
+.btn-mapa:hover { background: #fff; }
+.btn-mapa:active { transform: scale(.94); }
+.zoom-nivel {
+  background: rgba(255,255,255,.96); border: 1px solid var(--border);
+  border-radius: 9px; padding: 4px 9px;
+  font-size: 11px; font-weight: 700; color: var(--muted);
+  box-shadow: 0 2px 8px rgba(0,0,0,.18); white-space: nowrap;
+}
+
 /* Tarjetas técnicos */
 .tecnicos-grid {
   display: grid;
@@ -126,6 +149,13 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
 }
 .tecnico-row:last-child { margin-bottom: 0; }
 .tecnico-row b { color: var(--text); font-weight: 600; flex-shrink: 0; }
+/* Matrícula: se lee mejor con aire y monoespaciada, como una placa */
+.matricula {
+  font-family: 'DM Mono', ui-monospace, 'Courier New', monospace;
+  font-weight: 600; letter-spacing: .5px; color: var(--text);
+  background: #EFECE7; border: 1px solid var(--border);
+  border-radius: 5px; padding: 1px 7px;
+}
 .tecnico-card-footer {
   padding: 8px 14px;
   border-top: 1px solid var(--border);
@@ -273,6 +303,12 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
   <!-- Mapa -->
   <div id="map-container">
     <div id="map"></div>
+    <div class="map-controles">
+      <button class="btn-mapa" onclick="zoomMapa(1)" title="Acercar">＋</button>
+      <button class="btn-mapa" onclick="zoomMapa(-1)" title="Alejar">－</button>
+      <button class="btn-mapa" id="btn-encuadrar" onclick="encuadrarTodos()" title="Encuadrar a todos los técnicos">⤢</button>
+      <span class="zoom-nivel" id="zoom-nivel">Zoom —</span>
+    </div>
     <div class="map-placeholder" id="map-placeholder">
       <div class="icon">🗺️</div>
       <div>Cargando mapa...</div>
@@ -286,9 +322,28 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
 
 <script>
 // -- CONFIG --------------------------------------------------
-var GAS_URL = localStorage.getItem('marcres_gas_url') || '';
+// El almacenamiento del navegador puede no estar disponible (modo privado,
+// cookies bloqueadas, políticas de empresa). Antes se leía directo y, si
+// fallaba, el script moría entero: mapa en blanco, sin tarjetas y sin ningún
+// aviso. Ahora se degrada: el panel funciona, solo que no recuerda la URL.
+function leerGuardado(clave) {
+  try { return localStorage.getItem(clave) || ''; } catch (e) { return ''; }
+}
+function escribirGuardado(clave, valor) {
+  try { localStorage.setItem(clave, valor); return true; } catch (e) { return false; }
+}
+
+var GAS_URL = leerGuardado('marcres_gas_url');
 var map = null;
 var markers = {};
+
+// Zoom máximo del mapa. OSM sirve teselas nítidas hasta 19; por encima se
+// amplían las de 19, que sigue siendo útil para ver el portal exacto.
+var ZOOM_MAXIMO = 21;
+// Mientras nadie toque el mapa, se reencuadra solo en cada refresco.
+// En cuanto el usuario hace zoom o lo arrastra, manda él.
+var autoEncuadre = true;
+var _encuadrandoPorCodigo = false;
 function activarNotificacionesSistema(){
   var btn=document.getElementById('btn-notif');
   if(!window.Notification){
@@ -334,7 +389,10 @@ function guardarUrl() {
   var url = document.getElementById('gas-url-input').value.trim();
   if (!url) { alert('Pega la URL del GAS primero'); return; }
   GAS_URL = url;
-  localStorage.setItem('marcres_gas_url', url);
+  if (!escribirGuardado('marcres_gas_url', url)) {
+    alert('La URL se usará ahora, pero este navegador no permite guardarla.\n'
+        + 'Tendrás que volver a pegarla cada vez que abras el panel.');
+  }
   document.getElementById('config-bar').style.display = 'none';
   cargarPosiciones();
 }
@@ -354,13 +412,86 @@ function initMapa() {
   var script = document.createElement('script');
   script.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
   script.onload = function() {
-    map = L.map('map').setView([38.35, -0.48], 10); // Alicante por defecto
+    map = L.map('map', {
+      zoomControl: true,
+      maxZoom: ZOOM_MAXIMO,           // antes se quedaba en 18 por defecto
+      zoomSnap: 0.5,                  // pasos de medio nivel: acercar es más fino
+      zoomDelta: 0.5,
+      wheelPxPerZoomLevel: 80         // la rueda del ratón responde más suave
+    }).setView([38.35, -0.48], 10);   // Alicante por defecto
+
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap'
+      attribution: '© OpenStreetMap',
+      maxZoom: ZOOM_MAXIMO,
+      maxNativeZoom: 19               // OSM sirve hasta 19; más allá se amplía la tesela
     }).addTo(map);
+
+    L.control.scale({ imperial: false, position: 'bottomleft' }).addTo(map);
+
+    // En cuanto el usuario toca el mapa, se deja de reencuadrar solo.
+    // Antes el refresco de cada 15 s deshacía el zoom que acababas de hacer.
+    map.on('zoomstart movestart', function(e) {
+      if (!_encuadrandoPorCodigo) autoEncuadre = false;
+      actualizarBotonEncuadre();
+    });
+    map.on('zoomend', actualizarNivelZoom);
+
     document.getElementById('map-placeholder').style.display = 'none';
+    actualizarNivelZoom();
+    actualizarBotonEncuadre();
+
+    // Leaflet mide el contenedor al crearse. Si el mapa nace mientras la
+    // página aún se está ajustando, o se gira el móvil, o cambia el tamaño
+    // de la ventana, se queda con las medidas viejas: teselas grises,
+    // marcadores descolocados y el zoom sin responder. invalidateSize() lo
+    // obliga a volver a medirse.
+    setTimeout(function(){ if (map) map.invalidateSize(); }, 250);
+    window.addEventListener('resize', function() {
+      clearTimeout(window._reajusteMapa);
+      window._reajusteMapa = setTimeout(function(){ if (map) map.invalidateSize(); }, 200);
+    });
+  };
+  script.onerror = function() {
+    var ph = document.getElementById('map-placeholder');
+    if (ph) {
+      ph.style.display = 'flex';
+      ph.innerHTML = '<div class="icon">⚠️</div>'
+        + '<div style="text-align:center;line-height:1.6;">No se ha podido cargar el mapa.<br>'
+        + 'Revisa la conexión y recarga la página.<br>'
+        + '<span style="font-size:12px;color:#999;">Las tarjetas de los técnicos siguen funcionando.</span></div>';
+    }
   };
   document.head.appendChild(script);
+}
+
+// Encuadra a todos los técnicos y vuelve a activar el encuadre automático
+function encuadrarTodos() {
+  if (!map) return;
+  autoEncuadre = true;
+  actualizarBotonEncuadre();
+  var pts = [];
+  Object.keys(markers).forEach(function(k) { pts.push(markers[k].getLatLng()); });
+  if (!pts.length) return;
+  _encuadrandoPorCodigo = true;
+  if (pts.length === 1) map.setView(pts[0], 16, { animate: false });
+  else map.fitBounds(pts, { padding: [40,40], maxZoom: 16, animate: false });
+  _encuadrandoPorCodigo = false;
+  actualizarNivelZoom();
+  actualizarBotonEncuadre();
+}
+
+function actualizarBotonEncuadre() {
+  var b = document.getElementById('btn-encuadrar');
+  if (!b) return;
+  b.style.opacity = autoEncuadre ? '.55' : '1';
+  b.title = autoEncuadre
+    ? 'El mapa se encuadra solo. Muévelo o haz zoom para fijarlo a tu gusto.'
+    : 'Zoom fijado por ti. Pulsa para volver a encuadrar a todos los técnicos.';
+}
+
+function actualizarNivelZoom() {
+  var el = document.getElementById('zoom-nivel');
+  if (el && map) el.textContent = 'Zoom ' + map.getZoom();
 }
 
 // -- ICONOS ---------------------------------------------------
@@ -388,12 +519,27 @@ function getIniciales(nombre) {
 // Convierte cualquier formato a decimal con punto
 // 38373110 → 38.373110 | 38,373110 → 38.373110 | 38.373110 → 38.373110
 function normalizarCoordenada(val, esLat) {
-  var n = parseFloat(String(val || '0').replace(',', '.'));
-  if (isNaN(n) || n === 0) return null;
+  if (val === null || val === undefined || String(val).trim() === '') return null;
+  var n = parseFloat(String(val).replace(',', '.'));
+  if (isNaN(n)) return null;
   // Si el valor absoluto es mayor que el máximo posible, dividir por 1M
   if (esLat  && Math.abs(n) > 90)  n = n / 1000000;
   if (!esLat && Math.abs(n) > 180) n = n / 1000000;
+  // Fuera de rango incluso tras normalizar: dato corrupto
+  if (esLat  && Math.abs(n) > 90)  return null;
+  if (!esLat && Math.abs(n) > 180) return null;
   return n;
+}
+// Longitud 0 es una coordenada válida (meridiano de Greenwich, y la costa de
+// Alicante lo roza), así que no se puede usar "if (!lng)" para descartarla.
+function coordOk(n) { return n !== null && !isNaN(n); }
+
+// Escapa texto que viene del servidor antes de meterlo en HTML.
+// Sin esto, un cliente con comillas o un & parte la tarjeta entera.
+function esc(t) {
+  return String(t === null || t === undefined ? '' : t)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 // -- CARGAR POSICIONES ----------------------------------------
@@ -425,7 +571,13 @@ function renderizarTecnicos(posiciones) {
   detectarNuevosTecnicos(posiciones);
   var grid = document.getElementById('tecnicos-grid');
   var count = document.getElementById('count-tecnicos');
-  count.textContent = posiciones.length + (posiciones.length === 1 ? ' técnico activo' : ' técnicos activos');
+  // Se cuentan solo los que tienen parte en curso. Antes se contaban todas
+  // las posiciones, así que los técnicos que ya habían enviado (los grises)
+  // seguían sumando y el número no cuadraba con lo que se veía en el mapa.
+  var nActivos = posiciones.filter(function(p){ return p.activo; }).length;
+  var nGrises = posiciones.length - nActivos;
+  count.textContent = nActivos + (nActivos === 1 ? ' técnico activo' : ' técnicos activos')
+    + (nGrises ? ' · ' + nGrises + (nGrises === 1 ? ' sin parte' : ' sin parte') : '');
 
   if (!posiciones.length) {
     grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1;">'
@@ -446,23 +598,51 @@ function renderizarTecnicos(posiciones) {
       }
     });
 
+    // Los técnicos que van juntos en el mismo parte comparten exactamente la
+    // misma posición. Sin separarlos, el segundo marcador queda escondido
+    // debajo del primero y parece que no está. Se reparten en un círculo de
+    // unos 15 m: la posición real no cambia (la del enlace a Maps y la de la
+    // tarjeta siguen siendo la exacta), solo se separan los iconos.
+    var _juntos = {};
+    posiciones.forEach(function(p) {
+      var la = normalizarCoordenada(p.lat, true), lo = normalizarCoordenada(p.lng, false);
+      if (!coordOk(la) || !coordOk(lo)) return;
+      var k = la.toFixed(5) + ',' + lo.toFixed(5);
+      if (!_juntos[k]) _juntos[k] = [];
+      _juntos[k].push(p.tecnico);
+    });
+
     var bounds = [];
     posiciones.forEach(function(p) {
-      var lat = normalizarCoordenada(p.lat, true);
-      var lng = normalizarCoordenada(p.lng, false);
-      if (!lat || !lng) return;
+      var latReal = normalizarCoordenada(p.lat, true);
+      var lngReal = normalizarCoordenada(p.lng, false);
+      if (!coordOk(latReal) || !coordOk(lngReal)) return;
+
+      var lat = latReal, lng = lngReal;
+      var grupo = _juntos[latReal.toFixed(5) + ',' + lngReal.toFixed(5)] || [];
+      if (grupo.length > 1) {
+        var idx = grupo.indexOf(p.tecnico);
+        if (idx > 0) {
+          var ang = (2 * Math.PI * idx) / grupo.length;
+          var radio = 0.00014; // ~15 metros
+          lat = latReal + radio * Math.cos(ang);
+          lng = lngReal + radio * Math.sin(ang) / Math.cos(latReal * Math.PI / 180);
+        }
+      }
+
       bounds.push([lat, lng]);
       var iniciales = getIniciales(p.tecnico);
       var icono = crearIcono(p.empresa, iniciales, p.activo);
-      var mapsUrlPopup = 'https://www.google.com/maps?q=' + lat.toFixed(6) + ',' + lng.toFixed(6) + '&z=17';
+      var mapsUrlPopup = 'https://www.google.com/maps?q=' + latReal.toFixed(6) + ',' + lngReal.toFixed(6) + '&z=18';
       var popupHtml = '<div style="font-family:Arial;min-width:160px;">'
-        + '<div style="font-weight:700;font-size:13px;margin-bottom:4px;">' + p.tecnico + '</div>'
-        + '<div style="font-size:11px;color:#888;margin-bottom:6px;">' + (p.empresa || '').toUpperCase() + '</div>'
-        + (p.cliente ? '<div style="font-size:12px;margin-bottom:2px;">👥 ' + p.cliente + '</div>' : '<div style="font-size:12px;color:#aaa;font-style:italic;margin-bottom:2px;">Sin trabajo asignado</div>')
-        + (p.tipo    ? '<div style="font-size:12px;margin-bottom:2px;">📋 ' + p.tipo + '</div>' : '')
-        + (p.tecnicosExtra ? '<div style="font-size:12px;color:#184595;font-weight:600;margin-bottom:2px;">🤝 Con: ' + p.tecnicosExtra + '</div>' : '')
-        + '<div style="font-size:11px;color:#aaa;margin-top:6px;">🕐 ' + (p.timestamp || '') + '</div>'
-        + (p.horaInicio ? '<div style="font-size:11px;color:#aaa;">▶ Inicio: ' + p.horaInicio + '</div>' : '')
+        + '<div style="font-weight:700;font-size:13px;margin-bottom:4px;">' + esc(p.tecnico) + '</div>'
+        + '<div style="font-size:11px;color:#888;margin-bottom:6px;">' + esc((p.empresa || '').toUpperCase()) + '</div>'
+        + (p.cliente ? '<div style="font-size:12px;margin-bottom:2px;">👥 ' + esc(p.cliente) + '</div>' : '<div style="font-size:12px;color:#aaa;font-style:italic;margin-bottom:2px;">Sin trabajo asignado</div>')
+        + (p.tipo    ? '<div style="font-size:12px;margin-bottom:2px;">📋 ' + esc(p.tipo) + '</div>' : '')
+        + (p.tecnicosExtra ? '<div style="font-size:12px;color:#184595;font-weight:600;margin-bottom:2px;">🤝 Con: ' + esc(p.tecnicosExtra) + '</div>' : '')
+        + (p.matricula ? '<div style="font-size:12px;margin-bottom:2px;">🚐 <b>' + esc(p.matricula) + '</b></div>' : '')
+        + '<div style="font-size:11px;color:#aaa;margin-top:6px;">🕐 ' + esc(p.timestamp || '') + '</div>'
+        + (p.horaInicio ? '<div style="font-size:11px;color:#aaa;">▶ Inicio: ' + esc(p.horaInicio) + '</div>' : '')
         + '<div style="margin-top:8px;"><a href="' + mapsUrlPopup + '" target="_blank" style="font-size:12px;color:#184595;font-weight:600;">📍 Ver en Maps</a></div>'
         + '</div>';
       if (markers[p.tecnico]) {
@@ -472,38 +652,50 @@ function renderizarTecnicos(posiciones) {
           .bindPopup(popupHtml).addTo(map);
       }
     });
-    if (bounds.length) map.fitBounds(bounds, { padding: [40,40], maxZoom: 15 });
+    // Solo se reencuadra si el usuario no ha tocado el mapa. Antes esto se
+    // ejecutaba en cada refresco de 15 s y deshacía el zoom que acabaras de hacer.
+    if (bounds.length && autoEncuadre) {
+      _encuadrandoPorCodigo = true;
+      if (bounds.length === 1) map.setView(bounds[0], 16, { animate: false });
+      else map.fitBounds(bounds, { padding: [40,40], maxZoom: 16, animate: false });
+      _encuadrandoPorCodigo = false;
+    }
+    actualizarNivelZoom();
   }
 
   // Renderizar tarjetas
   grid.innerHTML = posiciones.map(function(p) {
     var lat = normalizarCoordenada(p.lat, true);
     var lng = normalizarCoordenada(p.lng, false);
-    if (!lat || !lng) return '';
+    if (!coordOk(lat) || !coordOk(lng)) return '';
     var empresa = (p.empresa || 'marcres').toLowerCase();
     var iniciales = getIniciales(p.tecnico);
-    var mapsUrl = 'https://www.google.com/maps?q=' + lat.toFixed(6) + ',' + lng.toFixed(6) + '&z=17';
+    var mapsUrl = 'https://www.google.com/maps?q=' + lat.toFixed(6) + ',' + lng.toFixed(6) + '&z=18';
     var avatarClass = p.activo ? empresa : 'inactivo';
     var cardBorde = p.activo ? '' : 'border-color:#ddd;opacity:.75;';
-    return '<div class="tecnico-card" style="' + cardBorde + '">'      + '<div class="tecnico-card-header">'      +   '<div class="tecnico-avatar ' + avatarClass + '">' + iniciales + '</div>'
+    var tecAttr = esc(p.tecnico);
+    return '<div class="tecnico-card" style="' + cardBorde + '">'
+      + '<div class="tecnico-card-header">'
+      +   '<div class="tecnico-avatar ' + avatarClass + '">' + esc(iniciales) + '</div>'
       +   '<div class="tecnico-info">'
-      +     '<div class="tecnico-nombre">' + p.tecnico + '</div>'
-      +     '<span class="tecnico-empresa ' + (p.activo ? empresa : 'inactivo') + '">' + empresa + (p.activo ? '' : ' · sin parte') + '</span>'
+      +     '<div class="tecnico-nombre">' + esc(p.tecnico) + '</div>'
+      +     '<span class="tecnico-empresa ' + (p.activo ? empresa : 'inactivo') + '">' + esc(empresa) + (p.activo ? '' : ' · sin parte') + '</span>'
       +   '</div>'
       + '</div>'
       + '<div class="tecnico-card-body">'
-      + (p.cliente ? '<div class="tecnico-row"><b>👥</b> ' + p.cliente + '</div>' : '<div class="tecnico-row" style="color:var(--muted);font-style:italic;">Sin trabajo asignado</div>')
-      + (p.tipo    ? '<div class="tecnico-row"><b>📋</b> ' + p.tipo + '</div>' : '')
-      + (p.tecnicosExtra ? '<div class="tecnico-row" style="color:#184595;font-weight:600;"><b>🤝</b> Con: ' + p.tecnicosExtra + '</div>' : '')
-      +   '<div class="tecnico-row"><b>📍</b> ' + p.lat + ', ' + p.lng + (p.precision ? '  <span style="color:#bbb">±' + p.precision + 'm</span>' : '') + '</div>'
-      + (p.horaInicio ? '<div class="tecnico-row"><b>▶</b> Inicio: ' + p.horaInicio + '</div>' : '')
-      + (p.timestamp ? '<div class="tecnico-row"><b>🕐</b> ' + p.timestamp + '</div>' : '')
+      + (p.cliente ? '<div class="tecnico-row"><b>👥</b> ' + esc(p.cliente) + '</div>' : '<div class="tecnico-row" style="color:var(--muted);font-style:italic;">Sin trabajo asignado</div>')
+      + (p.tipo    ? '<div class="tecnico-row"><b>📋</b> ' + esc(p.tipo) + '</div>' : '')
+      + (p.tecnicosExtra ? '<div class="tecnico-row" style="color:#184595;font-weight:600;"><b>🤝</b> Con: ' + esc(p.tecnicosExtra) + '</div>' : '')
+      + (p.matricula ? '<div class="tecnico-row"><b>🚐</b> <span class="matricula">' + esc(p.matricula) + '</span></div>' : '')
+      +   '<div class="tecnico-row"><b>📍</b> ' + lat.toFixed(6) + ', ' + lng.toFixed(6) + (p.precision ? '  <span style="color:#bbb">±' + esc(p.precision) + 'm</span>' : '') + '</div>'
+      + (p.horaInicio ? '<div class="tecnico-row"><b>▶</b> Inicio: ' + esc(p.horaInicio) + '</div>' : '')
+      + (p.timestamp ? '<div class="tecnico-row"><b>🕐</b> ' + esc(p.timestamp) + '</div>' : '')
       + '</div>'
       + '<div class="tecnico-card-footer">'
-      +   '<button class="btn-maps" onclick="window.open(\'' + mapsUrl + '\',\'_blank\')">📍 Ver en Maps</button>'
-      +   '<button class="btn-centrar" onclick="centrarEnTecnico(\'' + p.tecnico + '\')">🎯</button>'
-      +   '<button class="btn-centrar btn-borrar" style="color:#e53935;border-color:#e53935;" data-tecnico="' + p.tecnico.replace(/"/g,'&quot;') + '" onclick="borrarTecnicoBtn(this)">🗑️</button>'
-      +   '<button class="btn-centrar" style="color:#2D6A4F;border-color:#2D6A4F;" data-tecnico="' + p.tecnico.replace(/"/g,'&quot;') + '" onclick="verRutaBtn(this)" title="Ver ruta">🗺️</button>'
+      +   '<button class="btn-maps" data-maps="' + esc(mapsUrl) + '" onclick="window.open(this.dataset.maps,\'_blank\')">📍 Ver en Maps</button>'
+      +   '<button class="btn-centrar" data-tecnico="' + tecAttr + '" onclick="centrarEnTecnico(this.dataset.tecnico)" title="Centrar y ampliar">🎯</button>'
+      +   '<button class="btn-centrar btn-borrar" style="color:#e53935;border-color:#e53935;" data-tecnico="' + tecAttr + '" onclick="borrarTecnicoBtn(this)">🗑️</button>'
+      +   '<button class="btn-centrar" style="color:#2D6A4F;border-color:#2D6A4F;" data-tecnico="' + tecAttr + '" onclick="verRutaBtn(this)" title="Ver ruta">🗺️</button>'
       + '</div>'
       + '</div>';
   }).join('');
@@ -526,9 +718,30 @@ function centrarEnTecnico(tecnico) {
   if (!map) return;
   var marker = markers[tecnico];
   if (marker) {
-    map.setView(marker.getLatLng(), 17);
+    // Al centrar en un técnico se fija el zoom: el refresco automático ya no
+    // lo deshace hasta que se pulse el botón de encuadrar
+    autoEncuadre = false;
+    actualizarBotonEncuadre();
+    map.setView(marker.getLatLng(), 18, { animate: false });
     marker.openPopup();
+    actualizarNivelZoom();
   }
+}
+
+// Acercar / alejar desde los botones propios del panel
+function zoomMapa(delta) {
+  if (!map) return;
+  autoEncuadre = false;
+  actualizarBotonEncuadre();
+  _encuadrandoPorCodigo = true;
+  var destino = Math.min(ZOOM_MAXIMO, Math.max(map.getMinZoom(), map.getZoom() + delta));
+  // Sin animación a propósito: la animación de Leaflet depende de que las
+  // transiciones CSS lleguen a completarse, y si el contenedor está oculto,
+  // recién redimensionado o dentro de un iframe, el zoom se queda a medias
+  // y el botón parece que no hace nada. Así el salto es instantáneo y seguro.
+  map.setZoom(destino, { animate: false });
+  _encuadrandoPorCodigo = false;
+  actualizarNivelZoom();
 }
 
 // -- BORRAR TÉCNICO DEL PANEL ---------------------------------
@@ -538,6 +751,7 @@ function borrarTecnicoBtn(btn) {
 }
 
 function borrarTecnico(tecnico) {
+  if (!GAS_URL) { alert('Falta configurar la URL del GAS.'); return; }
   if (!confirm('¿Eliminar a ' + tecnico + ' del panel? Volverá a aparecer cuando pulse INICIO.')) return;
   fetch(GAS_URL, {
     method: 'POST',
@@ -610,16 +824,21 @@ function mostrarNotificacion(tecnico, empresa, cliente) {
   }, 6000);
 }
 
+var _primeraCarga = true;
+
 function detectarNuevosTecnicos(posicionesNuevas) {
   posicionesNuevas.forEach(function(p) {
     var key = p.tecnico;
     var anterior = _tecnicosAnteriores[key];
-    // Notificar si es nuevo o si pasó de inactivo a activo
-    if (p.activo && (!anterior || !anterior.activo)) {
+    // Notificar si es nuevo o si pasó de inactivo a activo.
+    // En la PRIMERA carga no se avisa de nada: si no, al abrir el panel
+    // sonaban de golpe tantos avisos como técnicos hubiera trabajando.
+    if (!_primeraCarga && p.activo && (!anterior || !anterior.activo)) {
       mostrarNotificacion(p.tecnico, p.empresa, p.cliente);
     }
     _tecnicosAnteriores[key] = { activo: p.activo };
   });
+  _primeraCarga = false;
 }
 
 var rutaActual = null;
@@ -639,27 +858,40 @@ function verRuta(tecnico, periodo) {
   fetch(GAS_URL + '?action=ruta&tecnico=' + encodeURIComponent(tecnico) + '&periodo=' + (periodo||'hoy') + '&t=' + Date.now())
     .then(function(r) { return r.json(); })
     .then(function(data) {
-      if (!data.ok || !data.puntos.length) { alert('Sin historial de ruta para ' + tecnico); return; }
+      if (!data.ok || !data.puntos || !data.puntos.length) { alert('Sin historial de ruta para ' + tecnico); return; }
       var coords = [];
       data.puntos.forEach(function(p) {
         var lat = normalizarCoordenada(p.lat, true);
         var lng = normalizarCoordenada(p.lng, false);
-        if (!lat || !lng) return;
+        if (!coordOk(lat) || !coordOk(lng)) return;
         coords.push([lat, lng]);
         var iconoVerde = L.divIcon({
           html: '<div style="width:10px;height:10px;border-radius:50%;background:#2D6A4F;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4);"></div>',
           className: '', iconSize: [10,10], iconAnchor: [5,5]
         });
-        var ts = p.timestamp ? new Date(p.timestamp).toLocaleTimeString('es-ES') : '';
+        // El timestamp puede llegar en formato español ("26/08/2026 15:30"),
+        // que new Date() no entiende. Si no se puede convertir, se muestra tal cual.
+        var ts = '';
+        if (p.timestamp) {
+          var d = new Date(p.timestamp);
+          ts = isNaN(d.getTime()) ? String(p.timestamp) : d.toLocaleTimeString('es-ES');
+        }
         var mk = L.marker([lat,lng], { icon: iconoVerde })
-          .bindPopup('<div style="font-family:Arial;font-size:12px;min-width:140px;"><b style="color:#2D6A4F;">Ruta: ' + p.tecnico + '</b><br>' + (p.cliente ? '👥 ' + p.cliente + '<br>' : '') + (ts ? '🕐 ' + ts : '') + '</div>')
+          .bindPopup('<div style="font-family:Arial;font-size:12px;min-width:140px;"><b style="color:#2D6A4F;">Ruta: ' + esc(p.tecnico) + '</b><br>' + (p.cliente ? '👥 ' + esc(p.cliente) + '<br>' : '') + (ts ? '🕐 ' + esc(ts) : '') + '</div>')
           .addTo(map);
         rutaMarkers.push(mk);
       });
+      // Ver una ruta fija el encuadre: no tendría sentido que el refresco
+      // automático te sacara de la ruta que estás mirando
+      autoEncuadre = false;
+      actualizarBotonEncuadre();
+      _encuadrandoPorCodigo = true;
       if (coords.length > 1) {
         rutaActual = L.polyline(coords, { color: '#2D6A4F', weight: 3, opacity: 0.7, dashArray: '6,4' }).addTo(map);
-        map.fitBounds(rutaActual.getBounds(), { padding: [30,30] });
-      } else if (coords.length === 1) { map.setView(coords[0], 15); }
+        map.fitBounds(rutaActual.getBounds(), { padding: [30,30], maxZoom: 17, animate: false });
+      } else if (coords.length === 1) { map.setView(coords[0], 17, { animate: false }); }
+      _encuadrandoPorCodigo = false;
+      actualizarNivelZoom();
     }).catch(function(e) { console.error(e); });
 }
 
