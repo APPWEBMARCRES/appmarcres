@@ -1581,7 +1581,15 @@ function obtenerUbicacion(){
   // Se comprueba que tenga "lat": antes bastaba con que el objeto existiera, y
   // un intento fallido ({ok:false,motivo:'senal'}) también es un objeto, así
   // que el fallo se quedaba cacheado para siempre y ya nunca se reintentaba.
-  if(window._ubicacionInicio && window._ubicacionInicio.lat) return Promise.resolve(window._ubicacionInicio);
+  //
+  // IMPORTANTE: la caché la rellenan tres sitios distintos (el permiso inicial
+  // y el seguimiento GPS) con la forma {lat,lng,precision}, SIN el campo "ok"
+  // que sí trae _pedirGPS(). Por eso aquí se normaliza la respuesta: quien la
+  // reciba encuentra siempre la misma forma, tenga el origen que tenga.
+  var u = window._ubicacionInicio;
+  if(u && u.lat){
+    return Promise.resolve({ ok:true, lat:u.lat, lng:u.lng, precision:u.precision });
+  }
   return _pedirGPS();
 }
 function obtenerUbicacionFinal(){
@@ -1902,7 +1910,10 @@ function iniciarParte(prefix) {
 
   obtenerUbicacion().then(function(ub){
     if(btnIni){ btnIni.disabled = false; btnIni.textContent = textoBtn; }
-    if(!ub || !ub.ok || !ub.lat){
+    // Lo que decide si hay ubicación es tener coordenada, no un campo "ok":
+    // así da igual de dónde venga el dato y no se puede repetir el fallo de
+    // rechazar una ubicación buena por venir con otra forma.
+    if(!ub || !ub.lat){
       if(ub && ub.motivo === 'senal'){
         showToast('📡 Sin señal de ubicación — busca un sitio con mejor cobertura e inténtalo de nuevo.', 'error');
       } else {
@@ -1930,7 +1941,7 @@ function _arrancarParte(prefix) {
   // ella), pero se vuelve a comprobar antes de sobrescribir: un intento fallido
   // no debe pisar una lectura buena que ya tuviéramos.
   obtenerUbicacion().then(function(ubInicio){
-    if(ubInicio && ubInicio.ok && ubInicio.lat) window._ubicacionInicio = ubInicio;
+    if(ubInicio && ubInicio.lat) window._ubicacionInicio = ubInicio;
     // Email de inicio al GAS
     const empresa = prefix==='c' ? empresaChecklist : empresaAlbaran;
     const tecnico = document.getElementById(prefix+'-tecnico')?.value.trim()||'—';
