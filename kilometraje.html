@@ -50,6 +50,28 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .tecnico-item-name{font-size:14px;font-weight:600;color:var(--text);}
 .tecnico-vacio{padding:10px 14px;font-size:13px;color:var(--muted);font-style:italic;}
 
+/* ── Repostaje ── */
+.pill-group{display:flex;gap:8px;margin-top:2px;}
+.pill{
+  padding:7px 20px;border:1.5px solid var(--border);border-radius:99px;
+  background:var(--surface);font-family:var(--font);font-size:14px;font-weight:600;
+  color:var(--muted);cursor:pointer;user-select:none;transition:all .15s;
+}
+.pill.p-ok{background:var(--ok-bg);border-color:var(--ok);color:var(--ok);}
+.pill.p-no{background:var(--surface2);border-color:var(--border);color:var(--text);}
+.repostaje-box{margin-top:10px;display:none;}
+.repostaje-box.show{display:block;}
+.euro-wrap{position:relative;max-width:180px;}
+.euro-wrap input{
+  width:100%;border:1.5px solid var(--border);border-radius:var(--radius-sm);
+  padding:9px 30px 9px 12px;font-family:var(--font);font-size:16px;font-weight:600;
+  color:var(--text);outline:none;text-align:right;
+}
+.euro-simbolo{
+  position:absolute;right:11px;top:50%;transform:translateY(-50%);
+  font-size:15px;font-weight:700;color:var(--muted);pointer-events:none;
+}
+
 /* ── KM ── */
 .km-resultado{padding:12px 14px;background:var(--surface2);border-top:1px solid var(--border);text-align:center;font-size:13px;font-weight:700;color:var(--muted);}
 .km-resultado.ok{background:var(--ok-bg);color:var(--ok);}
@@ -134,6 +156,21 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
       <label class="field-label">Matrícula de la furgoneta <span style="color:var(--bad)">*</span></label>
       <input type="text" class="field-input" id="matricula" placeholder="Ej: 1234 ABC" maxlength="20"
              autocomplete="off" style="text-transform:uppercase;" oninput="guardarBorrador()">
+    </div>
+    <div class="field-group">
+      <label class="field-label">⛽ Repostaje <span style="color:var(--bad)">*</span></label>
+      <div class="pill-group" id="repostaje-pills">
+        <span class="pill" onclick="selectRepostaje(this,'Si')">Sí</span>
+        <span class="pill" onclick="selectRepostaje(this,'No')">No</span>
+      </div>
+      <div class="repostaje-box" id="repostaje-box">
+        <div class="euro-wrap">
+          <input type="text" id="repostaje-importe" placeholder="0,00" inputmode="decimal"
+                 autocomplete="off" oninput="soloImporte(this)">
+          <span class="euro-simbolo">€</span>
+        </div>
+        <div class="furgo-hint">Importe total del repostaje de hoy.</div>
+      </div>
     </div>
   </div>
 
@@ -316,6 +353,50 @@ function cargarTecnicos(){
 // ══════════════════════════════════════════════════════════════
 function soloDigitos(el){ el.value = el.value.replace(/\D/g,''); }
 
+// ══════════════════════════════════════════════════════════════
+// REPOSTAJE
+// ══════════════════════════════════════════════════════════════
+function selectRepostaje(el, val){
+  var yaActivo = el.classList.contains('p-ok') || el.classList.contains('p-no');
+  var grupo = document.getElementById('repostaje-pills');
+  grupo.querySelectorAll('.pill').forEach(function(p){ p.className='pill'; delete p.dataset.val; });
+  var caja = document.getElementById('repostaje-box');
+  if (yaActivo){                       // volver a pulsar deselecciona
+    caja.classList.remove('show');
+    guardarBorrador();
+    return;
+  }
+  el.classList.add(val==='Si' ? 'p-ok' : 'p-no');
+  el.dataset.val = val;
+  caja.classList.toggle('show', val==='Si');
+  if (val==='Si') { try{ document.getElementById('repostaje-importe').focus(); }catch(e){} }
+  guardarBorrador();
+}
+
+function getRepostaje(){
+  var sel = document.querySelector('#repostaje-pills .pill[data-val]');
+  return sel ? sel.dataset.val : '';       // '' = sin responder
+}
+
+// Solo cifras y un separador decimal. Se admite coma o punto: la coma es lo
+// que sale en el teclado del móvil en España.
+function soloImporte(el){
+  var v = el.value.replace(/[^0-9.,]/g,'').replace(/\./g,',');
+  var partes = v.split(',');
+  if (partes.length > 2) v = partes[0] + ',' + partes.slice(1).join('');
+  var trozos = v.split(',');
+  if (trozos[1] && trozos[1].length > 2) v = trozos[0] + ',' + trozos[1].slice(0,2);
+  el.value = v;
+  el.style.borderColor = '';
+  guardarBorrador();
+}
+
+function importeRepostaje(){
+  var t = (document.getElementById('repostaje-importe').value || '').replace(',', '.');
+  var n = parseFloat(t);
+  return isNaN(n) ? 0 : Math.round(n*100)/100;
+}
+
 function recalcKm(){
   var ini = parseInt(document.getElementById('km-inicio').value,10);
   var fin = parseInt(document.getElementById('km-fin').value,10);
@@ -402,6 +483,8 @@ function guardarBorrador(){
       matricula: document.getElementById('matricula').value,
       kmInicio: document.getElementById('km-inicio').value,
       kmFin: document.getElementById('km-fin').value,
+      repostaje: getRepostaje(),
+      importe: document.getElementById('repostaje-importe').value,
       fotos: fotos
     }));
   }catch(e){ /* almacenamiento lleno: se ignora, no debe romper nada */ }
@@ -420,6 +503,11 @@ function restaurarBorrador(){
     if (b.matricula) document.getElementById('matricula').value = b.matricula;
     if (b.kmInicio) document.getElementById('km-inicio').value = b.kmInicio;
     if (b.kmFin) document.getElementById('km-fin').value = b.kmFin;
+    if (b.repostaje){
+      var pr = document.querySelectorAll('#repostaje-pills .pill');
+      selectRepostaje(b.repostaje==='Si' ? pr[0] : pr[1], b.repostaje);
+    }
+    if (b.importe) document.getElementById('repostaje-importe').value = b.importe;
     if (b.fotos){ fotos = b.fotos; pintarSlot('inicio'); pintarSlot('fin'); }
     recalcKm();
   }catch(e){}
@@ -465,6 +553,26 @@ function enviarKilometraje(){
   if (isNaN(kmIni) || isNaN(kmFin)){ showToast('⚠ Los KM deben ser números','error'); return; }
   if (kmFin < kmIni){ showToast('⚠ Los KM de fin no pueden ser menores que los de inicio','error'); return; }
 
+  // Repostaje: hay que responder Sí o No, y si es Sí poner el importe
+  var repo = getRepostaje();
+  if (!repo){
+    showToast('⚠ Indica si hoy has repostado','error');
+    var gr = document.getElementById('repostaje-pills');
+    gr.style.outline='2px solid var(--bad)'; gr.style.outlineOffset='3px'; gr.style.borderRadius='99px';
+    setTimeout(function(){ gr.style.outline=''; gr.style.outlineOffset=''; }, 3000);
+    try{ gr.scrollIntoView({block:'center',behavior:'smooth'}); }catch(e){}
+    return;
+  }
+  var importe = (repo==='Si') ? importeRepostaje() : 0;
+  if (repo==='Si' && importe <= 0){
+    showToast('⚠ Has marcado repostaje: indica el importe en euros','error');
+    var inp = document.getElementById('repostaje-importe');
+    document.getElementById('repostaje-box').classList.add('show');
+    inp.style.borderColor='var(--bad)';
+    try{ inp.scrollIntoView({block:'center',behavior:'smooth'}); inp.focus(); }catch(e){}
+    return;
+  }
+
   var avisoFotos = document.getElementById('fotos-aviso');
   if (!fotos.inicio || !fotos.fin){
     avisoFotos.classList.add('show');
@@ -485,6 +593,8 @@ function enviarKilometraje(){
     kmInicio: kmIni,
     kmFin: kmFin,
     kmRecorridos: kmFin - kmIni,
+    repostaje: (repo==='Si') ? 'Sí' : 'No',
+    importeRepostaje: importe,
     fotoInicio: fotos.inicio,
     fotoFin: fotos.fin,
     forzar: false
@@ -542,7 +652,11 @@ function mandar(payload, tecnico, matricula){
       enviando = false;
       btn.disabled = false;
       btn.textContent = '✓ ENVIAR PARTE DE KM';
-      if (confirm('Ya hay un registro de kilometraje de hoy para ' + tecnico + '.\n\n¿Quieres reemplazarlo por este?')){
+      // Se nombra la matrícula: ahora se puede tener más de un parte al día si
+      // son furgonetas distintas, así que hay que dejar claro cuál se reemplaza
+      if (confirm('Ya hay un registro de hoy para ' + tecnico + ' con la furgoneta ' + matricula
+                  + '.\n\n¿Quieres reemplazarlo por este?\n\n'
+                  + 'Si has usado otra furgoneta distinta, cancela y revisa la matrícula.')){
         payload.forzar = true;
         enviando = true;
         mandar(payload, tecnico, matricula);
