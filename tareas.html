@@ -455,25 +455,39 @@ function buscarCliente(){
   if(q.length<3){ drop.innerHTML=''; return; }
   _cliT=setTimeout(function(){
     var url=GAS_PARTES+'?action=holded&empresa='+empresaSel.toLowerCase()+'&q='+encodeURIComponent(q);
+    drop.innerHTML='<div class="cli-drop"><div class="tec-vacio">Buscando en Holded…</div></div>';
     fetch(url).then(function(r){return r.json();}).then(function(d){
-      var lista=(d && (d.clientes||d.resultados||d.data)) || [];
-      if(!lista.length){ drop.innerHTML=''; return; }
+      // Holded devuelve la lista en "contacts" y con los campos en inglés:
+      // name, address, city, postalCode, province.
+      var lista=(d && d.contacts) || [];
+      window._clientes=lista;
+      if(!lista.length){
+        drop.innerHTML='<div class="cli-drop"><div class="tec-vacio">Ningún cliente de '+
+          esc(empresaSel)+' con ese nombre</div></div>';
+        return;
+      }
       var h='<div class="cli-drop">';
-      for(var i=0;i<Math.min(lista.length,12);i++){
+      for(var i=0;i<Math.min(lista.length,15);i++){
         var c=lista[i];
-        var nom=c.nombre||c.name||'';
-        h+='<div class="cli-item" onclick=\'elegirCliente('+JSON.stringify(JSON.stringify(c))+')\'>'+esc(nom)+
-           (c.poblacion?'<span style="color:var(--muted)"> · '+esc(c.poblacion)+'</span>':'')+'</div>';
+        var sitio=[c.city||'', c.postalCode||''].filter(function(x){ return x; }).join(' · ');
+        h+='<div class="cli-item" onclick="elegirCliente('+i+')">'+esc(c.name||'')+
+           (sitio?'<div style="color:var(--muted);font-size:11px;margin-top:2px;">'+esc(sitio)+'</div>':'')+
+           '</div>';
       }
       drop.innerHTML=h+'</div>';
-    }).catch(function(){ drop.innerHTML=''; });
+    }).catch(function(){
+      drop.innerHTML='<div class="cli-drop"><div class="tec-vacio">No he podido consultar Holded</div></div>';
+    });
   },320);
 }
-function elegirCliente(raw){
-  var c=JSON.parse(raw);
-  document.getElementById('f-cliente').value=c.nombre||c.name||'';
-  if(c.direccion) document.getElementById('f-direccion').value=c.direccion;
-  if(c.poblacion) document.getElementById('f-poblacion').value=c.poblacion;
+function elegirCliente(i){
+  var c=(window._clientes||[])[i];
+  if(!c) return;
+  document.getElementById('f-cliente').value=c.name||'';
+  document.getElementById('f-direccion').value=c.address||'';
+  // El CP delante de la población, que es como lo entiende el GPS
+  document.getElementById('f-poblacion').value =
+    [c.postalCode||'', c.city||''].filter(function(x){ return x; }).join(' ');
   document.getElementById('cli-drop').innerHTML='';
 }
 document.addEventListener('click',function(e){
