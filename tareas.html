@@ -43,9 +43,17 @@ textarea.inp{resize:vertical;min-height:76px;line-height:1.5;}
 .pill-group{display:flex;gap:8px;flex-wrap:wrap;}
 .pill{padding:7px 18px;border:1.5px solid var(--border);border-radius:99px;background:var(--surface);font-family:var(--font);font-size:14px;font-weight:600;color:var(--muted);cursor:pointer;user-select:none;transition:all .15s;}
 .pill.sel{background:var(--accent);border-color:var(--accent);color:#fff;}
-.tec-group{display:flex;gap:8px;flex-wrap:wrap;}
-.tec{padding:8px 14px;border:1.5px solid var(--border);border-radius:99px;background:var(--surface);font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;user-select:none;transition:all .15s;}
-.tec.sel{background:var(--ok-bg);border-color:var(--ok);color:var(--ok);}
+/* ── Técnico 1, Técnico 2… como en la app de partes ── */
+.tec-fila{position:relative;display:flex;align-items:center;gap:8px;}
+.tec-fila .inp{flex:1;}
+.tec-fila .inp.puesto{color:var(--ok);font-weight:600;border-color:var(--ok);}
+.tec-quitar{font-size:16px;color:var(--muted);cursor:pointer;padding:4px 7px;border-radius:var(--radius-sm);user-select:none;}
+.tec-quitar:hover{color:var(--bad);background:var(--bad-bg);}
+.tec-drop{position:absolute;left:0;right:34px;top:calc(100% + 3px);background:var(--surface);border:1.5px solid var(--accent);border-radius:var(--radius-sm);max-height:250px;overflow-y:auto;z-index:210;box-shadow:0 6px 20px rgba(24,69,149,.15);}
+.tec-op{padding:10px 12px;border-bottom:1px solid var(--border);cursor:pointer;font-size:13px;}
+.tec-op:last-child{border-bottom:none;}
+.tec-op:hover{background:var(--surface2);}
+.tec-vacio{padding:10px 12px;font-size:13px;color:var(--muted);font-style:italic;}
 
 .btn{width:100%;padding:15px;border:none;border-radius:var(--radius);background:var(--accent);color:#fff;font-family:var(--font);font-size:16px;font-weight:700;cursor:pointer;letter-spacing:.3px;}
 .btn:hover{background:var(--accent2);}
@@ -130,8 +138,11 @@ textarea.inp{resize:vertical;min-height:76px;line-height:1.5;}
   </div>
 
   <div class="card">
-    <div class="card-h">Técnicos <span style="text-transform:none;font-weight:400;color:var(--muted)">— marca varios para las parejas</span></div>
-    <div class="fg"><div class="tec-group" id="tec-group"></div></div>
+    <div class="card-h">Técnicos <span style="text-transform:none;font-weight:400;color:var(--muted)" id="tec-fuente">— cargando de Holded…</span></div>
+    <div id="tecnicos-box"></div>
+    <div class="fg" style="padding-top:9px;">
+      <button class="btn-sm" onclick="anadirTecnico()">＋ Añadir técnico</button>
+    </div>
   </div>
 
   <div class="card">
@@ -201,24 +212,45 @@ textarea.inp{resize:vertical;min-height:76px;line-height:1.5;}
 // ══════════════════════════════════════════════════════════════
 // CONFIGURACIÓN
 // ══════════════════════════════════════════════════════════════
-var GAS_URL = 'PEGA_AQUI_LA_URL_DEL_BACKEND_DE_TAREAS';
+var GAS_URL = 'https://script.google.com/macros/s/AKfycbzRA5IGI-KpJDUfYfMyIRRMbjYhcARhekdXq45ElqygHxmnu0n44k89owXFP15Xzcfc/exec';
 
 // El backend de partes, solo para buscar clientes. Es una lectura: no se
 // escribe nada en él, así que no hay riesgo para lo que está en producción.
 var GAS_PARTES = 'https://script.google.com/macros/s/AKfycbxDNNvIc8ouF8KqjEgEUvdoBJJN74baY06EYLTXE47B1xgNUsl7sWXxkBJD0x_KDwlM/exec';
 
-var TECNICOS = [
-  'JULIAN ANDRES MORENO RONZEWSKI',
+// ── QUIÉN SALE EN EL DESPLEGABLE ─────────────────────────────
+// Holded tiene 37 fichas: gente de oficina, bajas y duplicados. Aquí van
+// solo los técnicos que están trabajando ahora mismo.
+// Los nombres deben estar escritos EXACTAMENTE como en Holded, porque son
+// los que la app de partes usa para que el técnico se seleccione.
+// Para dar de alta o de baja a alguien, se toca solo esta lista.
+var TECNICOS_ACTIVOS = [
+  'MARCO ANTONIO VALLEJO PEREZ',
   'HELIODORO LAVARA ROMERO',
+  'CARLOS ALBERTO  ARBOLEDA AGUILAR',
+  'RUBÉN BAUDI CORTES',
+  'RUBÉN GONZALEZ VILAPLANA',
+  'IVAN BAUDI CORTES',
+  'JOSE RUBEN PEREZ',
   'MIGUEL HUERTA MARTINEZ',
-  'SONIA CANDELA LOPEZ',
-  'ANA VANESA CANO MOLINA',
-  'JOSE FRANCISCO GARCIA GARCIA'
+  'JULIAN ANDRES MORENO RONZEWSKI',
+  'JOSE FRANCISCO GARCIA GARCIA',
+  'CHRISTIAN RICARDO SALINAS BARAHONA',
+  'ROMAN CHAGOVTSEV'
 ];
+
+// Lista de reserva. Solo se usa si Holded no contesta: así el panel sigue
+// sirviendo aunque su API esté caída.
+var TECNICOS_RESERVA = TECNICOS_ACTIVOS.slice();
+var TECNICOS = [];
+var CLAVE_TECNICOS = 'tareas_tecnicos_v1';
+var HORAS_TECNICOS = 12;
+
 var DIAS = ['LUNES','MARTES','MIÉRCOLES','JUEVES','VIERNES'];
 
 var empresaSel = 'Marcres';
-var tecnicosSel = {};
+// Una posición por fila: filas[0] es el Técnico 1, filas[1] el Técnico 2…
+var filasTec = [''];
 var lunesActual = null;
 var enviando = false;
 
@@ -274,18 +306,144 @@ function selEmpresa(el){
   el.classList.add('sel'); empresaSel=el.dataset.v;
 }
 
-function pintarTecnicos(){
-  var h='';
-  for(var i=0;i<TECNICOS.length;i++){
-    var corto=TECNICOS[i].split(' ')[0]+' '+(TECNICOS[i].split(' ')[1]||'');
-    h+='<div class="tec" data-t="'+esc(TECNICOS[i])+'" onclick="togTec(this)" title="'+esc(TECNICOS[i])+'">'+esc(corto)+'</div>';
-  }
-  document.getElementById('tec-group').innerHTML=h;
+// ══════════════════════════════════════════════════════════════
+// TÉCNICOS  (los nombres salen de Holded, la misma fuente que usa
+// la app de partes: si no fueran los mismos, la tarea no le saldría)
+// ══════════════════════════════════════════════════════════════
+function cargarTecnicos(){
+  var cache=leerTecnicosLocal();
+  if(cache){ TECNICOS=cache.lista; marcarFuente('Holded'); pintarFilas(); }
+
+  fetch(GAS_PARTES+'?action=empleados&q=')
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      var l=(d && d.empleados) || [];
+      // Índice de lo que hay en Holded, sin tildes, para poder casar los
+      // nombres de TECNICOS_ACTIVOS aunque cambie alguna tilde o un espacio.
+      var enHolded={};
+      for(var i=0;i<l.length;i++){
+        var n=String(l[i].name||l[i].nombre||'').trim();
+        if(n.length<3) continue;
+        var clave=quitarTildes(n);
+        if(!enHolded[clave]) enHolded[clave]=n;   // la primera ficha manda
+      }
+
+      // Solo los técnicos activos, y con la escritura que tiene Holded
+      var nombres=[], faltan=[];
+      for(var j=0;j<TECNICOS_ACTIVOS.length;j++){
+        var real=enHolded[quitarTildes(TECNICOS_ACTIVOS[j])];
+        if(real){ if(nombres.indexOf(real)<0) nombres.push(real); }
+        else faltan.push(TECNICOS_ACTIVOS[j]);
+      }
+      if(faltan.length){
+        // No callarlo: un técnico que no case con Holded no podría recibir
+        // trabajos, y sin aviso no habría forma de enterarse.
+        console.warn('Sin ficha en Holded: '+faltan.join(', '));
+        showToast('⚠ Sin ficha en Holded: '+faltan.join(', '),'error');
+      }
+      if(!nombres.length) throw new Error('lista vacía');
+      nombres.sort();
+      TECNICOS=nombres;
+      guardarTecnicosLocal(nombres);
+      marcarFuente('Holded');
+      pintarFilas();
+    })
+    .catch(function(){
+      if(!TECNICOS.length){
+        TECNICOS=TECNICOS_RESERVA.slice();
+        marcarFuente('sin conexión con Holded, lista de reserva');
+        pintarFilas();
+      }
+    });
 }
-function togTec(el){
-  var t=el.dataset.t;
-  if(tecnicosSel[t]){ delete tecnicosSel[t]; el.classList.remove('sel'); }
-  else { tecnicosSel[t]=true; el.classList.add('sel'); }
+function marcarFuente(txt){
+  var e=document.getElementById('tec-fuente');
+  if(e) e.textContent='— '+TECNICOS.length+' de '+txt;
+}
+function guardarTecnicosLocal(l){
+  try{ localStorage.setItem(CLAVE_TECNICOS, JSON.stringify({t:Date.now(),lista:l})); }catch(e){}
+}
+function leerTecnicosLocal(){
+  try{
+    var c=JSON.parse(localStorage.getItem(CLAVE_TECNICOS)||'null');
+    if(!c || !c.lista || !c.lista.length) return null;
+    if(Date.now()-c.t > HORAS_TECNICOS*3600*1000) return null;
+    return c;
+  }catch(e){ return null; }
+}
+
+function pintarFilas(){
+  var h='';
+  for(var i=0;i<filasTec.length;i++){
+    var v=filasTec[i];
+    h+='<div class="fg"><label class="lbl">Técnico '+(i+1)+(i===0?' *':'')+'</label>'
+     + '<div class="tec-fila">'
+     + '<input class="inp'+(v?' puesto':'')+'" id="tec-inp-'+i+'" data-i="'+i+'" autocomplete="off"'
+     + ' placeholder="Escribe para buscar…" value="'+esc(v)+'"'
+     + ' oninput="filtrarTec('+i+')" onfocus="filtrarTec('+i+')">'
+     + (filasTec.length>1 ? '<span class="tec-quitar" onclick="quitarTecnico('+i+')" title="Quitar">✕</span>' : '')
+     + '<div id="tec-drop-'+i+'"></div>'
+     + '</div></div>';
+  }
+  document.getElementById('tecnicos-box').innerHTML=h;
+}
+
+function anadirTecnico(){
+  if(filasTec.length>=6){ showToast('Seis técnicos por trabajo es el tope','error'); return; }
+  filasTec.push('');
+  pintarFilas();
+  var ult=document.getElementById('tec-inp-'+(filasTec.length-1));
+  if(ult) ult.focus();
+}
+function quitarTecnico(i){
+  filasTec.splice(i,1);
+  if(!filasTec.length) filasTec=[''];
+  pintarFilas();
+}
+
+function filtrarTec(i){
+  var inp=document.getElementById('tec-inp-'+i);
+  var drop=document.getElementById('tec-drop-'+i);
+  if(!inp||!drop) return;
+  var q=quitarTildes(inp.value.trim());
+  filasTec[i]='';                       // mientras escribe, la fila no vale
+  inp.classList.remove('puesto');
+
+  var ya={};
+  for(var k=0;k<filasTec.length;k++) if(k!==i && filasTec[k]) ya[filasTec[k]]=true;
+
+  var res=[];
+  for(var j=0;j<TECNICOS.length && res.length<40;j++){
+    var n=TECNICOS[j];
+    if(ya[n]) continue;                 // no repetir el que ya está en otra fila
+    if(!q || quitarTildes(n).indexOf(q)>=0) res.push(n);
+  }
+  if(!res.length){ drop.innerHTML='<div class="tec-drop"><div class="tec-vacio">Ningún técnico con ese nombre</div></div>'; return; }
+  var h='<div class="tec-drop">';
+  for(var m=0;m<res.length;m++){
+    h+='<div class="tec-op" onclick="elegirTec('+i+',\''+esc(res[m]).replace(/'/g,"\\'")+'\')">'+esc(res[m])+'</div>';
+  }
+  drop.innerHTML=h+'</div>';
+}
+function elegirTec(i,nombre){
+  filasTec[i]=nombre;
+  var inp=document.getElementById('tec-inp-'+i);
+  if(inp){ inp.value=nombre; inp.classList.add('puesto'); }
+  document.getElementById('tec-drop-'+i).innerHTML='';
+}
+// Buscar sin que estorben las tildes: en Holded conviven "SONIA CANDELA LOPEZ"
+// y "SONIA CANDELA LÓPEZ", y quien escribe no sabe cuál es cuál.
+function quitarTildes(t){
+  return String(t).toUpperCase()
+    .replace(/[ÁÀÄÂ]/g,'A').replace(/[ÉÈËÊ]/g,'E').replace(/[ÍÌÏÎ]/g,'I')
+    .replace(/[ÓÒÖÔ]/g,'O').replace(/[ÚÙÜÛ]/g,'U').replace(/\s+/g,' ').trim();
+}
+function tecnicosElegidos(){
+  var out=[];
+  for(var i=0;i<filasTec.length;i++){
+    if(filasTec[i] && out.indexOf(filasTec[i])<0) out.push(filasTec[i]);
+  }
+  return out;
 }
 
 // ── Buscador de clientes, contra el backend de partes ──
@@ -322,6 +480,13 @@ document.addEventListener('click',function(e){
   if(!e.target.closest('#cli-drop') && e.target.id!=='f-cliente'){
     var d=document.getElementById('cli-drop'); if(d) d.innerHTML='';
   }
+  // Cerrar los desplegables de técnico al pinchar fuera
+  if(!e.target.closest('.tec-fila')){
+    for(var i=0;i<filasTec.length;i++){
+      var td=document.getElementById('tec-drop-'+i);
+      if(td) td.innerHTML='';
+    }
+  }
 });
 
 // ══════════════════════════════════════════════════════════════
@@ -331,8 +496,14 @@ function crearTarea(){
   if(enviando) return;
   if(GAS_URL.indexOf('PEGA_AQUI')===0){ showToast('⚠ Falta configurar la URL del backend','error'); return; }
 
-  var tecs=Object.keys(tecnicosSel);
-  if(!tecs.length){ showToast('⚠ Marca al menos un técnico','error'); return; }
+  var tecs=tecnicosElegidos();
+  if(!tecs.length){
+    showToast('⚠ Elige al menos un técnico de la lista','error');
+    var p=document.getElementById('tec-inp-0');
+    if(p){ p.style.borderColor='var(--bad)'; p.focus();
+           setTimeout(function(){ p.style.borderColor=''; },2500); }
+    return;
+  }
 
   var cliente=document.getElementById('f-cliente').value.trim();
   var trabajo=document.getElementById('f-trabajo').value.trim();
@@ -512,7 +683,8 @@ function cargarTerminadas(){
 // ══════════════════════════════════════════════════════════════
 (function(){
   tick(); setInterval(tick,20000);
-  pintarTecnicos();
+  pintarFilas();
+  cargarTecnicos();
   // Por defecto, mañana: lo normal es dejar preparado el día siguiente
   document.getElementById('f-fecha').value = aIso(sumar(new Date(),1));
   lunesActual = lunesDe(new Date());
