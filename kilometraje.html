@@ -257,6 +257,9 @@ var TECNICOS = [
 ];
 
 var fotos = { inicio:null, fin:null };
+// Cuándo se tomó realmente cada foto. Se lee del fichero ORIGINAL, porque el
+// redimensionado a canvas descarta todos los metadatos de la cámara.
+var fechasFoto = { inicio:null, fin:null };
 var fechaTexto = '';
 var horaActual = '';
 var enviando = false;
@@ -429,9 +432,127 @@ function abrirCamara(cual){
   });
 });
 
+// ══════════════════════════════════════════════════════════════
+// FECHA REAL DE CAPTURA
+// La cámara escribe la fecha del disparo dentro del JPEG (EXIF). Hay que
+// leerla del fichero tal cual llega: al redimensionar en el canvas se pierde.
+// ══════════════════════════════════════════════════════════════
+function leerFechaExif(buf){
+  try{
+    var d = new DataView(buf);
+    if (d.byteLength < 16 || d.getUint16(0) !== 0xFFD8) return null;   // no es JPEG
+    var p = 2;
+    while (p + 4 <= d.byteLength){
+      if (d.getUint8(p) !== 0xFF) return null;                         // fuera de sitio
+      var marca = d.getUint8(p+1);
+      if (marca === 0x01 || (marca >= 0xD0 && marca <= 0xD9)){ p += 2; continue; }
+      var largo = d.getUint16(p+2);
+      if (largo < 2) return null;
+      if (marca === 0xE1 && p + 10 <= d.byteLength &&
+          d.getUint32(p+4) === 0x45786966 && d.getUint16(p+8) === 0x0000){
+        return _exifFecha(d, p+10, largo-8);                           // bloque TIFF
+      }
+      if (marca === 0xDA) return null;                                 // ya son píxeles
+      p += 2 + largo;
+    }
+  }catch(e){}
+  return null;
+}
+
+function _exifFecha(d, tiff, largo){
+  var le;
+  var orden = d.getUint16(tiff);
+  if (orden === 0x4949) le = true;                                     // Intel
+  else if (orden === 0x4D4D) le = false;                               // Motorola
+  else return null;
+  if (d.getUint16(tiff+2, le) !== 0x002A) return null;
+  if (tiff + largo > d.byteLength) largo = d.byteLength - tiff;
+
+  function entradas(off){
+    var r = {};
+    if (off < 8 || off + 2 > largo) return r;
+    var n = d.getUint16(tiff+off, le);
+    if (n > 512) return r;                                             // cabecera dañada
+    for (var i=0;i<n;i++){
+      var e = off + 2 + i*12;
+      if (e + 12 > largo) break;
+      r[d.getUint16(tiff+e, le)] = e;
+    }
+    return r;
+  }
+  function texto(e){
+    if (d.getUint32(tiff+e+4, le) < 19) return null;                   // longitud ASCII
+    var val = d.getUint32(tiff+e+8, le);
+    if (val + 19 > largo) return null;
+    var s = '';
+    for (var i=0;i<19;i++) s += String.fromCharCode(d.getUint8(tiff+val+i));
+    return s;
+  }
+
+  var e0 = entradas(d.getUint32(tiff+4, le)), cand = [];
+  if (e0[0x8769]){                                                     // sub-IFD Exif
+    var es = entradas(d.getUint32(tiff + e0[0x8769] + 8, le));
+    if (es[0x9003]) cand.push(es[0x9003]);                             // DateTimeOriginal
+    if (es[0x9004]) cand.push(es[0x9004]);                             // DateTimeDigitized
+  }
+  if (e0[0x0132]) cand.push(e0[0x0132]);                               // DateTime
+
+  for (var i=0;i<cand.length;i++){
+    var s = texto(cand[i]);
+    var m = s && s.match(/^(\d{4}):(\d{2}):(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/);
+    if (m){
+      var f = new Date(+m[1], +m[2]-1, +m[3], +m[4], +m[5], +m[6]);
+      if (!isNaN(f.getTime()) && f.getFullYear() > 2000) return f;
+    }
+  }
+  return null;
+}
+
+function _dosCifras(n){ return String(n).padStart(2,'0'); }
+function _fechaHoraTexto(f){
+  return _dosCifras(f.getDate())+'/'+_dosCifras(f.getMonth()+1)+'/'+f.getFullYear()
+       + ' ' + _dosCifras(f.getHours())+':'+_dosCifras(f.getMinutes());
+}
+function _esDeHoy(ts){
+  return !!ts && new Date(ts).toDateString() === new Date().toDateString();
+}
+// Etiqueta corta bajo la miniatura: la hora si es de hoy, el día con aviso si no
+function _etiquetaFecha(cual){
+  var d = fechasFoto[cual];
+  if (!d || !d.ts) return ' · sin fecha';
+  var f = new Date(d.ts);
+  return _esDeHoy(d.ts)
+    ? ' · ' + _dosCifras(f.getHours()) + ':' + _dosCifras(f.getMinutes())
+    : ' · ' + _dosCifras(f.getDate()) + '/' + _dosCifras(f.getMonth()+1) + ' ⚠';
+}
+
 function procesarFoto(input, destino){
   var file = input.files[0];
   if (!file) return;
+  // Primero la fecha, del fichero original. Los metadatos van al principio del
+  // JPEG, así que con la cabecera basta y no hay que leerlo entero.
+  var cab = new FileReader();
+  cab.onloadend = function(){
+    var f = null, fuente = 'EXIF';
+    try{ f = leerFechaExif(cab.result); }catch(e){}
+    if (!f && file.lastModified){                                      // sin EXIF: la del fichero
+      f = new Date(file.lastModified); fuente = 'Archivo';
+    }
+    fechasFoto[destino] = (f && !isNaN(f.getTime()))
+      ? { ts: f.getTime(), fuente: fuente, texto: _fechaHoraTexto(f) }
+      : { ts: 0, fuente: 'Sin datos', texto: '' };
+    _reducirFoto(file, destino);
+  };
+  cab.onerror = function(){
+    fechasFoto[destino] = { ts:0, fuente:'Sin datos', texto:'' };
+    _reducirFoto(file, destino);
+  };
+  try{ cab.readAsArrayBuffer(file.slice(0, 256*1024)); }
+  catch(e){ cab.onerror(); }
+  input.value = '';
+}
+
+function _reducirFoto(file, destino){
   var reader = new FileReader();
   reader.onload = function(e){
     var img = new Image();
@@ -446,11 +567,25 @@ function procesarFoto(input, destino){
       fotos[destino] = canvas.toDataURL('image/jpeg',0.75);
       pintarSlot(destino);
       guardarBorrador();
+      avisarFotoAntigua(destino);
     };
     img.src = e.target.result;
   };
   reader.readAsDataURL(file);
-  input.value = '';
+}
+
+// Si la foto no es del día, se avisa en el momento de adjuntarla. No bloquea el
+// envío: queda registrado en el Excel para que oficina lo vea.
+function avisarFotoAntigua(destino){
+  var d = fechasFoto[destino];
+  if (!d) return;
+  if (!d.ts){
+    showToast('⚠ Esta foto no lleva fecha. Hazla con la cámara del móvil.','error');
+    return;
+  }
+  if (!_esDeHoy(d.ts)){
+    showToast('⚠ Esta foto es del ' + d.texto + ', no de hoy','error');
+  }
 }
 
 function pintarSlot(cual){
@@ -460,7 +595,7 @@ function pintarSlot(cual){
     slot.classList.add('filled');
     slot.innerHTML = '<img src="'+fotos[cual]+'" alt="cuentakilómetros '+etiqueta+'">'
       + '<button class="remove-btn" onclick="event.stopPropagation();quitarFoto(\''+cual+'\')">✕</button>'
-      + '<div class="slot-tag">'+etiqueta+'</div>';
+      + '<div class="slot-tag">'+etiqueta+_etiquetaFecha(cual)+'</div>';
   } else {
     slot.classList.remove('filled');
     slot.innerHTML = '<div class="slot-icon">📷</div><div class="slot-num">Cuentakm<br>'+etiqueta.toUpperCase()+'</div>';
@@ -468,6 +603,7 @@ function pintarSlot(cual){
 }
 function quitarFoto(cual){
   fotos[cual] = null;
+  fechasFoto[cual] = null;
   pintarSlot(cual);
   guardarBorrador();
 }
@@ -485,7 +621,8 @@ function guardarBorrador(){
       kmFin: document.getElementById('km-fin').value,
       repostaje: getRepostaje(),
       importe: document.getElementById('repostaje-importe').value,
-      fotos: fotos
+      fotos: fotos,
+      fechasFoto: fechasFoto
     }));
   }catch(e){ /* almacenamiento lleno: se ignora, no debe romper nada */ }
 }
@@ -508,6 +645,7 @@ function restaurarBorrador(){
       selectRepostaje(b.repostaje==='Si' ? pr[0] : pr[1], b.repostaje);
     }
     if (b.importe) document.getElementById('repostaje-importe').value = b.importe;
+    if (b.fechasFoto) fechasFoto = b.fechasFoto;
     if (b.fotos){ fotos = b.fotos; pintarSlot('inicio'); pintarSlot('fin'); }
     recalcKm();
   }catch(e){}
@@ -525,6 +663,15 @@ function recordarMatricula(tecnico, matricula){
 // ══════════════════════════════════════════════════════════════
 // ENVÍO
 // ══════════════════════════════════════════════════════════════
+// Lo que se guarda en el Excel. Entre paréntesis, de dónde sale el dato:
+// "EXIF" es la fecha que escribió la cámara; "archivo", la del fichero, que es
+// menos fiable porque cambia si la imagen se copia o pasa por WhatsApp.
+function _txtCaptura(cual){
+  var d = fechasFoto[cual];
+  if (!d || !d.ts) return 'Sin datos';
+  return d.texto + ' (' + (d.fuente === 'EXIF' ? 'EXIF' : 'archivo') + ')';
+}
+
 function generarId(){
   return 'KM-' + Date.now() + '-' + Math.random().toString(36).slice(2,8);
 }
@@ -597,6 +744,8 @@ function enviarKilometraje(){
     importeRepostaje: importe,
     fotoInicio: fotos.inicio,
     fotoFin: fotos.fin,
+    fotoInicioTomada: _txtCaptura('inicio'),
+    fotoFinTomada: _txtCaptura('fin'),
     forzar: false
   };
 
