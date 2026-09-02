@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#184595">
+<title>Grupo Marcres · Planificación</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Mismos tokens visuales que las otras tres apps */
+:root{--bg:#F0EDE8;--surface:#FAFAF7;--surface2:#EFECE7;--border:#D8D4CC;--text:#1A1916;--muted:#7A776F;--accent:#184595;--accent2:#0d3175;--celeste:#03A0FB;--ok:#2D6A4F;--ok-bg:#D8F3DC;--warn:#8B5A00;--warn-bg:#FFF3CD;--bad:#8B1A1A;--bad-bg:#FFE0E0;--radius:12px;--radius-sm:8px;--font:'DM Sans','Helvetica Neue',sans-serif;--mono:'DM Mono',monospace;}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;padding-bottom:40px;}
+
+.app-header{background:var(--accent);padding:13px 18px 11px;position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 12px rgba(0,0,0,.28);}
+.header-left{display:flex;align-items:center;gap:11px;}
+.logo{width:32px;height:32px;border-radius:8px;background:var(--celeste);color:#fff;font-weight:700;font-size:17px;display:flex;align-items:center;justify-content:center;}
+.header-brand{color:#fff;font-size:14px;font-weight:700;}
+.header-sub{color:rgba(255,255,255,.65);font-size:11px;}
+.header-hora{color:#fff;font-family:var(--mono);font-size:13px;background:rgba(255,255,255,.13);padding:4px 10px;border-radius:20px;}
+
+.tabs{display:flex;gap:0;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:56px;z-index:99;}
+.tab{flex:1;padding:12px 8px;text-align:center;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;user-select:none;}
+.tab.act{color:var(--accent);border-bottom-color:var(--accent);background:var(--surface2);}
+.tab .badge{display:inline-block;background:var(--bad);color:#fff;font-size:10px;padding:1px 6px;border-radius:99px;margin-left:5px;vertical-align:1px;}
+
+.main{padding:16px;max-width:1400px;margin:0 auto;}
+.pane{display:none;}
+.pane.act{display:block;}
+
+.card{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);margin-bottom:12px;overflow:hidden;}
+.card-h{padding:11px 15px;background:var(--surface2);border-bottom:1px solid var(--border);font-size:12px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;}
+.fg{padding:12px 15px;border-bottom:1px solid var(--border);}
+.fg:last-child{border-bottom:none;}
+.lbl{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;display:block;}
+.inp{width:100%;border:1.5px solid var(--border);background:var(--surface);border-radius:var(--radius-sm);font-family:var(--font);font-size:15px;color:var(--text);outline:none;padding:9px 11px;}
+.inp:focus{border-color:var(--accent);}
+textarea.inp{resize:vertical;min-height:76px;line-height:1.5;}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+.nota{font-size:11px;color:var(--muted);margin-top:5px;}
+
+.pill-group{display:flex;gap:8px;flex-wrap:wrap;}
+.pill{padding:7px 18px;border:1.5px solid var(--border);border-radius:99px;background:var(--surface);font-family:var(--font);font-size:14px;font-weight:600;color:var(--muted);cursor:pointer;user-select:none;transition:all .15s;}
+.pill.sel{background:var(--accent);border-color:var(--accent);color:#fff;}
+.tec-group{display:flex;gap:8px;flex-wrap:wrap;}
+.tec{padding:8px 14px;border:1.5px solid var(--border);border-radius:99px;background:var(--surface);font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;user-select:none;transition:all .15s;}
+.tec.sel{background:var(--ok-bg);border-color:var(--ok);color:var(--ok);}
+
+.btn{width:100%;padding:15px;border:none;border-radius:var(--radius);background:var(--accent);color:#fff;font-family:var(--font);font-size:16px;font-weight:700;cursor:pointer;letter-spacing:.3px;}
+.btn:hover{background:var(--accent2);}
+.btn:disabled{opacity:.55;cursor:default;}
+.btn-sm{padding:7px 13px;font-size:12px;border-radius:var(--radius-sm);border:1.5px solid var(--border);background:var(--surface);color:var(--muted);font-weight:600;cursor:pointer;font-family:var(--font);}
+.btn-sm:hover{border-color:var(--accent);color:var(--accent);}
+
+/* ── Tablero semanal, como la pizarra ── */
+.sem-nav{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;}
+.sem-rango{font-size:14px;font-weight:700;color:var(--accent);}
+.tablero{display:grid;grid-template-columns:repeat(5,minmax(210px,1fr));gap:10px;overflow-x:auto;padding-bottom:8px;}
+.dia{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;min-height:220px;display:flex;flex-direction:column;}
+.dia.hoy{border-color:var(--accent);border-width:2px;}
+.dia-h{background:var(--accent);color:#fff;padding:9px 11px;}
+.dia.hoy .dia-h{background:var(--celeste);}
+.dia-nom{font-size:13px;font-weight:700;letter-spacing:.5px;}
+.dia-fecha{font-size:11px;opacity:.8;font-family:var(--mono);}
+.dia-guardia{font-size:10px;background:rgba(255,255,255,.18);padding:2px 7px;border-radius:99px;margin-top:4px;display:inline-block;}
+.dia-body{padding:8px;flex:1;display:flex;flex-direction:column;gap:7px;}
+.dia-nota{font-size:11px;color:var(--warn);background:var(--warn-bg);border:1px solid #E8D9A8;border-radius:var(--radius-sm);padding:6px 8px;line-height:1.4;}
+
+.tarj{border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:var(--radius-sm);padding:8px 9px;background:var(--surface);cursor:grab;}
+.tarj.hecha{border-left-color:var(--ok);background:var(--ok-bg);}
+.tarj.anulada{opacity:.5;text-decoration:line-through;border-left-color:var(--muted);}
+.tarj:active{cursor:grabbing;}
+.tarj-top{display:flex;justify-content:space-between;align-items:baseline;gap:6px;margin-bottom:3px;}
+.tarj-tec{font-size:12px;font-weight:700;color:var(--accent);line-height:1.25;}
+.tarj-hora{font-size:11px;font-family:var(--mono);color:var(--muted);white-space:nowrap;}
+.tarj-cli{font-size:12px;font-weight:600;color:var(--text);line-height:1.3;}
+.tarj-tra{font-size:11px;color:var(--muted);line-height:1.4;margin-top:2px;}
+.tarj-pie{display:flex;gap:6px;margin-top:6px;}
+.tarj-emp{font-size:9px;font-weight:700;padding:1px 6px;border-radius:99px;border:1px solid var(--border);color:var(--muted);}
+.tarj-x{margin-left:auto;font-size:12px;color:var(--muted);cursor:pointer;padding:0 3px;}
+.tarj-x:hover{color:var(--bad);}
+.dia.drop{background:var(--ok-bg);}
+
+.vacio{text-align:center;padding:34px 16px;color:var(--muted);font-size:13px;}
+.term{display:flex;align-items:center;gap:12px;padding:11px 14px;border-bottom:1px solid var(--border);}
+.term:last-child{border-bottom:none;}
+.term-info{flex:1;min-width:0;}
+.term-cli{font-size:14px;font-weight:600;}
+.term-meta{font-size:11px;color:var(--muted);margin-top:2px;}
+.term-ok{font-size:11px;color:var(--ok);font-weight:700;background:var(--ok-bg);padding:3px 9px;border-radius:99px;white-space:nowrap;}
+
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:26px;background:var(--text);color:#fff;padding:12px 20px;border-radius:99px;font-size:14px;z-index:999;opacity:0;transition:opacity .25s;pointer-events:none;max-width:90vw;text-align:center;}
+.toast.show{opacity:1;}
+.toast.error{background:var(--bad);}
+.toast.success{background:var(--ok);}
+.cli-drop{position:absolute;left:0;right:0;top:calc(100% + 3px);background:var(--surface);border:1.5px solid var(--accent);border-radius:var(--radius-sm);max-height:240px;overflow-y:auto;z-index:200;box-shadow:0 6px 20px rgba(24,69,149,.15);}
+.cli-item{padding:10px 12px;border-bottom:1px solid var(--border);cursor:pointer;font-size:13px;}
+.cli-item:last-child{border-bottom:none;}
+.cli-item:hover{background:var(--surface2);}
+@media(max-width:760px){.row2,.row3{grid-template-columns:1fr;}.main{padding:11px;}}
+</style>
+</head>
+<body>
+
+<div class="app-header">
+  <div class="header-left">
+    <div class="logo">M</div>
+    <div><div class="header-brand">Grupo Marcres</div><div class="header-sub">Planificación de trabajos</div></div>
+  </div>
+  <div class="header-hora" id="reloj">--:--</div>
+</div>
+
+<div class="tabs">
+  <div class="tab act" data-p="nueva"  onclick="verPane('nueva')">➕ Nueva tarea</div>
+  <div class="tab"     data-p="semana" onclick="verPane('semana')">🗓 La semana</div>
+  <div class="tab"     data-p="term"   onclick="verPane('term')">✅ Terminadas <span class="badge" id="badge-term" style="display:none">0</span></div>
+</div>
+
+<div class="main">
+
+<!-- ══ NUEVA TAREA ══ -->
+<div class="pane act" id="pane-nueva">
+  <div class="card">
+    <div class="card-h">Empresa</div>
+    <div class="fg"><div class="pill-group" id="empresa-pills">
+      <div class="pill sel" data-v="Marcres" onclick="selEmpresa(this)">Marcres</div>
+      <div class="pill"     data-v="Rivagua" onclick="selEmpresa(this)">Rivagua</div>
+    </div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-h">Técnicos <span style="text-transform:none;font-weight:400;color:var(--muted)">— marca varios para las parejas</span></div>
+    <div class="fg"><div class="tec-group" id="tec-group"></div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-h">El trabajo</div>
+    <div class="fg" style="position:relative;">
+      <label class="lbl">Cliente</label>
+      <input class="inp" id="f-cliente" autocomplete="off" placeholder="Escribe para buscar…" oninput="buscarCliente()">
+      <div id="cli-drop"></div>
+    </div>
+    <div class="fg"><div class="row2">
+      <div><label class="lbl">Dirección</label><input class="inp" id="f-direccion" autocomplete="off"></div>
+      <div><label class="lbl">Población</label><input class="inp" id="f-poblacion" autocomplete="off"></div>
+    </div></div>
+    <div class="fg">
+      <label class="lbl">Qué hay que hacer</label>
+      <textarea class="inp" id="f-trabajo" placeholder="Ej: Sustituir bobinas. Llevar flotador por si hay que cambiarlo."></textarea>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-h">Cuándo</div>
+    <div class="fg"><div class="row2">
+      <div><label class="lbl">Día</label><input class="inp" type="date" id="f-fecha"></div>
+      <div><label class="lbl">Hora (opcional)</label><input class="inp" type="time" id="f-hora">
+        <div class="nota">Déjala vacía si no hay hora fija.</div></div>
+    </div></div>
+  </div>
+
+  <button class="btn" id="btn-crear" onclick="crearTarea()">✓ CREAR Y ASIGNAR</button>
+  <div class="nota" style="text-align:center;margin-top:9px;">
+    Al crearla, al técnico le aparece en su app al seleccionarse.
+  </div>
+</div>
+
+<!-- ══ LA SEMANA ══ -->
+<div class="pane" id="pane-semana">
+  <div class="sem-nav">
+    <button class="btn-sm" onclick="cambiarSemana(-7)">← Anterior</button>
+    <div class="sem-rango" id="sem-rango">—</div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn-sm" onclick="irHoy()">Esta semana</button>
+      <button class="btn-sm" onclick="cargarSemana()">↻ Actualizar</button>
+    </div>
+  </div>
+  <div class="tablero" id="tablero"></div>
+  <div class="nota" style="margin-top:10px;">
+    Arrastra una tarjeta a otro día para cambiarla de fecha. La ✕ la anula.
+  </div>
+</div>
+
+<!-- ══ TERMINADAS ══ -->
+<div class="pane" id="pane-term">
+  <div class="card">
+    <div class="card-h">Trabajos terminados por los técnicos</div>
+    <div id="lista-term"><div class="vacio">Cargando…</div></div>
+  </div>
+  <div class="nota">
+    Se llenan solas cuando el técnico envía el parte. Aquí solo se consultan:
+    en Holded hay que cerrarlas a mano, porque su API no permite hacerlo.
+  </div>
+</div>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// CONFIGURACIÓN
+// ══════════════════════════════════════════════════════════════
+var GAS_URL = 'PEGA_AQUI_LA_URL_DEL_BACKEND_DE_TAREAS';
+
+// El backend de partes, solo para buscar clientes. Es una lectura: no se
+// escribe nada en él, así que no hay riesgo para lo que está en producción.
+var GAS_PARTES = 'https://script.google.com/macros/s/AKfycbxDNNvIc8ouF8KqjEgEUvdoBJJN74baY06EYLTXE47B1xgNUsl7sWXxkBJD0x_KDwlM/exec';
+
+var TECNICOS = [
+  'JULIAN ANDRES MORENO RONZEWSKI',
+  'HELIODORO LAVARA ROMERO',
+  'MIGUEL HUERTA MARTINEZ',
+  'SONIA CANDELA LOPEZ',
+  'ANA VANESA CANO MOLINA',
+  'JOSE FRANCISCO GARCIA GARCIA'
+];
+var DIAS = ['LUNES','MARTES','MIÉRCOLES','JUEVES','VIERNES'];
+
+var empresaSel = 'Marcres';
+var tecnicosSel = {};
+var lunesActual = null;
+var enviando = false;
+
+// ══════════════════════════════════════════════════════════════
+// FECHAS  (todo viaja como dd/MM/yyyy, igual que en las otras apps)
+// ══════════════════════════════════════════════════════════════
+function dd(n){ return String(n).padStart(2,'0'); }
+function aTxt(f){ return dd(f.getDate())+'/'+dd(f.getMonth()+1)+'/'+f.getFullYear(); }
+function aIso(f){ return f.getFullYear()+'-'+dd(f.getMonth()+1)+'-'+dd(f.getDate()); }
+function deIso(s){ var p=String(s).split('-'); return new Date(+p[0],+p[1]-1,+p[2]); }
+function sumar(f,n){ var d=new Date(f.getTime()); d.setDate(d.getDate()+n); return d; }
+function lunesDe(f){
+  var d=new Date(f.getTime()); d.setHours(0,0,0,0);
+  var dow=d.getDay();                       // 0=domingo, 1=lunes
+  var resta = (dow===0) ? 6 : dow-1;        // el domingo cuenta como fin de la semana anterior
+  return sumar(d,-resta);
+}
+function esHoy(f){ return aTxt(f)===aTxt(new Date()); }
+
+function esc(t){
+  return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ══════════════════════════════════════════════════════════════
+// INTERFAZ
+// ══════════════════════════════════════════════════════════════
+function tick(){
+  var n=new Date();
+  document.getElementById('reloj').textContent = dd(n.getHours())+':'+dd(n.getMinutes());
+}
+
+function showToast(msg,tipo){
+  var t=document.getElementById('toast');
+  t.textContent=msg; t.className='toast show'+(tipo?' '+tipo:'');
+  clearTimeout(window._tt);
+  window._tt=setTimeout(function(){ t.className='toast'; },3200);
+}
+
+function verPane(p){
+  var tabs=document.querySelectorAll('.tab');
+  for(var i=0;i<tabs.length;i++) tabs[i].classList.toggle('act', tabs[i].dataset.p===p);
+  var panes=document.querySelectorAll('.pane');
+  for(var j=0;j<panes.length;j++) panes[j].classList.remove('act');
+  document.getElementById('pane-'+p).classList.add('act');
+  if(p==='semana') cargarSemana();
+  if(p==='term') cargarTerminadas();
+}
+
+function selEmpresa(el){
+  var ps=document.querySelectorAll('#empresa-pills .pill');
+  for(var i=0;i<ps.length;i++) ps[i].classList.remove('sel');
+  el.classList.add('sel'); empresaSel=el.dataset.v;
+}
+
+function pintarTecnicos(){
+  var h='';
+  for(var i=0;i<TECNICOS.length;i++){
+    var corto=TECNICOS[i].split(' ')[0]+' '+(TECNICOS[i].split(' ')[1]||'');
+    h+='<div class="tec" data-t="'+esc(TECNICOS[i])+'" onclick="togTec(this)" title="'+esc(TECNICOS[i])+'">'+esc(corto)+'</div>';
+  }
+  document.getElementById('tec-group').innerHTML=h;
+}
+function togTec(el){
+  var t=el.dataset.t;
+  if(tecnicosSel[t]){ delete tecnicosSel[t]; el.classList.remove('sel'); }
+  else { tecnicosSel[t]=true; el.classList.add('sel'); }
+}
+
+// ── Buscador de clientes, contra el backend de partes ──
+var _cliT=null;
+function buscarCliente(){
+  clearTimeout(_cliT);
+  var q=document.getElementById('f-cliente').value.trim();
+  var drop=document.getElementById('cli-drop');
+  if(q.length<3){ drop.innerHTML=''; return; }
+  _cliT=setTimeout(function(){
+    var url=GAS_PARTES+'?action=holded&empresa='+empresaSel.toLowerCase()+'&q='+encodeURIComponent(q);
+    fetch(url).then(function(r){return r.json();}).then(function(d){
+      var lista=(d && (d.clientes||d.resultados||d.data)) || [];
+      if(!lista.length){ drop.innerHTML=''; return; }
+      var h='<div class="cli-drop">';
+      for(var i=0;i<Math.min(lista.length,12);i++){
+        var c=lista[i];
+        var nom=c.nombre||c.name||'';
+        h+='<div class="cli-item" onclick=\'elegirCliente('+JSON.stringify(JSON.stringify(c))+')\'>'+esc(nom)+
+           (c.poblacion?'<span style="color:var(--muted)"> · '+esc(c.poblacion)+'</span>':'')+'</div>';
+      }
+      drop.innerHTML=h+'</div>';
+    }).catch(function(){ drop.innerHTML=''; });
+  },320);
+}
+function elegirCliente(raw){
+  var c=JSON.parse(raw);
+  document.getElementById('f-cliente').value=c.nombre||c.name||'';
+  if(c.direccion) document.getElementById('f-direccion').value=c.direccion;
+  if(c.poblacion) document.getElementById('f-poblacion').value=c.poblacion;
+  document.getElementById('cli-drop').innerHTML='';
+}
+document.addEventListener('click',function(e){
+  if(!e.target.closest('#cli-drop') && e.target.id!=='f-cliente'){
+    var d=document.getElementById('cli-drop'); if(d) d.innerHTML='';
+  }
+});
+
+// ══════════════════════════════════════════════════════════════
+// CREAR
+// ══════════════════════════════════════════════════════════════
+function crearTarea(){
+  if(enviando) return;
+  if(GAS_URL.indexOf('PEGA_AQUI')===0){ showToast('⚠ Falta configurar la URL del backend','error'); return; }
+
+  var tecs=Object.keys(tecnicosSel);
+  if(!tecs.length){ showToast('⚠ Marca al menos un técnico','error'); return; }
+
+  var cliente=document.getElementById('f-cliente').value.trim();
+  var trabajo=document.getElementById('f-trabajo').value.trim();
+  if(!cliente && !trabajo){ showToast('⚠ Pon el cliente o el trabajo','error'); return; }
+
+  var iso=document.getElementById('f-fecha').value;
+  if(!iso){ showToast('⚠ Falta el día','error'); return; }
+
+  var payload={
+    accion:'crear',
+    idEnvio:'ENV-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),
+    fecha:aTxt(deIso(iso)),
+    hora:document.getElementById('f-hora').value.trim(),
+    empresa:empresaSel,
+    tecnicos:tecs,
+    cliente:cliente,
+    direccion:document.getElementById('f-direccion').value.trim(),
+    poblacion:document.getElementById('f-poblacion').value.trim(),
+    trabajo:trabajo
+  };
+
+  enviando=true;
+  var btn=document.getElementById('btn-crear');
+  btn.disabled=true; btn.textContent='Creando…';
+
+  post(payload, function(d){
+    enviando=false; btn.disabled=false; btn.textContent='✓ CREAR Y ASIGNAR';
+    if(!d.ok){ showToast('❌ '+(d.error||'No se pudo crear'),'error'); return; }
+    showToast('✅ Asignada a '+tecs.length+(tecs.length>1?' técnicos':' técnico'),'success');
+    limpiarFormulario();
+  }, function(msg){
+    enviando=false; btn.disabled=false; btn.textContent='✓ CREAR Y ASIGNAR';
+    showToast('❌ '+msg,'error');
+  });
+}
+
+// Se conservan empresa, día y técnicos: lo normal es cargar varias
+// tareas seguidas del mismo día y muchas veces de la misma gente.
+function limpiarFormulario(){
+  document.getElementById('f-cliente').value='';
+  document.getElementById('f-direccion').value='';
+  document.getElementById('f-poblacion').value='';
+  document.getElementById('f-trabajo').value='';
+  document.getElementById('f-hora').value='';
+  document.getElementById('f-cliente').focus();
+}
+
+function post(payload, ok, err){
+  var xhr=new XMLHttpRequest();
+  xhr.open('POST', GAS_URL, true);
+  xhr.setRequestHeader('Content-Type','text/plain;charset=utf-8');
+  xhr.timeout=60000;
+  xhr.onload=function(){
+    var d; try{ d=JSON.parse(xhr.responseText); }
+    catch(e){ err('Respuesta inválida del servidor'); return; }
+    ok(d);
+  };
+  xhr.onerror=function(){ err('Sin conexión'); };
+  xhr.ontimeout=function(){ err('El servidor ha tardado demasiado'); };
+  xhr.send(JSON.stringify(payload));
+}
+
+// ══════════════════════════════════════════════════════════════
+// TABLERO SEMANAL
+// ══════════════════════════════════════════════════════════════
+function irHoy(){ lunesActual=lunesDe(new Date()); cargarSemana(); }
+function cambiarSemana(n){ lunesActual=sumar(lunesActual,n); cargarSemana(); }
+
+function cargarSemana(){
+  if(!lunesActual) lunesActual=lunesDe(new Date());
+  var viernes=sumar(lunesActual,4);
+  document.getElementById('sem-rango').textContent =
+    'Del '+aTxt(lunesActual)+' al '+aTxt(viernes);
+  pintarTablero(null);
+
+  if(GAS_URL.indexOf('PEGA_AQUI')===0){ return; }
+  var url=GAS_URL+'?action=tareas&desde='+encodeURIComponent(aTxt(lunesActual))+
+          '&hasta='+encodeURIComponent(aTxt(viernes));
+  fetch(url).then(function(r){return r.json();}).then(function(d){
+    pintarTablero(d.ok ? d.tareas : []);
+  }).catch(function(){ showToast('❌ No he podido cargar la semana','error'); });
+}
+
+function pintarTablero(tareas){
+  var cont=document.getElementById('tablero');
+  var porDia={};
+  if(tareas) for(var i=0;i<tareas.length;i++){
+    (porDia[tareas[i].fecha]=porDia[tareas[i].fecha]||[]).push(tareas[i]);
+  }
+  var h='';
+  for(var d=0;d<5;d++){
+    var f=sumar(lunesActual,d), txt=aTxt(f);
+    var lista=porDia[txt]||[];
+    h+='<div class="dia'+(esHoy(f)?' hoy':'')+'" data-fecha="'+txt+'"'+
+       ' ondragover="permitir(event)" ondragleave="salir(event)" ondrop="soltar(event)">'+
+       '<div class="dia-h"><div class="dia-nom">'+DIAS[d]+'</div>'+
+       '<div class="dia-fecha">'+txt+'</div></div><div class="dia-body">';
+    if(tareas===null) h+='<div class="vacio">Cargando…</div>';
+    else if(!lista.length) h+='<div class="vacio">Sin trabajos</div>';
+    else for(var j=0;j<lista.length;j++) h+=tarjeta(lista[j]);
+    h+='</div></div>';
+  }
+  cont.innerHTML=h;
+}
+
+function tarjeta(t){
+  var cls = t.estado==='Hecha' ? ' hecha' : (t.estado==='Anulada' ? ' anulada' : '');
+  var tecs = t.tecnicos.map(function(n){ return n.split(' ')[0]; }).join(' / ');
+  var puedeMover = t.estado==='Pendiente';
+  return '<div class="tarj'+cls+'"'+(puedeMover?' draggable="true" ondragstart="arrastrar(event)"':'')+
+    ' data-id="'+esc(t.id)+'">'+
+    '<div class="tarj-top"><div class="tarj-tec">'+esc(tecs)+'</div>'+
+    (t.hora?'<div class="tarj-hora">'+esc(t.hora)+'</div>':'')+'</div>'+
+    (t.cliente?'<div class="tarj-cli">'+esc(t.cliente)+'</div>':'')+
+    (t.trabajo?'<div class="tarj-tra">'+esc(t.trabajo)+'</div>':'')+
+    '<div class="tarj-pie">'+
+      (t.empresa?'<span class="tarj-emp">'+esc(t.empresa)+'</span>':'')+
+      (t.estado==='Hecha'?'<span class="tarj-emp" style="color:var(--ok);border-color:var(--ok)">✓ hecha</span>':'')+
+      (puedeMover?'<span class="tarj-x" onclick="anular(\''+esc(t.id)+'\')" title="Anular">✕</span>':'')+
+    '</div></div>';
+}
+
+function arrastrar(e){ e.dataTransfer.setData('text/plain', e.target.dataset.id); }
+function permitir(e){ e.preventDefault(); e.currentTarget.classList.add('drop'); }
+function salir(e){ e.currentTarget.classList.remove('drop'); }
+function soltar(e){
+  e.preventDefault();
+  e.currentTarget.classList.remove('drop');
+  var id=e.dataTransfer.getData('text/plain');
+  var fecha=e.currentTarget.dataset.fecha;
+  if(!id||!fecha) return;
+  post({accion:'mover', id:id, fecha:fecha}, function(d){
+    if(d.ok){ showToast('Movida al '+fecha,'success'); cargarSemana(); }
+    else showToast('❌ '+(d.error||'No se pudo mover'),'error');
+  }, function(m){ showToast('❌ '+m,'error'); });
+}
+
+function anular(id){
+  if(!confirm('¿Anular este trabajo?')) return;
+  post({accion:'anular', id:id}, function(d){
+    if(d.ok){ showToast('Anulada'); cargarSemana(); }
+    else showToast('❌ '+(d.error||'No se pudo anular'),'error');
+  }, function(m){ showToast('❌ '+m,'error'); });
+}
+
+// ══════════════════════════════════════════════════════════════
+// TERMINADAS
+// ══════════════════════════════════════════════════════════════
+function cargarTerminadas(){
+  var cont=document.getElementById('lista-term');
+  if(GAS_URL.indexOf('PEGA_AQUI')===0){
+    cont.innerHTML='<div class="vacio">Falta configurar la URL del backend.</div>'; return;
+  }
+  cont.innerHTML='<div class="vacio">Cargando…</div>';
+  fetch(GAS_URL+'?action=terminadas').then(function(r){return r.json();}).then(function(d){
+    var l=(d.ok&&d.tareas)||[];
+    var badge=document.getElementById('badge-term');
+    badge.textContent=l.length;
+    badge.style.display = l.length ? 'inline-block' : 'none';
+    if(!l.length){ cont.innerHTML='<div class="vacio">Todavía no hay trabajos terminados.</div>'; return; }
+    var h='';
+    for(var i=l.length-1;i>=0;i--){
+      var t=l[i];
+      h+='<div class="term"><div class="term-info">'+
+         '<div class="term-cli">'+esc(t.cliente||t.trabajo||'—')+'</div>'+
+         '<div class="term-meta">'+esc(t.tecnicos.join(' · '))+' · '+esc(t.fecha)+
+         (t.terminada?' · enviado '+esc(t.terminada):'')+
+         (t.parte?' · '+esc(t.parte):'')+'</div></div>'+
+         '<div class="term-ok">✓ hecho</div></div>';
+    }
+    cont.innerHTML=h;
+  }).catch(function(){ cont.innerHTML='<div class="vacio">No he podido cargarlas.</div>'; });
+}
+
+// ══════════════════════════════════════════════════════════════
+// ARRANQUE
+// ══════════════════════════════════════════════════════════════
+(function(){
+  tick(); setInterval(tick,20000);
+  pintarTecnicos();
+  // Por defecto, mañana: lo normal es dejar preparado el día siguiente
+  document.getElementById('f-fecha').value = aIso(sumar(new Date(),1));
+  lunesActual = lunesDe(new Date());
+  cargarTerminadas();
+})();
+</script>
+</body>
+</html>
