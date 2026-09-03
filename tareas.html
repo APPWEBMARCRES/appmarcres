@@ -236,7 +236,8 @@ var TECNICOS_ACTIVOS = [
   'JULIAN ANDRES MORENO RONZEWSKI',
   'JOSE FRANCISCO GARCIA GARCIA',
   'CHRISTIAN RICARDO SALINAS BARAHONA',
-  'ROMAN CHAGOVTSEV'
+  'ROMAN CHAGOVTSEV',
+  'CRISTHIAN ANDRES SERNA SALAZAR'
 ];
 
 // Lista de reserva. Solo se usa si Holded no contesta: así el panel sigue
@@ -310,41 +311,52 @@ function selEmpresa(el){
 // TÉCNICOS  (los nombres salen de Holded, la misma fuente que usa
 // la app de partes: si no fueran los mismos, la tarea no le saldría)
 // ══════════════════════════════════════════════════════════════
+// Deja en TECNICOS solo los de TECNICOS_ACTIVOS, con la escritura que tiene
+// Holded. Se aplica TAMBIÉN a lo que viene de la caché: así, si se da de alta
+// o de baja a alguien, el cambio se ve al recargar y no hay que esperar a que
+// caduque la caché ni borrar nada del navegador.
+function filtrarActivos(nombresHolded){
+  var enHolded={};
+  for(var i=0;i<nombresHolded.length;i++){
+    var n=String(nombresHolded[i]||'').trim();
+    if(n.length<3) continue;
+    var clave=quitarTildes(n);
+    if(!enHolded[clave]) enHolded[clave]=n;   // la primera ficha manda
+  }
+  var nombres=[], faltan=[];
+  for(var j=0;j<TECNICOS_ACTIVOS.length;j++){
+    var real=enHolded[quitarTildes(TECNICOS_ACTIVOS[j])];
+    if(real){ if(nombres.indexOf(real)<0) nombres.push(real); }
+    else faltan.push(TECNICOS_ACTIVOS[j]);
+  }
+  nombres.sort();
+  return { lista:nombres, faltan:faltan };
+}
+
 function cargarTecnicos(){
   var cache=leerTecnicosLocal();
-  if(cache){ TECNICOS=cache.lista; marcarFuente('Holded'); pintarFilas(); }
+  if(cache && cache.crudos){
+    TECNICOS=filtrarActivos(cache.crudos).lista;
+    if(TECNICOS.length){ marcarFuente('Holded'); pintarFilas(); }
+  }
 
   fetch(GAS_PARTES+'?action=empleados&q=')
     .then(function(r){ return r.json(); })
     .then(function(d){
       var l=(d && d.empleados) || [];
-      // Índice de lo que hay en Holded, sin tildes, para poder casar los
-      // nombres de TECNICOS_ACTIVOS aunque cambie alguna tilde o un espacio.
-      var enHolded={};
-      for(var i=0;i<l.length;i++){
-        var n=String(l[i].name||l[i].nombre||'').trim();
-        if(n.length<3) continue;
-        var clave=quitarTildes(n);
-        if(!enHolded[clave]) enHolded[clave]=n;   // la primera ficha manda
-      }
+      var crudos=[];
+      for(var i=0;i<l.length;i++) crudos.push(String(l[i].name||l[i].nombre||'').trim());
 
-      // Solo los técnicos activos, y con la escritura que tiene Holded
-      var nombres=[], faltan=[];
-      for(var j=0;j<TECNICOS_ACTIVOS.length;j++){
-        var real=enHolded[quitarTildes(TECNICOS_ACTIVOS[j])];
-        if(real){ if(nombres.indexOf(real)<0) nombres.push(real); }
-        else faltan.push(TECNICOS_ACTIVOS[j]);
-      }
-      if(faltan.length){
+      var r=filtrarActivos(crudos);
+      if(r.faltan.length){
         // No callarlo: un técnico que no case con Holded no podría recibir
         // trabajos, y sin aviso no habría forma de enterarse.
-        console.warn('Sin ficha en Holded: '+faltan.join(', '));
-        showToast('⚠ Sin ficha en Holded: '+faltan.join(', '),'error');
+        console.warn('Sin ficha en Holded: '+r.faltan.join(', '));
+        showToast('⚠ Sin ficha en Holded: '+r.faltan.join(', '),'error');
       }
-      if(!nombres.length) throw new Error('lista vacía');
-      nombres.sort();
-      TECNICOS=nombres;
-      guardarTecnicosLocal(nombres);
+      if(!r.lista.length) throw new Error('lista vacía');
+      TECNICOS=r.lista;
+      guardarTecnicosLocal(crudos);        // se guarda la lista CRUDA de Holded
       marcarFuente('Holded');
       pintarFilas();
     })
@@ -360,13 +372,13 @@ function marcarFuente(txt){
   var e=document.getElementById('tec-fuente');
   if(e) e.textContent='— '+TECNICOS.length+' de '+txt;
 }
-function guardarTecnicosLocal(l){
-  try{ localStorage.setItem(CLAVE_TECNICOS, JSON.stringify({t:Date.now(),lista:l})); }catch(e){}
+function guardarTecnicosLocal(crudos){
+  try{ localStorage.setItem(CLAVE_TECNICOS, JSON.stringify({t:Date.now(),crudos:crudos})); }catch(e){}
 }
 function leerTecnicosLocal(){
   try{
     var c=JSON.parse(localStorage.getItem(CLAVE_TECNICOS)||'null');
-    if(!c || !c.lista || !c.lista.length) return null;
+    if(!c || !c.crudos || !c.crudos.length) return null;
     if(Date.now()-c.t > HORAS_TECNICOS*3600*1000) return null;
     return c;
   }catch(e){ return null; }
