@@ -19,7 +19,8 @@
   --font: 'DM Sans', 'Helvetica Neue', sans-serif;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; }
+/* El hueco de abajo lo deja libre el pie de autoría, que va fijo */
+body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; padding-bottom: 26px; }
 
 .header {
   background: var(--azul);
@@ -256,6 +257,14 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
 .notif-toast.rivagua { background: #B7800A; }
 @keyframes slideIn { from { transform: translateX(120%); opacity:0; } to { transform: translateX(0); opacity:1; } }
 @keyframes slideOut { from { transform: translateX(0); opacity:1; } to { transform: translateX(120%); opacity:0; } }
+
+/* Pie de autoría: fijo abajo, diminuto y sin capturar clics, para que no
+   estorbe al mapa ni a los controles de zoom. */
+.pie-autoria{
+  position:fixed; bottom:0; left:0; right:0; z-index:1;
+  text-align:center; font-size:9px; color:#9aa5b8; line-height:1.4;
+  background:rgba(255,255,255,.85); padding:3px 10px; pointer-events:none;
+}
 </style>
 </head>
 <body>
@@ -935,5 +944,9 @@ document.querySelector('.header-logo').addEventListener('click', function() {
 
 actualizarBotonNotif();
 </script>
+
+<!-- Pie de autoría. Fijo abajo y sin capturar el ratón, para no estorbar al
+     mapa ni a los controles de zoom que están en esa zona. -->
+<div class="pie-autoria">Desarrollado por Cristhian Andrés Serna Salazar © | 2026. Todos los derechos reservados. Prohibida su reproducción total o parcial sin autorización.</div>
 </body>
 </html>
