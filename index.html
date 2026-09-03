@@ -992,6 +992,49 @@ table.hid-table{width:100%;border-collapse:collapse;font-size:12px;}
 
 <script>
 const GAS_URL='https://script.google.com/macros/s/AKfycbxDNNvIc8ouF8KqjEgEUvdoBJJN74baY06EYLTXE47B1xgNUsl7sWXxkBJD0x_KDwlM/exec';
+
+// Backend del panel de planificación (tareas.html). Es un Apps Script aparte:
+// desde aquí solo se leen las tareas del técnico y se marcan como hechas al
+// enviar el parte. Si no contesta, la app sigue funcionando igual que antes.
+const GAS_TAREAS='https://script.google.com/macros/s/AKfycbzRA5IGI-KpJDUfYfMyIRRMbjYhcARhekdXq45ElqygHxmnu0n44k89owXFP15Xzcfc/exec';
+
+// Trae los trabajos que la oficina le ha puesto a este técnico para hoy y
+// mañana, y los devuelve con la misma forma que las tareas de Holded para
+// poder pintarlos con el código que ya existe.
+async function traerTareasPlanificadas(nombreTecnico) {
+  if (!nombreTecnico) return [];
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 20000);
+    const url = GAS_TAREAS + '?action=misTareas&dias=2&tecnico=' + encodeURIComponent(nombreTecnico);
+    const res = await fetch(url, { signal: ctrl.signal });
+    clearTimeout(timer);
+    const data = await res.json();
+    if (!data || !data.ok || !data.tareas) return [];
+    return data.tareas.map(function(t) {
+      return {
+        id: t.id,
+        titulo: t.cliente || t.trabajo || 'Trabajo',
+        tipo: 'Planificada',
+        descripcion: t.trabajo || '',
+        cliente: t.cliente || '',
+        direccion: t.direccion || '',
+        poblacion: t.poblacion || '',
+        cp: '',
+        hora: t.hora || '',
+        fecha: t.fecha || '',
+        empresa: (t.empresa || '').toLowerCase(),
+        prioridad: '',
+        referencia: '',
+        _panel: true          // marca de origen: al enviar el parte se cierra
+      };
+    });
+  } catch (e) {
+    // Silencioso a propósito: si el panel no responde, el técnico sigue
+    // viendo sus tareas de Holded y puede trabajar con normalidad.
+    return [];
+  }
+}
 let empresaChecklist=null,empresaAlbaran=null,tipoAlbaran=null,tipoChecklist=null,currentFotoKey=null,currentFotoSlot=null;
 var _idParteActual = {c:'', a:''};
 
@@ -1017,8 +1060,34 @@ var _urlPdfFinal = null;
 function abrirPdfFinal(){
   if(_urlPdfFinal) window.location.href = _urlPdfFinal;
 }
+// Marca como hecha la tarea que puso la oficina. Se llama solo cuando el parte
+// ya está enviado de verdad. Va sin await y con el error capturado: si el panel
+// no contesta, el técnico ya ha terminado y no debe enterarse de nada.
+function cerrarTareaDelPanel(){
+  var t = _tareaPanelElegida;
+  if (!t || !t.id) return;
+  _tareaPanelElegida = null;          // que no se cierre dos veces
+  try {
+    // Qué se envió: sirve para que en el panel se vea a qué parte corresponde
+    var tipo = 'Parte';
+    if (typeof tipoAlbaran !== 'undefined' && tipoAlbaran) tipo = 'Albarán ' + tipoAlbaran;
+    else if (typeof tipoChecklist !== 'undefined' && tipoChecklist) tipo = 'Checklist ' + tipoChecklist;
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', GAS_TAREAS, true);
+    xhr.setRequestHeader('Content-Type','text/plain;charset=utf-8');
+    xhr.timeout = 30000;
+    xhr.send(JSON.stringify({
+      accion: 'cerrar',
+      id: t.id,
+      idEnvio: 'CIERRE-' + t.id,      // si se reintenta, no pasa nada
+      parte: tipo + (t.cliente ? ' · ' + t.cliente : '')
+    }));
+  } catch(e){ /* el parte ya está enviado: esto no puede molestar al técnico */ }
+}
+
 function mostrarPantallaFinal(urlPdf){
   if(_autosaveInterval){ clearInterval(_autosaveInterval); _autosaveInterval=null; }
+  cerrarTareaDelPanel();
   borrarEstadoGuardado();
   detenerTimer();
   _urlPdfFinal = urlPdf || null;
@@ -2235,6 +2304,9 @@ function filtrarTareas(filtro) {
 let tecnicoAlbaranElegido = false;
 let tecnicoAlbaranId = null;
 let tareaAlbaranSeleccionada = null;
+// La tarea del panel de planificación que el técnico ha elegido, si la hay.
+// Al enviar el parte se marca como hecha y deja de aparecerle.
+let _tareaPanelElegida = null;
 
 async function buscarEmpleadoAlbaran(q) {
   // Función legacy — ya no se llama desde el input, pero se mantiene por compatibilidad
@@ -2296,7 +2368,11 @@ async function cargarTareasAlbaran(id, nomFinal) {
     const res = await fetch(url, { signal: ctrl.signal });
     clearTimeout(timer);
     const data = await res.json();
-    const tareas = (data.ok && data.tareas && data.tareas.length) ? data.tareas : [];
+    const deHolded = (data.ok && data.tareas && data.tareas.length) ? data.tareas : [];
+
+    // Las que ha puesto la oficina van PRIMERO: son el trabajo del día.
+    const delPanel = await traerTareasPlanificadas(nomFinal);
+    const tareas = delPanel.concat(deHolded);
 
     // Actualizar contador
     var count = document.getElementById('a-tareas-count');
@@ -2374,6 +2450,7 @@ function seleccionarTareaAlbaran(idx) {
   if (item)  item.classList.add('sel');
   if (radio) radio.classList.add('sel');
   tareaAlbaranSeleccionada = t;
+  _tareaPanelElegida = t._panel ? t : null;   // solo las del panel se cierran
 
   // Rellenar campos automáticamente
   var cInp = document.getElementById('a-cliente');
@@ -2402,6 +2479,7 @@ function seleccionarTareaAlbaran(idx) {
 
 function resetTareaSeleccionada() {
   tareaAlbaranSeleccionada = null;
+  _tareaPanelElegida = null;
   document.querySelectorAll('.tarea-albaran-radio').forEach(r => r.classList.remove('sel'));
   document.getElementById('a-tarea-seleccionada').style.display = 'none';
   // Limpiar campos cliente
@@ -2445,7 +2523,11 @@ async function cargarTareasChecklist(empleadoId, nombreTecnico) {
     var url = GAS_URL + '?action=tareas&empleadoId=' + encodeURIComponent(empleadoId) + '&empleadoNombre=' + encodeURIComponent(nombreTecnico || '');
     var res  = await fetch(url);
     var data = await res.json();
-    var tareas = (data.ok && data.tareas && data.tareas.length) ? data.tareas : [];
+    var deHolded = (data.ok && data.tareas && data.tareas.length) ? data.tareas : [];
+
+    // Las de la oficina primero, igual que en el albarán
+    var delPanel = await traerTareasPlanificadas(nombreTecnico);
+    var tareas = delPanel.concat(deHolded);
 
     if (count) count.textContent = tareas.length;
 
@@ -2500,6 +2582,7 @@ function seleccionarTareaChecklist(idx) {
   var radio = document.getElementById('ctalb-radio-' + idx);
   if (item)  item.classList.add('sel');
   if (radio) radio.classList.add('sel');
+  _tareaPanelElegida = t._panel ? t : null;   // solo las del panel se cierran
 
   // Rellenar campos
   var cInp = document.getElementById('c-cliente');
@@ -2526,6 +2609,7 @@ function seleccionarTareaChecklist(idx) {
 }
 
 function resetTareaSeleccionadaC() {
+  _tareaPanelElegida = null;
   window._tareasChecklist && (window._tareasChecklist = window._tareasChecklist);
   document.querySelectorAll('#c-tareas-lista .tarea-albaran-item').forEach(function(el) { el.classList.remove('sel'); });
   document.querySelectorAll('#c-tareas-lista .tarea-albaran-radio').forEach(function(r)  { r.classList.remove('sel'); });
