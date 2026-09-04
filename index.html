@@ -993,6 +993,70 @@ table.hid-table{width:100%;border-collapse:collapse;font-size:12px;}
 <script>
 const GAS_URL='https://script.google.com/macros/s/AKfycbxDNNvIc8ouF8KqjEgEUvdoBJJN74baY06EYLTXE47B1xgNUsl7sWXxkBJD0x_KDwlM/exec';
 
+// ── QUIÉN PUEDE SELECCIONARSE ────────────────────────────────
+// Holded devuelve 37 fichas: oficina, bajas y duplicados. Aquí van solo los
+// técnicos en activo, escritos EXACTAMENTE como en Holded. Es la misma lista
+// que TECNICOS_ACTIVOS del panel de planificación: si no coincidieran, la
+// oficina podría asignar un nombre que aquí no aparece.
+// Para dar de alta o de baja a alguien, se toca esta lista y la del panel.
+const TECNICOS_ACTIVOS = [
+  'MARCO ANTONIO VALLEJO PEREZ',
+  'HELIODORO LAVARA ROMERO',
+  'CARLOS ALBERTO  ARBOLEDA AGUILAR',
+  'RUBÉN BAUDI CORTES',
+  'RUBÉN GONZALEZ VILAPLANA',
+  'IVAN BAUDI CORTES',
+  'JOSE RUBEN PEREZ',
+  'MIGUEL HUERTA MARTINEZ',
+  'JULIAN ANDRES MORENO RONZEWSKI',
+  'JOSE FRANCISCO GARCIA GARCIA',
+  'CHRISTIAN RICARDO SALINAS BARAHONA',
+  'ROMAN CHAGOVTSEV',
+  'CRISTHIAN ANDRES SERNA SALAZAR'
+];
+
+function _sinTildes(t){
+  return String(t||'').toUpperCase()
+    .replace(/[ÁÀÄÂ]/g,'A').replace(/[ÉÈËÊ]/g,'E').replace(/[ÍÌÏÎ]/g,'I')
+    .replace(/[ÓÒÖÔ]/g,'O').replace(/[ÚÙÜÛ]/g,'U').replace(/\s+/g,' ').trim();
+}
+
+// Deja solo los técnicos en activo. Si el filtro se quedara sin nadie —porque
+// en Holded hayan cambiado los nombres— devuelve la lista entera: es preferible
+// que sobre gente en el desplegable a que un técnico no pueda seleccionarse y
+// se quede sin poder enviar el parte.
+function soloTecnicosActivos(lista){
+  if (!lista || !lista.length) return lista || [];
+  var activos = {};
+  TECNICOS_ACTIVOS.forEach(function(n){ activos[_sinTildes(n)] = true; });
+  var vistos = {}, out = [];
+  lista.forEach(function(e){
+    var clave = _sinTildes(e && (e.name || e.nombre));
+    if (!activos[clave] || vistos[clave]) return;   // fuera bajas y repetidos
+    vistos[clave] = true;
+    out.push(e);
+  });
+  if (!out.length) {
+    console.warn('Ningún técnico activo casó con Holded: se muestran todos.');
+    return lista;
+  }
+  return out;
+}
+
+// Deja solo las tareas de la empresa elegida arriba. Tanto las del panel como
+// las de Holded traen su empresa, así que se comparan igual.
+// Las que NO traen empresa se dejan pasar a propósito: son tareas antiguas de
+// Holded y es preferible que se vean de más a que un trabajo desaparezca sin
+// que nadie sepa por qué.
+function soloDeLaEmpresa(tareas, empresa){
+  var e = String(empresa || '').trim().toLowerCase();
+  if (!e || !tareas || !tareas.length) return tareas || [];
+  return tareas.filter(function(t){
+    var te = String(t && t.empresa || '').trim().toLowerCase();
+    return !te || te === e;
+  });
+}
+
 // Backend del panel de planificación (tareas.html). Es un Apps Script aparte:
 // desde aquí solo se leen las tareas del técnico y se marcan como hechas al
 // enviar el parte. Si no contesta, la app sigue funcionando igual que antes.
@@ -1209,7 +1273,7 @@ function desbloquearTecnicoSiProcede(){
   }
 }
 function switchChecklist(tab){tipoChecklist=tab==='elec'?'Checklist Eléctrico':'Checklist Hidráulico';document.getElementById('panel-elec').classList.toggle('active',tab==='elec');document.getElementById('panel-hid').classList.toggle('active',tab==='hid');document.getElementById('ptab-elec').classList.toggle('active',tab==='elec');document.getElementById('ptab-hid').classList.toggle('active',tab==='hid');renderFirmasTecnicos(tab,'c');}
-function selectEmpresa(e,prefix){if(prefix==='c'){empresaChecklist=e;document.getElementById('c-btn-rivagua').classList.toggle('active',e==='rivagua');document.getElementById('c-btn-marcres').classList.toggle('active',e==='marcres');var av=document.getElementById('c-empresa-aviso');if(av)av.classList.remove('show');}else{empresaAlbaran=e;document.getElementById('a-btn-rivagua').classList.toggle('active',e==='rivagua');document.getElementById('a-btn-marcres').classList.toggle('active',e==='marcres');var av2=document.getElementById('a-empresa-aviso');if(av2)av2.classList.remove('show');}document.getElementById('header-empresa-label').textContent=e==='rivagua'?'Rivagua':'Marcres';desbloquearTecnicoSiProcede();}
+function selectEmpresa(e,prefix){if(prefix==='c'){empresaChecklist=e;document.getElementById('c-btn-rivagua').classList.toggle('active',e==='rivagua');document.getElementById('c-btn-marcres').classList.toggle('active',e==='marcres');var av=document.getElementById('c-empresa-aviso');if(av)av.classList.remove('show');}else{empresaAlbaran=e;document.getElementById('a-btn-rivagua').classList.toggle('active',e==='rivagua');document.getElementById('a-btn-marcres').classList.toggle('active',e==='marcres');var av2=document.getElementById('a-empresa-aviso');if(av2)av2.classList.remove('show');}document.getElementById('header-empresa-label').textContent=e==='rivagua'?'Rivagua':'Marcres';desbloquearTecnicoSiProcede();recargarTareasPorEmpresa(prefix);}
 function selectTipo(t){
   tipoAlbaran=t;
   ['mantenimiento','aviso','trabajo','guardia','bomba','preparacion','descal','taller'].forEach(x=>document.getElementById('tipo-'+x).classList.toggle('active',x===t));
@@ -2119,7 +2183,7 @@ async function iniciarPantallasTareas() {
     if (!empleadosCache) {
       const res = await fetch(GAS_URL + '?action=empleados&q=');
       const data = await res.json();
-      empleadosCache = data.ok ? data.empleados : [];
+      empleadosCache = soloTecnicosActivos(data.ok ? data.empleados : []);
     }
     if (!empleadosCache.length) {
       grid.innerHTML = '<div class="tareas-empty"><div class="empty-icon">⚠️</div><p>No se encontraron técnicos en Holded</p></div>';
@@ -2317,7 +2381,7 @@ async function buscarEmpleadoAlbaran(q) {
     if (!empleadosCache) {
       const res = await fetch(GAS_URL + '?action=empleados&q=');
       const data = await res.json();
-      empleadosCache = data.ok ? data.empleados : [];
+      empleadosCache = soloTecnicosActivos(data.ok ? data.empleados : []);
     }
     const filtrados = q.length > 0
       ? empleadosCache.filter(e => e.name.toLowerCase().includes(q.toLowerCase()))
@@ -2331,6 +2395,24 @@ async function buscarEmpleadoAlbaran(q) {
       '</div>';
     }).join('');
   } catch(err) { drop.innerHTML = '<div class="holded-searching">Error al buscar</div>'; }
+}
+
+// Al cambiar de empresa con un técnico ya elegido, la lista de tareas se queda
+// con las de la empresa anterior. Se vuelve a pedir para que cuadre.
+function recargarTareasPorEmpresa(prefix){
+  try{
+    if(prefix === 'c'){
+      var nomC = (document.getElementById('c-tecnico')||{}).value || '';
+      if(nomC.trim() && typeof cargarTareasChecklist === 'function'){
+        cargarTareasChecklist(window._tecnicoChecklistId || '', nomC.trim());
+      }
+    } else {
+      var nomA = (document.getElementById('a-tecnico')||{}).value || '';
+      if(nomA.trim() && typeof cargarTareasAlbaran === 'function'){
+        cargarTareasAlbaran(tecnicoAlbaranId || '', nomA.trim());
+      }
+    }
+  }catch(e){ /* nunca puede impedir cambiar de empresa */ }
 }
 
 async function elegirTecnicoAlbaran(idxOId, nombre) {
@@ -2372,7 +2454,7 @@ async function cargarTareasAlbaran(id, nomFinal) {
 
     // Las que ha puesto la oficina van PRIMERO: son el trabajo del día.
     const delPanel = await traerTareasPlanificadas(nomFinal);
-    const tareas = delPanel.concat(deHolded);
+    const tareas = soloDeLaEmpresa(delPanel.concat(deHolded), empresaAlbaran);
 
     // Actualizar contador
     var count = document.getElementById('a-tareas-count');
@@ -2527,7 +2609,7 @@ async function cargarTareasChecklist(empleadoId, nombreTecnico) {
 
     // Las de la oficina primero, igual que en el albarán
     var delPanel = await traerTareasPlanificadas(nombreTecnico);
-    var tareas = delPanel.concat(deHolded);
+    var tareas = soloDeLaEmpresa(delPanel.concat(deHolded), empresaChecklist);
 
     if (count) count.textContent = tareas.length;
 
@@ -3813,7 +3895,7 @@ async function buscarTecnicoExtra(q,prefix,idx){
   try{
     var res=await fetch(GAS_URL+'?action=empleados&q='+encodeURIComponent(q));
     var data=await res.json();
-    var empleados=data.ok?data.empleados:[];
+    var empleados=soloTecnicosActivos(data.ok?data.empleados:[]);
     if(!empleados.length){drop.innerHTML='<div class="holded-searching">Sin resultados</div>';return;}
     drop.innerHTML=empleados.slice(0,8).map(function(e){
       return '<div class="holded-item" onclick="elegirTecnicoExtra(\''+prefix+'\','+idx+',\''+e.name.replace(/'/g,"\\'")+'\')">'
@@ -3855,7 +3937,7 @@ async function buscarEmpleado(q,prefix){
     if(!empleadosCache){
       const res=await fetch(GAS_URL+'?action=empleados&q=');
       const data=await res.json();
-      empleadosCache=data.ok?data.empleados:[];
+      empleadosCache=soloTecnicosActivos(data.ok?data.empleados:[]);
     }
     const filtrados=q.length>0
       ?empleadosCache.filter(e=>e.name.toLowerCase().includes(q.toLowerCase()))
@@ -3877,7 +3959,7 @@ function elegirTecnico(id,nombre,prefix){
   document.getElementById(prefix+'-tecnico-drop').style.display='none';
   tecnicoElegido[prefix]=true;
   refrescarFirmasTecnicosActivo(prefix);
-  if(prefix==='c') cargarTareasChecklist(id, nombre);
+  if(prefix==='c'){ window._tecnicoChecklistId = id; cargarTareasChecklist(id, nombre); }
   if(prefix==='a'){
     tecnicoAlbaranElegido=true;
     tecnicoAlbaranId=id;
