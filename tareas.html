@@ -98,6 +98,16 @@ textarea.inp{resize:vertical;min-height:76px;line-height:1.5;}
 .term-cli{font-size:14px;font-weight:600;}
 .term-meta{font-size:11px;color:var(--muted);margin-top:2px;}
 .term-ok{font-size:11px;color:var(--ok);font-weight:700;background:var(--ok-bg);padding:3px 9px;border-radius:99px;white-space:nowrap;}
+/* Terminadas en dos columnas, una por empresa */
+.term-cols{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px;}
+.term-col{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--surface);}
+.term-col-h{padding:9px 13px;font-size:12px;font-weight:700;color:#fff;letter-spacing:.5px;text-transform:uppercase;}
+.term-col-h.marcres{background:var(--accent);}
+.term-col-h.rivagua{background:#B7800A;}
+.term-col-n{background:rgba(255,255,255,.25);padding:1px 8px;border-radius:99px;margin-left:6px;font-size:11px;}
+.term-col-body{max-height:60vh;overflow-y:auto;}
+.term-rango{font-size:11px;color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;margin-top:3px;}
+@media(max-width:760px){.term-cols{grid-template-columns:1fr;}}
 
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:26px;background:var(--text);color:#fff;padding:12px 20px;border-radius:99px;font-size:14px;z-index:999;opacity:0;transition:opacity .25s;pointer-events:none;max-width:90vw;text-align:center;}
 .toast.show{opacity:1;}
@@ -201,12 +211,16 @@ textarea.inp{resize:vertical;min-height:76px;line-height:1.5;}
 <!-- ══ TERMINADAS ══ -->
 <div class="pane" id="pane-term">
   <div class="card">
-    <div class="card-h">Trabajos terminados por los técnicos</div>
+    <div class="card-h">Trabajos terminados por los técnicos
+      <div class="term-rango" id="term-rango"></div>
+    </div>
     <div id="lista-term"><div class="vacio">Cargando…</div></div>
   </div>
   <div class="nota">
-    Se llenan solas cuando el técnico envía el parte. Aquí solo se consultan:
-    en Holded hay que cerrarlas a mano, porque su API no permite hacerlo.
+    Se llenan solas cuando el técnico envía el parte. Se muestra la semana del
+    tablero, así que cada lunes empieza en limpio. <b>No se borra nada:</b> el
+    histórico completo queda en la hoja de Drive. En Holded hay que cerrarlas a
+    mano, porque su API no lo permite.
   </div>
 </div>
 
@@ -653,9 +667,12 @@ function cargarSemana(){
 
   if(GAS_URL.indexOf('PEGA_AQUI')===0){ return; }
 
-  // 2) Y una sola llamada que trae la semana, las terminadas y las notas
+  // 2) Y una sola llamada que trae la semana, las terminadas y las notas.
+  // Se pide hasta el DOMINGO aunque el tablero solo pinte de lunes a viernes:
+  // un parte enviado el sábado tiene que salir en Terminadas. Las tarjetas de
+  // fin de semana no se pintan porque el tablero solo tiene cinco columnas.
   var url=GAS_URL+'?action=panel&desde='+encodeURIComponent(clave)+
-          '&hasta='+encodeURIComponent(aTxt(viernes));
+          '&hasta='+encodeURIComponent(aTxt(sumar(lunesActual,6)));
   fetch(url).then(function(r){return r.json();}).then(function(d){
     if(!d || !d.ok) throw new Error('respuesta no válida');
     pintarTablero(d.tareas||[]);
@@ -748,26 +765,53 @@ function cargarTerminadas(){
 }
 
 function pintarTerminadas(l){
-    l = l || [];
-    window._terminadas = l;
-    var cont=document.getElementById('lista-term');
-    if(!cont) return;
-    cont.dataset.pintado='1';
-    var badge=document.getElementById('badge-term');
-    badge.textContent=l.length;
-    badge.style.display = l.length ? 'inline-block' : 'none';
-    if(!l.length){ cont.innerHTML='<div class="vacio">Todavía no hay trabajos terminados.</div>'; return; }
-    var h='';
-    for(var i=l.length-1;i>=0;i--){
-      var t=l[i];
+  l = l || [];
+  window._terminadas = l;
+  var cont=document.getElementById('lista-term');
+  if(!cont) return;
+  cont.dataset.pintado='1';
+
+  var badge=document.getElementById('badge-term');
+  badge.textContent=l.length;
+  badge.style.display = l.length ? 'inline-block' : 'none';
+
+  var rango=document.getElementById('term-rango');
+  if(rango && lunesActual){
+    rango.textContent='Semana del '+aTxt(lunesActual)+' al '+aTxt(sumar(lunesActual,6));
+  }
+
+  // Una columna por empresa. Las que no traen empresa van a Marcres, que es
+  // la principal, en vez de desaparecer.
+  var porEmpresa={ Marcres:[], Rivagua:[] };
+  l.forEach(function(t){
+    var e=String(t.empresa||'').trim().toLowerCase();
+    (e==='rivagua' ? porEmpresa.Rivagua : porEmpresa.Marcres).push(t);
+  });
+
+  cont.innerHTML='<div class="term-cols">'+
+    columnaTerminadas('Marcres', porEmpresa.Marcres)+
+    columnaTerminadas('Rivagua', porEmpresa.Rivagua)+
+    '</div>';
+}
+
+function columnaTerminadas(empresa, lista){
+  var h='<div class="term-col"><div class="term-col-h '+empresa.toLowerCase()+'">'+
+        esc(empresa)+' <span class="term-col-n">'+lista.length+'</span></div><div class="term-col-body">';
+  if(!lista.length){
+    h+='<div class="vacio" style="padding:22px 12px;">Sin trabajos terminados</div>';
+  } else {
+    // Lo último enviado, arriba
+    for(var i=lista.length-1;i>=0;i--){
+      var t=lista[i];
       h+='<div class="term"><div class="term-info">'+
          '<div class="term-cli">'+esc(t.cliente||t.trabajo||'—')+'</div>'+
-         '<div class="term-meta">'+esc(t.tecnicos.join(' · '))+' · '+esc(t.fecha)+
+         '<div class="term-meta">'+esc((t.tecnicos||[]).join(' · '))+' · '+esc(t.fecha)+
          (t.terminada?' · enviado '+esc(t.terminada):'')+
          (t.parte?' · '+esc(t.parte):'')+'</div></div>'+
          '<div class="term-ok">✓ hecho</div></div>';
     }
-    cont.innerHTML=h;
+  }
+  return h+'</div></div>';
 }
 
 // ══════════════════════════════════════════════════════════════
