@@ -64,6 +64,7 @@ textarea.inp{resize:vertical;min-height:76px;line-height:1.5;}
 /* ── Tablero semanal, como la pizarra ── */
 .sem-nav{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;}
 .sem-rango{font-size:14px;font-weight:700;color:var(--accent);}
+.sem-frescura{font-size:10px;color:var(--muted);margin-top:2px;font-style:italic;}
 .tablero{display:grid;grid-template-columns:repeat(5,minmax(210px,1fr));gap:10px;overflow-x:auto;padding-bottom:8px;}
 .dia{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;min-height:220px;display:flex;flex-direction:column;}
 .dia.hoy{border-color:var(--accent);border-width:2px;}
@@ -182,7 +183,10 @@ textarea.inp{resize:vertical;min-height:76px;line-height:1.5;}
 <div class="pane" id="pane-semana">
   <div class="sem-nav">
     <button class="btn-sm" onclick="cambiarSemana(-7)">← Anterior</button>
-    <div class="sem-rango" id="sem-rango">—</div>
+    <div>
+      <div class="sem-rango" id="sem-rango">—</div>
+      <div class="sem-frescura" id="sem-frescura" style="display:none;"></div>
+    </div>
     <div style="display:flex;gap:8px;">
       <button class="btn-sm" onclick="irHoy()">Esta semana</button>
       <button class="btn-sm" onclick="cargarSemana()">↻ Actualizar</button>
@@ -562,6 +566,10 @@ function crearTarea(){
     enviando=false; btn.disabled=false; btn.textContent='✓ CREAR Y ASIGNAR';
     if(!d.ok){ showToast('❌ '+(d.error||'No se pudo crear'),'error'); return; }
     showToast('✅ Asignada a '+tecs.length+(tecs.length>1?' técnicos':' técnico'),'success');
+    // El tablero guardado se queda viejo en cuanto se crea algo: se tira para
+    // que al abrir "La semana" no aparezca un tablero sin la tarea recién hecha.
+    try{ localStorage.removeItem(CLAVE_PANEL+'_'+aTxt(lunesDe(deIso(iso)))); }catch(e){}
+    window._terminadas = null;
     limpiarFormulario();
   }, function(msg){
     enviando=false; btn.disabled=false; btn.textContent='✓ CREAR Y ASIGNAR';
@@ -601,19 +609,68 @@ function post(payload, ok, err){
 function irHoy(){ lunesActual=lunesDe(new Date()); cargarSemana(); }
 function cambiarSemana(n){ lunesActual=sumar(lunesActual,n); cargarSemana(); }
 
+// ── Caché del panel ────────────────────────────────────────────
+// Apps Script tarda entre 2 y 40 segundos de forma impredecible. Guardando lo
+// último que vino, el tablero aparece al instante y se refresca por detrás:
+// se sigue esperando a Google, pero ya no se espera mirando una pantalla vacía.
+var CLAVE_PANEL='tareas_panel_v1';
+var HORAS_PANEL=48;
+
+function guardarPanelLocal(clave, datos){
+  try{ localStorage.setItem(CLAVE_PANEL+'_'+clave, JSON.stringify({t:Date.now(),d:datos})); }catch(e){}
+}
+function leerPanelLocal(clave){
+  try{
+    var c=JSON.parse(localStorage.getItem(CLAVE_PANEL+'_'+clave)||'null');
+    if(!c || !c.d) return null;
+    if(Date.now()-c.t > HORAS_PANEL*3600*1000) return null;
+    return c;
+  }catch(e){ return null; }
+}
+function haceCuanto(ms){
+  var m=Math.round((Date.now()-ms)/60000);
+  if(m<1) return 'hace un momento';
+  if(m<60) return 'hace '+m+' min';
+  var h=Math.round(m/60);
+  return h<24 ? ('hace '+h+' h') : 'de ayer o antes';
+}
+
 function cargarSemana(){
   if(!lunesActual) lunesActual=lunesDe(new Date());
   var viernes=sumar(lunesActual,4);
+  var clave=aTxt(lunesActual);
   document.getElementById('sem-rango').textContent =
-    'Del '+aTxt(lunesActual)+' al '+aTxt(viernes);
-  pintarTablero(null);
+    'Del '+clave+' al '+aTxt(viernes);
+
+  // 1) Lo último conocido, al instante
+  var cache=leerPanelLocal(clave);
+  if(cache){
+    pintarTablero(cache.d.tareas||[]);
+    marcarFrescura('mostrando lo de '+haceCuanto(cache.t)+', actualizando…');
+  } else {
+    pintarTablero(null);
+  }
 
   if(GAS_URL.indexOf('PEGA_AQUI')===0){ return; }
-  var url=GAS_URL+'?action=tareas&desde='+encodeURIComponent(aTxt(lunesActual))+
+
+  // 2) Y una sola llamada que trae la semana, las terminadas y las notas
+  var url=GAS_URL+'?action=panel&desde='+encodeURIComponent(clave)+
           '&hasta='+encodeURIComponent(aTxt(viernes));
   fetch(url).then(function(r){return r.json();}).then(function(d){
-    pintarTablero(d.ok ? d.tareas : []);
-  }).catch(function(){ showToast('❌ No he podido cargar la semana','error'); });
+    if(!d || !d.ok) throw new Error('respuesta no válida');
+    pintarTablero(d.tareas||[]);
+    guardarPanelLocal(clave, d);
+    marcarFrescura('');
+    pintarTerminadas(d.terminadas||[]);   // ya vienen en el mismo paquete
+  }).catch(function(){
+    if(cache) marcarFrescura('sin conexión · mostrando lo de '+haceCuanto(cache.t));
+    else { pintarTablero([]); showToast('❌ No he podido cargar la semana','error'); }
+  });
+}
+
+function marcarFrescura(txt){
+  var e=document.getElementById('sem-frescura');
+  if(e){ e.textContent=txt; e.style.display = txt ? 'block' : 'none'; }
 }
 
 function pintarTablero(tareas){
@@ -681,14 +738,21 @@ function anular(id){
 // ══════════════════════════════════════════════════════════════
 // TERMINADAS
 // ══════════════════════════════════════════════════════════════
+// Las terminadas ya no se piden por su cuenta: vienen en la llamada del panel.
+// Si se abre la pestaña antes de haber cargado la semana, se carga entonces.
 function cargarTerminadas(){
+  if(window._terminadas){ pintarTerminadas(window._terminadas); return; }
+  cargarSemana();
   var cont=document.getElementById('lista-term');
-  if(GAS_URL.indexOf('PEGA_AQUI')===0){
-    cont.innerHTML='<div class="vacio">Falta configurar la URL del backend.</div>'; return;
-  }
-  cont.innerHTML='<div class="vacio">Cargando…</div>';
-  fetch(GAS_URL+'?action=terminadas').then(function(r){return r.json();}).then(function(d){
-    var l=(d.ok&&d.tareas)||[];
+  if(cont && !cont.dataset.pintado) cont.innerHTML='<div class="vacio">Cargando…</div>';
+}
+
+function pintarTerminadas(l){
+    l = l || [];
+    window._terminadas = l;
+    var cont=document.getElementById('lista-term');
+    if(!cont) return;
+    cont.dataset.pintado='1';
     var badge=document.getElementById('badge-term');
     badge.textContent=l.length;
     badge.style.display = l.length ? 'inline-block' : 'none';
@@ -704,7 +768,6 @@ function cargarTerminadas(){
          '<div class="term-ok">✓ hecho</div></div>';
     }
     cont.innerHTML=h;
-  }).catch(function(){ cont.innerHTML='<div class="vacio">No he podido cargarlas.</div>'; });
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -717,7 +780,10 @@ function cargarTerminadas(){
   // Por defecto, mañana: lo normal es dejar preparado el día siguiente
   document.getElementById('f-fecha').value = aIso(sumar(new Date(),1));
   lunesActual = lunesDe(new Date());
-  cargarTerminadas();
+  // Al abrir NO se consulta nada: se pinta lo último guardado, que es
+  // instantáneo. La consulta se hace al entrar en "La semana" o "Terminadas".
+  var guardado = leerPanelLocal(aTxt(lunesActual));
+  if (guardado && guardado.d.terminadas) pintarTerminadas(guardado.d.terminadas);
 })();
 </script>
 </body>
