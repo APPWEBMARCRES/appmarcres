@@ -88,6 +88,9 @@ textarea.inp{resize:vertical;min-height:76px;line-height:1.5;}
 .tarj-pie{display:flex;gap:6px;margin-top:6px;}
 .tarj-emp{font-size:9px;font-weight:700;padding:1px 6px;border-radius:99px;border:1px solid var(--border);color:var(--muted);}
 .tarj-x{margin-left:auto;font-size:12px;color:var(--muted);cursor:pointer;padding:0 3px;}
+.tarj-ok{margin-left:auto;font-size:13px;color:var(--muted);cursor:pointer;padding:0 4px;font-weight:700;}
+.tarj-ok:hover{color:var(--ok);background:var(--ok-bg);border-radius:4px;}
+.tarj-ok + .tarj-x{margin-left:0;}
 .tarj-x:hover{color:var(--bad);}
 .dia.drop{background:var(--ok-bg);}
 
@@ -171,6 +174,7 @@ textarea.inp{resize:vertical;min-height:76px;line-height:1.5;}
     <div class="fg">
       <label class="lbl">Qué hay que hacer</label>
       <textarea class="inp" id="f-trabajo" placeholder="Ej: Sustituir bobinas. Llevar flotador por si hay que cambiarlo."></textarea>
+    </div>
     </div>
   </div>
 
@@ -726,6 +730,7 @@ function tarjeta(t){
     '<div class="tarj-pie">'+
       (t.empresa?'<span class="tarj-emp">'+esc(t.empresa)+'</span>':'')+
       (t.estado==='Hecha'?'<span class="tarj-emp" style="color:var(--ok);border-color:var(--ok)">✓ hecha</span>':'')+
+      (t.estado==='Pendiente'?'<span class="tarj-ok" onclick="marcarHecha(\''+esc(t.id)+'\',\''+esc(t.cliente||'')+'\')" title="Marcar como hecha">✓</span>':'')+
       (puedeMover?'<span class="tarj-x" onclick="anular(\''+esc(t.id)+'\')" title="Anular">✕</span>':'')+
     '</div></div>';
 }
@@ -742,6 +747,24 @@ function soltar(e){
   post({accion:'mover', id:id, fecha:fecha}, function(d){
     if(d.ok){ showToast('Movida al '+fecha,'success'); cargarSemana(); }
     else showToast('❌ '+(d.error||'No se pudo mover'),'error');
+  }, function(m){ showToast('❌ '+m,'error'); });
+}
+
+// Marca una tarea como hecha desde el panel.
+//
+// Normalmente esto lo hace SOLA la app de partes cuando el tecnico envia.
+// Esto es para el caso en que no pudo: tareas creadas despues de que el
+// tecnico cargara su lista, trabajos hechos sin pasar por la app, etc.
+//
+// Queda anotado en la columna Parte que fue un cierre a mano, para poder
+// distinguirlo de los automaticos al revisar el historico.
+function marcarHecha(id, cliente){
+  var texto = cliente ? ('Marcar como HECHA el trabajo de '+cliente+'?') : 'Marcar esta tarea como hecha?';
+  if(!confirm(texto+String.fromCharCode(10)+String.fromCharCode(10)+'Uselo solo si el trabajo se hizo de verdad. Si no se hizo, use Anular.')) return;
+  post({accion:'cerrar', id:id, idEnvio:'CIERRE-MANUAL-'+id,
+        parte:'Cerrada a mano desde el panel'}, function(d){
+    if(d.ok){ showToast(d.yaEstaba ? 'Ya estaba hecha' : '✓ Marcada como hecha'); cargarSemana(); }
+    else showToast('❌ '+(d.error||'No se pudo cerrar'),'error');
   }, function(m){ showToast('❌ '+m,'error'); });
 }
 
