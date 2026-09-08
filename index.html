@@ -558,6 +558,33 @@ table.hid-table{width:100%;border-collapse:collapse;font-size:12px;}
       </div>
     </div>
     </div><!-- /a-tareas-wrap -->
+
+    <!-- ══════════════════════════════════════════════════════════════
+         DESCRIPCIÓN DEL TRABAJO
+         Lo que la oficina escribió en el panel de Planificación.
+         Es SOLO una guía en pantalla para el técnico: este texto NO viaja
+         en el envío ni aparece en ningún PDF. Si la tarea no trae
+         descripción, la sección entera queda oculta.
+         ══════════════════════════════════════════════════════════════ -->
+    <div class="field-group" id="a-descripcion-wrap" style="display:none;">
+      <label class="field-label">Descripción
+        <span style="color:var(--muted);font-weight:400;">— guía, no sale en el PDF</span>
+      </label>
+      <div style="padding:12px 14px;background:#F4F7FC;border:1.5px solid #C9D6EA;
+                  border-left:4px solid #184595;border-radius:8px;">
+        <div id="a-descripcion-texto" style="font-size:14px;line-height:1.55;color:#101A2C;
+             white-space:pre-wrap;word-break:break-word;"></div>
+        <!-- Enlace a la ubicación. Se abre en otra pestaña para que el técnico
+             no pierda el parte a medias. Solo aparece si la tarea trae enlace. -->
+        <a id="a-descripcion-maps" href="#" target="_blank" rel="noopener noreferrer"
+           style="display:none;margin-top:10px;align-items:center;gap:7px;
+                  padding:9px 13px;background:#184595;color:#fff;text-decoration:none;
+                  border-radius:7px;font-size:14px;font-weight:600;">
+          📍 Abrir ubicación en Google Maps
+        </a>
+      </div>
+    </div>
+
     <div class="field-group cliente-wrap" id="a-cliente-wrap">
       <label class="field-label">Cliente <span style="color:var(--bad)">*</span> <span class="holded-badge">Holded</span></label>
       <div style="display:flex;align-items:center;gap:6px;">
@@ -1081,6 +1108,10 @@ async function traerTareasPlanificadas(nombreTecnico) {
         titulo: t.cliente || t.trabajo || 'Trabajo',
         tipo: 'Planificada',
         descripcion: t.trabajo || '',
+        // Las tareas del panel ya traen el trabajo limpio, sin etiquetas que
+        // quitar. Se copia tal cual al campo que lee la sección Descripción.
+        trabajo: t.trabajo || '',
+        maps: t.maps || '',
         cliente: t.cliente || '',
         direccion: t.direccion || '',
         poblacion: t.poblacion || '',
@@ -2550,6 +2581,10 @@ function seleccionarTareaAlbaran(idx) {
   document.getElementById('a-tarea-sel-cliente').textContent = t.cliente || (t.direccion || '—');
   document.getElementById('a-tarea-seleccionada').style.display = 'block';
 
+  // Descripción del trabajo. Solo guía en pantalla: no se envía a ningún sitio
+  // ni aparece en el PDF. Si la tarea no trae ninguna, la sección queda oculta.
+  mostrarDescripcionTarea(t.trabajo, t.maps);
+
   // Cerrar el desplegable tras elegir
   var body  = document.getElementById('a-tareas-body');
   var arrow = document.getElementById('a-tareas-arrow');
@@ -2559,11 +2594,37 @@ function seleccionarTareaAlbaran(idx) {
   showToast('✅ Datos cargados desde la tarea', 'success');
 }
 
+// Enseña u oculta la sección Descripción. Se usa al elegir tarea y al quitarla.
+function mostrarDescripcionTarea(texto, enlaceMaps) {
+  var wrap = document.getElementById('a-descripcion-wrap');
+  if (!wrap) return;
+
+  var limpio = String(texto || '').trim();
+  document.getElementById('a-descripcion-texto').textContent = limpio;
+
+  // El botón solo se pinta si el enlace es de Google Maps. Aunque el backend
+  // ya lo filtra, aquí se vuelve a mirar: es lo que el técnico va a pulsar.
+  var a = document.getElementById('a-descripcion-maps');
+  var url = String(enlaceMaps || '').trim();
+  // El dominio tiene que terminar donde se espera. Sin ese anclaje, un dominio
+  // como "maps.app.goo.gl.dominio-falso.com" pasaría por bueno.
+  var valido = /^https:\/\/(maps\.app\.goo\.gl([\/?#]|$)|goo\.gl\/maps([\/?#]|$)|maps\.google\.[a-z]{2,3}(\.[a-z]{2,3})?([\/?#]|$)|(www\.)?google\.[a-z]{2,3}(\.[a-z]{2,3})?\/maps([\/?#]|$))/i.test(url);
+  if (a) {
+    if (valido) { a.href = url; a.style.display = 'inline-flex'; }
+    else { a.removeAttribute('href'); a.style.display = 'none'; }
+  }
+
+  // Se enseña la sección si hay descripción O enlace: con solo el enlace
+  // también merece la pena verla.
+  wrap.style.display = (limpio || valido) ? 'block' : 'none';
+}
+
 function resetTareaSeleccionada() {
   tareaAlbaranSeleccionada = null;
   _tareaPanelElegida = null;
   document.querySelectorAll('.tarea-albaran-radio').forEach(r => r.classList.remove('sel'));
   document.getElementById('a-tarea-seleccionada').style.display = 'none';
+  mostrarDescripcionTarea('', '');   // que no quede la de la tarea anterior
   // Limpiar campos cliente
   resetCliente('a');
 }
