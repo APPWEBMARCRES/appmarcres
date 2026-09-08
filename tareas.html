@@ -716,9 +716,31 @@ function pintarTablero(tareas){
   cont.innerHTML=h;
 }
 
+// Los nombres que la regla de abajo NO acierta. Se escriben a mano.
+// "JOSE RUBEN PEREZ" tiene nombre compuesto y UN solo apellido, así que la
+// regla sacaría "JOSE RUBEN" en vez de "JOSE PEREZ".
+var NOMBRES_A_MANO = {
+  'JOSE RUBEN PEREZ': 'JOSE PEREZ'
+};
+
+// Primer nombre + primer apellido: "RUBÉN BAUDI" y "RUBÉN GONZALEZ".
+// Con solo el nombre de pila había dos Rubenes y no se sabía cuál era.
+//
+// En un nombre español el orden es: nombre(s) + apellido1 + apellido2.
+// Con 4 trozos o más se asume nombre compuesto, así que el apellido es el
+// tercero; con 2 o 3, es el segundo.
+function nombreCorto(nombre){
+  var p = String(nombre||'').trim().split(/\s+/).filter(Boolean);
+  if(!p.length) return '';
+  var clave = p.join(' ').toUpperCase();
+  if(NOMBRES_A_MANO[clave]) return NOMBRES_A_MANO[clave];
+  if(p.length === 1) return p[0];
+  return p[0] + ' ' + (p.length >= 4 ? p[2] : p[1]);
+}
+
 function tarjeta(t){
   var cls = t.estado==='Hecha' ? ' hecha' : (t.estado==='Anulada' ? ' anulada' : '');
-  var tecs = t.tecnicos.map(function(n){ return n.split(' ')[0]; }).join(' / ');
+  var tecs = t.tecnicos.map(nombreCorto).join(' / ');
   var puedeMover = t.estado==='Pendiente';
   return '<div class="tarj'+cls+'"'+(puedeMover?' draggable="true" ondragstart="arrastrar(event)"':'')+
     ' data-id="'+esc(t.id)+'">'+
