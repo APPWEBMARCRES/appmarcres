@@ -43,6 +43,13 @@ textarea.inp{resize:vertical;min-height:76px;line-height:1.5;}
 .pill-group{display:flex;gap:8px;flex-wrap:wrap;}
 .pill{padding:7px 18px;border:1.5px solid var(--border);border-radius:99px;background:var(--surface);font-family:var(--font);font-size:14px;font-weight:600;color:var(--muted);cursor:pointer;user-select:none;transition:all .15s;}
 .pill.sel{background:var(--accent);border-color:var(--accent);color:#fff;}
+/* El aviso urgente se pinta en rojo, no en azul, para que se distinga
+   del resto de opciones de un vistazo. */
+.pill.urg.sel{background:var(--bad);border-color:var(--bad);color:#fff;}
+/* Tarjeta de un aviso urgente en el tablero semanal. */
+.tarj.urgente{border-left-color:var(--bad);border-left-width:5px;box-shadow:0 0 0 1.5px var(--bad) inset;}
+.tarj-urg{display:inline-block;background:var(--bad);color:#fff;font-size:9px;font-weight:800;
+          letter-spacing:.5px;padding:2px 7px;border-radius:99px;margin-bottom:4px;}
 /* ── Técnico 1, Técnico 2… como en la app de partes ── */
 .tec-fila{position:relative;display:flex;align-items:center;gap:8px;}
 .tec-fila .inp{flex:1;}
@@ -252,6 +259,15 @@ textarea.inp{resize:vertical;min-height:76px;line-height:1.5;}
 
   <div class="card">
     <div class="card-h">El trabajo</div>
+    <!-- Se marca ANTES de rellenar el resto: así la oficina decide la
+         prioridad al empezar, no cuando ya ha escrito todo. -->
+    <div class="fg">
+      <label class="lbl">Prioridad</label>
+      <div class="pill-group" id="urgente-pills">
+        <div class="pill sel" data-v="no" onclick="selUrgente(this)">Normal</div>
+        <div class="pill urg" data-v="si" onclick="selUrgente(this)">🔔 AVISO URGENTE</div>
+      </div>
+    </div>
     <div class="fg" style="position:relative;">
       <label class="lbl">Cliente</label>
       <input class="inp" id="f-cliente" autocomplete="off" placeholder="Escribe para buscar…" oninput="buscarCliente()">
@@ -470,6 +486,14 @@ function verPane(p){
   document.getElementById('pane-'+p).classList.add('act');
   if(p==='semana') cargarSemana();
   if(p==='term') cargarTerminadas();
+}
+
+// Prioridad del trabajo. Solo dos opciones: normal o aviso urgente.
+var urgenteElegido = false;
+function selUrgente(el){
+  document.querySelectorAll("#urgente-pills .pill").forEach(function(p){ p.classList.remove("sel"); });
+  el.classList.add("sel");
+  urgenteElegido = el.dataset.v === "si";
 }
 
 function selEmpresa(el){
@@ -775,7 +799,8 @@ function crearTarea(){
     dirTrabajo:document.getElementById('f-dirtrabajo').value.trim(),
     contacto:document.getElementById('f-contacto').value.trim(),
     telefono:document.getElementById('f-telefono').value.trim(),
-    encargado:encargadoElegido
+    encargado:encargadoElegido,
+    urgente: urgenteElegido ? 'si' : 'no'
   };
 
   enviando=true;
@@ -837,6 +862,8 @@ function limpiarFormulario(){
   document.getElementById('f-contacto').value='';
   document.getElementById('f-telefono').value='';
   quitarEncargado();
+  var pu=document.querySelectorAll("#urgente-pills .pill");
+  if(pu.length) selUrgente(pu[0]);
   document.getElementById('f-hora').value='';
   document.getElementById('f-cliente').focus();
 }
@@ -1007,6 +1034,11 @@ function abrirDetalle(id){
     + (t.empresa?' · '+esc(t.empresa):'')+'</div></div>'
     + '<span class="det-x" onclick="cerrarDetalle()">✕</span></div>';
 
+  // El urgente va el primero de todo: es lo que cambia la prioridad del día.
+  if(t.urgente){
+    h+='<div class="det-aviso" style="background:var(--bad);color:#fff;font-size:14px;">🔔 AVISO URGENTE</div>';
+  }
+
   if(t.estado==='Hecha'){
     h+='<div class="det-aviso" style="background:var(--ok-bg);color:var(--ok);">✓ Hecha'
       + (t.terminada?' el '+esc(t.terminada):'')+(t.parte?'<br>'+esc(t.parte):'')+'</div>';
@@ -1063,11 +1095,16 @@ function tarjeta(t){
       aviso='<span class="tarj-aviso">↪ movida del '+esc(t.movida)+'</span>';
     }
   }
+  // El aviso urgente se marca aunque la tarea ya este hecha o atrasada:
+  // sigue siendo informacion util al mirar la semana.
+  if(t.urgente) cls += ' urgente';
+  var etiquetaUrg = t.urgente ? '<span class="tarj-urg">🔔 URGENTE</span>' : '';
   var tecs = t.tecnicos.map(nombreCorto).join(' / ');
   var puedeMover = t.estado==='Pendiente';
   return '<div class="tarj'+cls+'"'+(puedeMover?' draggable="true" ondragstart="arrastrar(event)"':'')+
     ' onclick="abrirDetalle(\''+esc(t.id)+'\')" style="cursor:pointer"'+
     ' data-id="'+esc(t.id)+'">'+
+    etiquetaUrg+
     '<div class="tarj-top"><div class="tarj-tec">'+esc(tecs)+'</div>'+
     (t.hora?'<div class="tarj-hora">'+esc(t.hora)+'</div>':'')+'</div>'+
     (t.cliente?'<div class="tarj-cli">'+esc(t.cliente)+'</div>':'')+
