@@ -444,7 +444,7 @@ table.hid-table{width:100%;border-collapse:collapse;font-size:12px;}
     <div class="card" id="csec-elec-items"><div class="section-header section-open" onclick="toggleSec('csec-elec-items')"><span class="sec-title">Instalación eléctrica</span><span class="chevron">⌄</span></div><div class="section-body" style="display:block;" id="elec-items-body"></div></div>
     <div class="card" id="csec-elec-obs"><div class="section-header" onclick="toggleSec('csec-elec-obs')"><span class="sec-title">Trabajo realizado</span><span class="chevron">⌄</span></div><div class="section-body"><div class="obs-section"><textarea class="obs-textarea" id="elec-trabajo" placeholder="Describe el trabajo realizado..."></textarea></div></div></div>
     <div class="card" id="csec-elec-herr"><div class="section-header" onclick="toggleSec('csec-elec-herr')"><span class="sec-title">Herramientas utilizadas</span><span class="chevron">⌄</span></div><div class="section-body"><div class="obs-section"><textarea class="obs-textarea" id="elec-herramientas" placeholder="Herramientas y equipos usados..."></textarea></div></div></div>
-    <div class="card" id="csec-elec-notas"><div class="section-header section-open" onclick="toggleSec('csec-elec-notas')"><span class="sec-title">Observaciones</span><span class="chevron">⌄</span></div><div class="section-body" style="display:block;"><div class="obs-section"><textarea class="obs-textarea" id="elec-obs" placeholder="Observaciones generales..."></textarea></div></div></div>
+    <div class="card" id="csec-elec-notas"><div class="section-header section-open" onclick="toggleSec('csec-elec-notas')"><span class="sec-title">Trabajo realizado</span><span class="chevron">⌄</span></div><div class="section-body" style="display:block;"><div class="obs-section"><textarea class="obs-textarea" id="elec-obs" placeholder="Describe el trabajo realizado..."></textarea></div></div></div>
     <div class="card" id="csec-elec-inc"><div class="section-header" onclick="toggleSec('csec-elec-inc')"><span class="sec-title">Incidencia</span><span class="chevron">⌄</span></div><div class="section-body"><div class="obs-section"><textarea class="obs-textarea" id="elec-incidencia" placeholder="Describe la incidencia detectada..."></textarea></div></div></div>
     <div class="card" id="csec-mat-elec">
       <div class="section-header" onclick="toggleSec('csec-mat-elec')"><span class="sec-title">Presupuesto Materiales</span><span class="chevron">⌄</span></div>
@@ -477,7 +477,7 @@ table.hid-table{width:100%;border-collapse:collapse;font-size:12px;}
     <div class="card" id="csec-hid-dep"><div class="section-header" onclick="toggleSec('csec-hid-dep')"><span class="sec-title">Depósitos</span><span class="chevron">⌄</span></div><div class="section-body"><div class="hid-table-wrap"><table class="hid-table"><thead><tr><th>Elemento</th><th>Nivel</th><th>Limpieza</th><th>Llenado</th><th>Estado</th></tr></thead><tbody id="htb-dep"></tbody></table></div></div></div>
     <div class="card" id="csec-hid-desc"><div class="section-header" onclick="toggleSec('csec-hid-desc')"><span class="sec-title">Descalcificadores</span><span class="chevron">⌄</span></div><div class="section-body"><div class="hid-table-wrap"><table class="hid-table"><thead><tr><th>Equipo</th><th>Func.</th><th>Ruido</th><th>Fugas</th><th>Estado</th></tr></thead><tbody id="htb-desc"></tbody></table></div></div></div>
     <div class="card" id="csec-hid-achique"><div class="section-header" onclick="toggleSec('csec-hid-achique')"><span class="sec-title">Bombas de achique</span><span class="chevron">⌄</span></div><div class="section-body"><div class="hid-table-wrap"><table class="hid-table"><thead><tr><th>Equipo</th><th>Func.</th><th>Ruido</th><th>Fugas</th><th>Estado</th></tr></thead><tbody id="htb-achique"></tbody></table></div></div></div>
-    <div class="card" id="csec-hid-obs"><div class="section-header section-open" onclick="toggleSec('csec-hid-obs')"><span class="sec-title">Observaciones</span><span class="chevron">⌄</span></div><div class="section-body" style="display:block;"><div class="obs-section"><textarea class="obs-textarea" id="hid-obs" placeholder="Observaciones del sistema hidráulico..."></textarea></div></div></div>
+    <div class="card" id="csec-hid-obs"><div class="section-header section-open" onclick="toggleSec('csec-hid-obs')"><span class="sec-title">Trabajo realizado</span><span class="chevron">⌄</span></div><div class="section-body" style="display:block;"><div class="obs-section"><textarea class="obs-textarea" id="hid-obs" placeholder="Describe el trabajo realizado en el sistema hidráulico..."></textarea></div></div></div>
     <div class="card" id="csec-hid-inc"><div class="section-header" onclick="toggleSec('csec-hid-inc')"><span class="sec-title">Incidencia</span><span class="chevron">⌄</span></div><div class="section-body"><div class="obs-section"><textarea class="obs-textarea" id="hid-incidencia" placeholder="Describe la incidencia detectada..."></textarea></div></div></div>
     <div class="card" id="csec-mat-hid">
       <div class="section-header" onclick="toggleSec('csec-mat-hid')"><span class="sec-title">Presupuesto Materiales</span><span class="chevron">⌄</span></div>
@@ -570,8 +570,15 @@ table.hid-table{width:100%;border-collapse:collapse;font-size:12px;}
       <label class="field-label">Descripción
         <span style="color:var(--muted);font-weight:400;">— guía, no sale en el PDF</span>
       </label>
-      <div style="padding:12px 14px;background:#F4F7FC;border:1.5px solid #C9D6EA;
+      <div id="a-descripcion-caja" style="padding:12px 14px;background:#F4F7FC;border:1.5px solid #C9D6EA;
                   border-left:4px solid #184595;border-radius:8px;">
+        <!-- Aviso urgente. Va lo primero y en rojo: si el técnico solo mira
+             media pantalla, esto es lo que tiene que ver. -->
+        <div id="a-descripcion-urgente" style="display:none;margin:-12px -14px 12px;padding:11px 14px;
+             background:#B3261E;color:#fff;border-radius:6px 6px 0 0;
+             font-size:15px;font-weight:800;letter-spacing:.5px;text-align:center;">
+          🔔 AVISO URGENTE
+        </div>
         <div id="a-descripcion-texto" style="font-size:14px;line-height:1.55;color:#101A2C;
              white-space:pre-wrap;word-break:break-word;"></div>
 
@@ -701,7 +708,7 @@ table.hid-table{width:100%;border-collapse:collapse;font-size:12px;}
     <div class="card" id="sec-achique"><div class="section-header" onclick="toggleSec('sec-achique')"><span class="sec-title">Bombas de achique</span><span class="chevron">⌄</span></div><div class="section-body"><div class="hid-table-wrap"><table class="hid-table"><thead><tr><th>Equipo</th><th>Func.</th><th>Ruido</th><th>Fugas</th><th>Estado</th></tr></thead><tbody id="tb-achique"></tbody></table></div></div></div>
     <div class="card" id="sec-resid"><div class="section-header" onclick="toggleSec('sec-resid')"><span class="sec-title">Bombeo residuales</span><span class="chevron">⌄</span></div><div class="section-body"><div class="hid-table-wrap"><table class="hid-table"><thead><tr><th>Equipo</th><th>Func.</th><th>Ruido</th><th>Fugas</th><th>Estado</th></tr></thead><tbody id="tb-resid"></tbody></table></div></div></div>
     <div class="card" id="sec-inc"><div class="section-header" onclick="toggleSec('sec-inc')"><span class="sec-title">Incidencia</span><span class="chevron">⌄</span></div><div class="section-body"><div class="obs-section"><textarea class="obs-textarea" id="mant-incidencia" placeholder="Describe la incidencia detectada..."></textarea></div></div></div>
-    <div class="card" id="sec-obs-mant"><div class="section-header section-open" onclick="toggleSec('sec-obs-mant')"><span class="sec-title">Observaciones</span><span class="chevron">⌄</span></div><div class="section-body" style="display:block;"><div class="obs-section"><textarea class="obs-textarea" id="mant-obs" placeholder="Observaciones generales..."></textarea></div></div></div>
+    <div class="card" id="sec-obs-mant"><div class="section-header section-open" onclick="toggleSec('sec-obs-mant')"><span class="sec-title">Trabajo realizado</span><span class="chevron">⌄</span></div><div class="section-body" style="display:block;"><div class="obs-section"><textarea class="obs-textarea" id="mant-obs" placeholder="Describe el trabajo realizado..."></textarea></div></div></div>
     <div class="card" id="sec-mat-mant">
       <div class="section-header section-open" onclick="toggleSec('sec-mat-mant')"><span class="sec-title">Presupuesto Materiales</span><span class="chevron">⌄</span></div>
       <div class="section-body" style="display:block;">
@@ -721,7 +728,7 @@ table.hid-table{width:100%;border-collapse:collapse;font-size:12px;}
   </div>
 
   <div id="panel-simple" class="panel">
-    <div class="card" id="sec-obs-simple"><div class="section-header section-open" onclick="toggleSec('sec-obs-simple')"><span class="sec-title">Observaciones / Descripción</span><span class="chevron">⌄</span></div><div class="section-body" style="display:block;"><div class="obs-section"><textarea class="obs-textarea" id="simple-obs" placeholder="Describe el trabajo realizado..."></textarea></div></div>
+    <div class="card" id="sec-obs-simple"><div class="section-header section-open" onclick="toggleSec('sec-obs-simple')"><span class="sec-title">Trabajo realizado</span><span class="chevron">⌄</span></div><div class="section-body" style="display:block;"><div class="obs-section"><textarea class="obs-textarea" id="simple-obs" placeholder="Describe el trabajo realizado..."></textarea></div></div>
     <div class="card" id="sec-inc-simple"><div class="section-header" onclick="toggleSec('sec-inc-simple')"><span class="sec-title">Incidencia</span><span class="chevron">⌄</span></div><div class="section-body"><div class="obs-section"><textarea class="obs-textarea" id="simple-incidencia" placeholder="Describe la incidencia detectada..."></textarea></div></div></div>
 
       <div class="card"><div class="field-group" style="margin:0;">
@@ -759,7 +766,7 @@ table.hid-table{width:100%;border-collapse:collapse;font-size:12px;}
   </div>
   <div id="panel-bomba" class="panel">
     <div class="card" id="sec-obs-bomba">
-      <div class="section-header section-open" onclick="toggleSec('sec-obs-bomba')"><span class="sec-title">Observaciones / Descripción</span><span class="chevron">⌄</span></div>
+      <div class="section-header section-open" onclick="toggleSec('sec-obs-bomba')"><span class="sec-title">Trabajo realizado</span><span class="chevron">⌄</span></div>
       <div class="section-body" style="display:block;"><div class="obs-section"><textarea class="obs-textarea" id="bomba-obs" placeholder="Describe el estado de la bomba, motivo de la retirada..."></textarea></div></div>
     </div>
     <div class="card" id="sec-inc-bomba">
@@ -789,7 +796,7 @@ table.hid-table{width:100%;border-collapse:collapse;font-size:12px;}
 
   <div id="panel-preparacion" class="panel">
     <div class="card" id="sec-obs-preparacion">
-      <div class="section-header section-open" onclick="toggleSec('sec-obs-preparacion')"><span class="sec-title">Observaciones / Descripción</span><span class="chevron">⌄</span></div>
+      <div class="section-header section-open" onclick="toggleSec('sec-obs-preparacion')"><span class="sec-title">Trabajo realizado</span><span class="chevron">⌄</span></div>
       <div class="section-body" style="display:block;"><div class="obs-section"><textarea class="obs-textarea" id="preparacion-obs" placeholder="Describe los materiales a preparar, instrucciones especiales..."></textarea></div></div>
     </div>
     <div class="card" id="sec-inc-preparacion">
@@ -989,7 +996,7 @@ table.hid-table{width:100%;border-collapse:collapse;font-size:12px;}
 
     <!-- OBSERVACIONES -->
     <div class="card" id="sec-obs-taller">
-      <div class="section-header section-open" onclick="toggleSec('sec-obs-taller')"><span class="sec-title">Observaciones / Descripción</span><span class="chevron">⌄</span></div>
+      <div class="section-header section-open" onclick="toggleSec('sec-obs-taller')"><span class="sec-title">Trabajo realizado</span><span class="chevron">⌄</span></div>
       <div class="section-body" style="display:block;"><div class="obs-section"><textarea class="obs-textarea" id="taller-obs" placeholder="Describe el trabajo realizado en taller..."></textarea></div></div>
     </div>
     <div class="card" id="sec-inc-taller">
@@ -1155,6 +1162,7 @@ async function traerTareasPlanificadas(nombreTecnico) {
         contacto: t.contacto || '',
         telefono: t.telefono || '',
         encargado: t.encargado || '',
+        urgente: !!t.urgente,
         cliente: t.cliente || '',
         direccion: t.direccion || '',
         poblacion: t.poblacion || '',
@@ -1485,7 +1493,7 @@ function buildElec(){
       '<div class="elec-item-label">' + (i+1) + '. ' + item + '</div>' +
       mkPillsElec(['Favorable','Desfavorable','No existe'], 'elec-'+i) +
       '<div class="elec-obs" id="elec-obs-'+i+'">' +
-        '<div class="elec-obs-label">📝 Observaciones</div>' +
+        '<div class="elec-obs-label">📝 Trabajo realizado</div>' +
         '<textarea id="elec-obs-txt-'+i+'" placeholder="Describe el problema o estado encontrado..."></textarea>' +
       '</div>' +
     '</div>';
@@ -2627,7 +2635,7 @@ function seleccionarTareaAlbaran(idx) {
   // Descripción del trabajo. Solo guía en pantalla: no se envía a ningún sitio
   // ni aparece en el PDF. Si la tarea no trae ninguna, la sección queda oculta.
   mostrarDescripcionTarea(t.trabajo, t.maps, {
-    dirTrabajo: t.dirTrabajo, contacto: t.contacto, telefono: t.telefono, encargado: t.encargado
+    dirTrabajo: t.dirTrabajo, contacto: t.contacto, telefono: t.telefono, encargado: t.encargado, urgente: t.urgente
   });
 
   // Cerrar el desplegable tras elegir
@@ -2681,6 +2689,17 @@ function mostrarDescripcionTarea(texto, enlaceMaps, extra) {
     wTel.style.display = tel ? 'block' : 'none';
   }
 
+  // Aviso urgente: banda roja arriba y el recuadro entero remarcado.
+  var urge = !!extra.urgente;
+  var wUrg = document.getElementById('a-descripcion-urgente');
+  var caja = document.getElementById('a-descripcion-caja');
+  if (wUrg) wUrg.style.display = urge ? 'block' : 'none';
+  if (caja) {
+    caja.style.borderColor     = urge ? '#B3261E' : '#C9D6EA';
+    caja.style.borderLeftColor = urge ? '#B3261E' : '#184595';
+    caja.style.background      = urge ? '#FDF3F2' : '#F4F7FC';
+  }
+
   // Técnico que lleva la comunidad.
   var enc = String(extra.encargado || '').trim();
   var wEnc = document.getElementById('a-descripcion-encargado');
@@ -2703,7 +2722,7 @@ function mostrarDescripcionTarea(texto, enlaceMaps, extra) {
 
   // Se enseña la sección si hay descripción O enlace: con solo el enlace
   // también merece la pena verla.
-  wrap.style.display = (limpio || valido || dir || quien || tel || enc) ? 'block' : 'none';
+  wrap.style.display = (limpio || valido || dir || quien || tel || enc || urge) ? 'block' : 'none';
 }
 
 function resetTareaSeleccionada() {
