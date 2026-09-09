@@ -54,6 +54,38 @@ textarea.inp{resize:vertical;min-height:76px;line-height:1.5;}
 .tec-op:last-child{border-bottom:none;}
 .tec-op:hover{background:var(--surface2);}
 .tec-vacio{padding:10px 12px;font-size:13px;color:var(--muted);font-style:italic;}
+/* Lista del técnico encargado. NO flota: ocupa su sitio y la tarjeta crece.
+   Si flotara, el overflow:hidden de .card la recortaría y no se vería nada. */
+.enc-lista{margin-top:6px;background:var(--surface);border:1.5px solid var(--accent);border-radius:var(--radius-sm);max-height:230px;overflow-y:auto;}
+
+/* ── Pantalla de confirmación, igual que la de partes y kilometraje ── */
+.pantalla-final{display:none;position:fixed;inset:0;z-index:9999;background:var(--accent);flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px;}
+.pantalla-final.show{display:flex;}
+.pf-check{font-size:80px;margin-bottom:20px;animation:pf-bote .5s ease;}
+@keyframes pf-bote{0%{transform:scale(.3);opacity:0}60%{transform:scale(1.1)}100%{transform:scale(1);opacity:1}}
+.pf-titulo{color:#fff;font-size:28px;font-weight:700;margin-bottom:12px;}
+.pf-sub{color:rgba(255,255,255,.75);font-size:16px;line-height:1.6;margin-bottom:8px;}
+.pf-detalle{color:#fff;font-size:15px;font-weight:600;line-height:1.5;margin-bottom:26px;max-width:340px;}
+.pf-btn{background:#fff;color:var(--accent);font-weight:700;font-size:15px;padding:13px 28px;border-radius:10px;border:none;cursor:pointer;font-family:var(--font);box-shadow:0 2px 12px rgba(0,0,0,.15);}
+.pf-marca{color:var(--celeste);font-size:13px;font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-top:30px;}
+
+/* ── Ficha de la tarea: lo mismo que ve el técnico en su móvil ── */
+.det-fondo{display:none;position:fixed;inset:0;z-index:9998;background:rgba(16,26,44,.55);padding:20px;overflow-y:auto;}
+.det-fondo.show{display:block;}
+.det{max-width:520px;margin:0 auto;background:var(--surface);border-radius:var(--radius);overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.3);}
+.det-cab{background:var(--accent);color:#fff;padding:14px 18px;display:flex;align-items:flex-start;gap:12px;}
+.det-cab-tit{font-size:15px;font-weight:700;line-height:1.3;flex:1;}
+.det-cab-sub{font-size:11px;color:rgba(255,255,255,.7);margin-top:3px;}
+.det-x{font-size:22px;line-height:1;cursor:pointer;color:rgba(255,255,255,.7);padding:0 4px;}
+.det-x:hover{color:#fff;}
+.det-body{padding:4px 0 12px;}
+.det-fila{padding:11px 18px;border-bottom:1px solid var(--border);}
+.det-fila:last-child{border-bottom:none;}
+.det-k{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;}
+.det-v{font-size:14px;color:var(--text);line-height:1.5;white-space:pre-wrap;word-break:break-word;}
+.det-v.fuerte{font-weight:600;}
+.det-btn{display:inline-block;margin-top:5px;padding:8px 14px;border-radius:7px;text-decoration:none;font-size:13.5px;font-weight:600;color:#fff;}
+.det-aviso{margin:10px 18px 0;padding:9px 12px;border-radius:var(--radius-sm);font-size:12.5px;font-weight:600;line-height:1.45;}
 
 .btn{width:100%;padding:15px;border:none;border-radius:var(--radius);background:var(--accent);color:#fff;font-family:var(--font);font-size:16px;font-weight:700;cursor:pointer;letter-spacing:.3px;}
 .btn:hover{background:var(--accent2);}
@@ -79,6 +111,13 @@ textarea.inp{resize:vertical;min-height:76px;line-height:1.5;}
 .tarj{border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:var(--radius-sm);padding:8px 9px;background:var(--surface);cursor:grab;}
 .tarj.hecha{border-left-color:var(--ok);background:var(--ok-bg);}
 .tarj.anulada{opacity:.5;text-decoration:line-through;border-left-color:var(--muted);}
+/* Pendiente y su dia ya pasó: no se hizo cuando tocaba. */
+.tarj.atrasada{border-left-color:var(--bad);background:var(--bad-bg);}
+/* Arrastrada de otro dia. Si ademas esta atrasada, manda el rojo: es lo grave. */
+.tarj.movida{border-left-color:var(--warn);background:var(--warn-bg);}
+.tarj-aviso{font-size:10px;font-weight:700;margin-top:4px;display:block;}
+.tarj.atrasada .tarj-aviso{color:var(--bad);}
+.tarj.movida .tarj-aviso{color:var(--warn);}
 .tarj:active{cursor:grabbing;}
 .tarj-top{display:flex;justify-content:space-between;align-items:baseline;gap:6px;margin-bottom:3px;}
 .tarj-tec{font-size:12px;font-weight:700;color:var(--accent);line-height:1.25;}
@@ -126,6 +165,23 @@ textarea.inp{resize:vertical;min-height:76px;line-height:1.5;}
 </head>
 <body>
 
+<!-- Ficha de la tarea. Enseña lo MISMO que ve el técnico en su móvil, para
+     poder comprobar desde la oficina qué información le está llegando. -->
+<div class="det-fondo" id="det-fondo" onclick="cerrarDetalle(event)">
+  <div class="det" id="det-caja"></div>
+</div>
+
+<!-- Confirmación a pantalla completa al crear una tarea. Se cierra sola a los
+     3 segundos, o antes si se pulsa el botón. -->
+<div class="pantalla-final" id="pantalla-final">
+  <div class="pf-check">✅</div>
+  <div class="pf-titulo">¡Tarea creada!</div>
+  <div class="pf-sub">Gracias. Ya le aparece al técnico en su app.</div>
+  <div class="pf-detalle" id="pf-detalle"></div>
+  <button class="pf-btn" onclick="cerrarPantallaFinal()">Crear otra tarea</button>
+  <div class="pf-marca">Somos Grupo Marcres</div>
+</div>
+
 <div class="app-header">
   <div class="header-left">
     <div class="logo">M</div>
@@ -158,6 +214,17 @@ textarea.inp{resize:vertical;min-height:76px;line-height:1.5;}
     <div class="fg" style="padding-top:9px;">
       <button class="btn-sm" onclick="anadirTecnico()">＋ Añadir técnico</button>
     </div>
+    <!-- Quién lleva esa comunidad de forma habitual. No es quien va hoy:
+         es el que conoce la instalación y a quien preguntar si hay dudas. -->
+    <div class="fg enc-wrap" style="position:relative;">
+      <label class="lbl">Técnico encargado <span style="font-weight:400;text-transform:none;">(quien lleva esa comunidad)</span></label>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <input class="inp" id="f-encargado" autocomplete="off" style="flex:1;"
+               placeholder="Escribe para buscar…" oninput="filtrarEncargado()" onfocus="filtrarEncargado()">
+        <span class="tec-quitar" onclick="quitarEncargado()" title="Quitar">✕</span>
+      </div>
+      <div id="enc-drop"></div>
+    </div>
   </div>
 
   <div class="card">
@@ -171,9 +238,28 @@ textarea.inp{resize:vertical;min-height:76px;line-height:1.5;}
       <div><label class="lbl">Dirección</label><input class="inp" id="f-direccion" autocomplete="off"></div>
       <div><label class="lbl">Población</label><input class="inp" id="f-poblacion" autocomplete="off"></div>
     </div></div>
+    <!-- La dirección de arriba viene de Holded y suele ser la de facturación.
+         Esta es donde se hace el trabajo de verdad, que muchas veces no es la
+         misma. Solo se rellena cuando difieren. -->
+    <div class="fg">
+      <label class="lbl">Dirección del trabajo <span style="font-weight:400;text-transform:none;">(si es distinta de la de facturación)</span></label>
+      <input class="inp" id="f-dirtrabajo" autocomplete="off" placeholder="Ej: Cuarto de bombas, sótano -2">
+    </div>
+    <div class="fg"><div class="row2">
+      <div><label class="lbl">Persona de contacto</label><input class="inp" id="f-contacto" autocomplete="off" placeholder="Ej: Juan, el conserje"></div>
+      <div><label class="lbl">Teléfono</label><input class="inp" id="f-telefono" autocomplete="off" inputmode="tel" placeholder="Ej: 600 123 456"></div>
+    </div></div>
     <div class="fg">
       <label class="lbl">Qué hay que hacer</label>
       <textarea class="inp" id="f-trabajo" placeholder="Ej: Sustituir bobinas. Llevar flotador por si hay que cambiarlo."></textarea>
+    </div>
+    <div class="fg">
+      <label class="lbl">Ubicación en Google Maps <span style="font-weight:400;color:#7A869E;">(opcional)</span></label>
+      <input class="inp" id="f-maps" autocomplete="off" inputmode="url" oninput="validarMaps()"
+             placeholder="Pega aquí el enlace de Google Maps">
+      <div id="f-maps-aviso" style="display:none;margin-top:5px;font-size:12px;color:#B3261E;">
+        Ese enlace no es de Google Maps. Abre la ubicación en Maps, pulsa Compartir y pega el enlace que te dé.
+      </div>
     </div>
   </div>
 
@@ -203,6 +289,7 @@ textarea.inp{resize:vertical;min-height:76px;line-height:1.5;}
     <div style="display:flex;gap:8px;">
       <button class="btn-sm" onclick="irHoy()">Esta semana</button>
       <button class="btn-sm" onclick="cargarSemana()">↻ Actualizar</button>
+      <button class="btn-sm" id="btn-informe" onclick="enviarInforme()">✉ Enviar informe</button>
     </div>
   </div>
   <div class="tablero" id="tablero"></div>
@@ -307,6 +394,42 @@ function esc(t){
 function tick(){
   var n=new Date();
   document.getElementById('reloj').textContent = dd(n.getHours())+':'+dd(n.getMinutes());
+}
+
+// Manda por correo el estado de la semana en curso, del lunes hasta ahora.
+// El informe lo arma el backend; aqui solo se pide y se avisa del resultado.
+function enviarInforme(){
+  var b=document.getElementById('btn-informe');
+  if(b.disabled) return;                       // evita dobles envios por doble clic
+  var textoOriginal=b.textContent;
+  b.disabled=true; b.textContent='Enviando…';
+
+  fetch(GAS_URL+'?action=informe&t='+Date.now())
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if(!d.ok) throw new Error(d.error||'No se ha podido enviar');
+      var r=d.resumen||{};
+      showToast('✅ Informe enviado a '+d.enviadoA+' — '
+        +(r.hechas||0)+' hechas, '+(r.pendientes||0)+' sin hacer','ok');
+    })
+    .catch(function(e){
+      showToast('❌ '+(e.message||'Sin conexión'),'error');
+    })
+    .then(function(){
+      // Pase lo que pase, el boton vuelve a quedar utilizable.
+      b.disabled=false; b.textContent=textoOriginal;
+    });
+}
+
+// Avisa en el momento si el enlace pegado no es de Google Maps. El backend
+// vuelve a comprobarlo: esto es solo para que la oficina se entere al pegarlo
+// y no cuando el tecnico ya no ve nada en el movil.
+function validarMaps(){
+  var v=(document.getElementById("f-maps").value||"").trim();
+  var aviso=document.getElementById("f-maps-aviso");
+  if(!v){ aviso.style.display="none"; return; }
+  var ok=/^https:\/\/(maps\.app\.goo\.gl([\/?#]|$)|goo\.gl\/maps([\/?#]|$)|maps\.google\.[a-z]{2,3}(\.[a-z]{2,3})?([\/?#]|$)|(www\.)?google\.[a-z]{2,3}(\.[a-z]{2,3})?\/maps([\/?#]|$))/i.test(v);
+  aviso.style.display = ok ? "none" : "block";
 }
 
 function showToast(msg,tipo){
@@ -437,6 +560,57 @@ function quitarTecnico(i){
   if(!filasTec.length) filasTec=[''];
   pintarFilas();
 }
+
+// ── TÉCNICO ENCARGADO ─────────────────────────────────────────
+// Mismo buscador que el de técnicos, pero de uno solo. En funciones
+// aparte para no tocar nada de lo que ya funcionaba.
+var encargadoElegido = '';
+
+function filtrarEncargado(){
+  var inp=document.getElementById('f-encargado');
+  var drop=document.getElementById('enc-drop');
+  if(!inp||!drop) return;
+  var q=quitarTildes(inp.value.trim());
+  encargadoElegido='';                  // mientras escribe, no vale
+  inp.classList.remove('puesto');
+
+  var res=[];
+  for(var j=0;j<TECNICOS.length && res.length<40;j++){
+    var n=TECNICOS[j];
+    if(!q || quitarTildes(n).indexOf(q)>=0) res.push(n);
+  }
+  // OJO: aquí NO se usa .tec-drop (flotante). La tarjeta que lo contiene
+  // tiene overflow:hidden y recortaba la lista, que quedaba invisible.
+  // Con .enc-lista ocupa su sitio y la tarjeta crece: se ve siempre.
+  if(!res.length){ drop.innerHTML='<div class="enc-lista"><div class="tec-vacio">Ningún técnico con ese nombre</div></div>'; return; }
+  var h='<div class="enc-lista">';
+  for(var m=0;m<res.length;m++){
+    h+='<div class="tec-op" onclick="elegirEncargado(\''+esc(res[m]).replace(/'/g,"\\'")+'\')">'+esc(res[m])+'</div>';
+  }
+  drop.innerHTML=h+'</div>';
+}
+
+function elegirEncargado(nombre){
+  var inp=document.getElementById('f-encargado');
+  inp.value=nombre;
+  inp.classList.add('puesto');
+  encargadoElegido=nombre;
+  document.getElementById('enc-drop').innerHTML='';
+}
+
+function quitarEncargado(){
+  var inp=document.getElementById('f-encargado');
+  inp.value=''; inp.classList.remove('puesto');
+  encargadoElegido='';
+  document.getElementById('enc-drop').innerHTML='';
+}
+
+document.addEventListener('click', function(e){
+  if(!e.target.closest('.enc-wrap')){
+    var d=document.getElementById('enc-drop');
+    if(d) d.innerHTML='';
+  }
+});
 
 function filtrarTec(i){
   var inp=document.getElementById('tec-inp-'+i);
@@ -573,7 +747,12 @@ function crearTarea(){
     cliente:cliente,
     direccion:document.getElementById('f-direccion').value.trim(),
     poblacion:document.getElementById('f-poblacion').value.trim(),
-    trabajo:trabajo
+    trabajo:trabajo,
+    maps:document.getElementById('f-maps').value.trim(),
+    dirTrabajo:document.getElementById('f-dirtrabajo').value.trim(),
+    contacto:document.getElementById('f-contacto').value.trim(),
+    telefono:document.getElementById('f-telefono').value.trim(),
+    encargado:encargadoElegido
   };
 
   enviando=true;
@@ -583,7 +762,10 @@ function crearTarea(){
   post(payload, function(d){
     enviando=false; btn.disabled=false; btn.textContent='✓ CREAR Y ASIGNAR';
     if(!d.ok){ showToast('❌ '+(d.error||'No se pudo crear'),'error'); return; }
-    showToast('✅ Asignada a '+tecs.length+(tecs.length>1?' técnicos':' técnico'),'success');
+    // Se arma el resumen ANTES de limpiar, que si no ya no quedan los datos.
+    var resumen = (cliente || trabajo || 'Tarea') + String.fromCharCode(10)
+                + tecs.map(nombreCorto).join(' / ') + ' · ' + aTxt(deIso(iso));
+    mostrarPantallaFinal(resumen);
     // El tablero guardado se queda viejo en cuanto se crea algo: se tira para
     // que al abrir "La semana" no aparezca un tablero sin la tarea recién hecha.
     try{ localStorage.removeItem(CLAVE_PANEL+'_'+aTxt(lunesDe(deIso(iso)))); }catch(e){}
@@ -595,13 +777,43 @@ function crearTarea(){
   });
 }
 
-// Se conservan empresa, día y técnicos: lo normal es cargar varias
-// tareas seguidas del mismo día y muchas veces de la misma gente.
+// Enseña la confirmación y la quita sola a los 3 segundos, para no obligar
+// a pulsar nada cuando se están cargando varias tareas seguidas.
+var _temporizadorFinal = null;
+
+function mostrarPantallaFinal(detalle){
+  var p = document.getElementById('pantalla-final');
+  if(!p) return;
+  document.getElementById('pf-detalle').textContent = detalle || '';
+  p.classList.add('show');
+  clearTimeout(_temporizadorFinal);
+  _temporizadorFinal = setTimeout(cerrarPantallaFinal, 3000);
+}
+
+function cerrarPantallaFinal(){
+  clearTimeout(_temporizadorFinal);
+  var p = document.getElementById('pantalla-final');
+  if(p) p.classList.remove('show');
+  var c = document.getElementById('f-cliente');
+  if(c) c.focus();
+}
+
+// Se limpia TODO menos la empresa y el día: esos dos se conservan porque la
+// oficina carga varias tareas seguidas de la misma jornada, y volver a
+// escribir la fecha cada vez sería peor. Los técnicos SÍ se limpian.
 function limpiarFormulario(){
+  filasTec = [''];              // vuelve a quedar solo "Técnico 1", vacío
+  pintarFilas();
   document.getElementById('f-cliente').value='';
   document.getElementById('f-direccion').value='';
   document.getElementById('f-poblacion').value='';
   document.getElementById('f-trabajo').value='';
+  document.getElementById('f-maps').value='';
+  document.getElementById('f-maps-aviso').style.display='none';
+  document.getElementById('f-dirtrabajo').value='';
+  document.getElementById('f-contacto').value='';
+  document.getElementById('f-telefono').value='';
+  quitarEncargado();
   document.getElementById('f-hora').value='';
   document.getElementById('f-cliente').focus();
 }
@@ -738,21 +950,112 @@ function nombreCorto(nombre){
   return p[0] + ' ' + (p.length >= 4 ? p[2] : p[1]);
 }
 
+// ¿Su día ya pasó y sigue sin hacerse? Se compara solo la fecha, sin horas:
+// una tarea de HOY no está atrasada aunque sean las 20:00.
+function estaAtrasada(t){
+  if(t.estado!=='Pendiente') return false;
+  var p=String(t.fecha||'').split('/');
+  if(p.length!==3) return false;
+  var suDia=new Date(+p[2], +p[1]-1, +p[0]);
+  var hoy=new Date(); hoy.setHours(0,0,0,0);
+  return suDia < hoy;
+}
+
+// ── FICHA DE LA TAREA ─────────────────────────────────────────
+// Se guardan las tareas del tablero para poder abrir la ficha al pulsar.
+var _tareasTablero = {};
+
+function fila(k, v, extra){
+  if(!v) return '';
+  return '<div class="det-fila"><div class="det-k">'+k+'</div>'
+       + '<div class="det-v'+(extra||'')+'">'+esc(v)+'</div></div>';
+}
+
+function abrirDetalle(id){
+  var t=_tareasTablero[id];
+  if(!t) return;
+  var caja=document.getElementById('det-caja');
+
+  // Lo mismo que ve el técnico, y en el mismo orden: qué hay que hacer,
+  // dónde, a quién llamar allí, y a qué compañero preguntar.
+  var h='<div class="det-cab">'
+    + '<div style="flex:1;"><div class="det-cab-tit">'+esc(t.cliente||t.trabajo||'Tarea')+'</div>'
+    + '<div class="det-cab-sub">'+esc(t.fecha)+(t.hora?' · '+esc(t.hora):'')
+    + (t.empresa?' · '+esc(t.empresa):'')+'</div></div>'
+    + '<span class="det-x" onclick="cerrarDetalle()">✕</span></div>';
+
+  if(t.estado==='Hecha'){
+    h+='<div class="det-aviso" style="background:var(--ok-bg);color:var(--ok);">✓ Hecha'
+      + (t.terminada?' el '+esc(t.terminada):'')+(t.parte?'<br>'+esc(t.parte):'')+'</div>';
+  } else if(t.estado==='Anulada'){
+    h+='<div class="det-aviso" style="background:var(--surface2);color:var(--muted);">Anulada</div>';
+  } else if(estaAtrasada(t)){
+    h+='<div class="det-aviso" style="background:var(--bad-bg);color:var(--bad);">⚠ SIN HACER — era del '+esc(t.fecha)+'</div>';
+  } else if(t.movida){
+    h+='<div class="det-aviso" style="background:var(--warn-bg);color:var(--warn);">↪ Movida del '+esc(t.movida)+'</div>';
+  }
+
+  h+='<div class="det-body">'
+   + fila('Técnicos asignados', t.tecnicos.join(' · '), ' fuerte')
+   + fila('Trabajo a realizar', t.trabajo)
+   + fila('Dirección de facturación', [t.direccion, t.poblacion].filter(Boolean).join(' · '))
+   + fila('Dónde se hace', t.dirTrabajo, ' fuerte')
+   + fila('Persona de contacto', t.contacto);
+
+  if(t.telefono){
+    h+='<div class="det-fila"><div class="det-k">Teléfono</div>'
+      +'<a class="det-btn" style="background:var(--ok);" href="tel:'
+      +esc(String(t.telefono).replace(/[^0-9+]/g,''))+'">📞 '+esc(t.telefono)+'</a></div>';
+  }
+  if(t.maps){
+    h+='<div class="det-fila"><div class="det-k">Ubicación</div>'
+      +'<a class="det-btn" style="background:var(--accent);" target="_blank" rel="noopener noreferrer" href="'
+      +esc(t.maps)+'">📍 Abrir en Google Maps</a></div>';
+  }
+
+  h+=fila('Técnico encargado', t.encargado, ' fuerte')
+   + '</div>';
+
+  caja.innerHTML=h;
+  document.getElementById('det-fondo').classList.add('show');
+}
+
+// Cierra al pulsar la ✕ o el fondo, pero no al pulsar dentro de la ficha.
+function cerrarDetalle(e){
+  if(e && e.target && e.target.id!=='det-fondo') return;
+  document.getElementById('det-fondo').classList.remove('show');
+}
+
 function tarjeta(t){
+  _tareasTablero[t.id]=t;
   var cls = t.estado==='Hecha' ? ' hecha' : (t.estado==='Anulada' ? ' anulada' : '');
+  var aviso = '';
+  // Hecha o anulada mandan sobre todo lo demás: ya no hay nada que reclamar.
+  if(!cls){
+    if(estaAtrasada(t)){
+      cls=' atrasada';
+      aviso='<span class="tarj-aviso">⚠ SIN HACER — era del '+esc(t.fecha)+'</span>';
+    } else if(t.movida){
+      cls=' movida';
+      aviso='<span class="tarj-aviso">↪ movida del '+esc(t.movida)+'</span>';
+    }
+  }
   var tecs = t.tecnicos.map(nombreCorto).join(' / ');
   var puedeMover = t.estado==='Pendiente';
   return '<div class="tarj'+cls+'"'+(puedeMover?' draggable="true" ondragstart="arrastrar(event)"':'')+
+    ' onclick="abrirDetalle(\''+esc(t.id)+'\')" style="cursor:pointer"'+
     ' data-id="'+esc(t.id)+'">'+
     '<div class="tarj-top"><div class="tarj-tec">'+esc(tecs)+'</div>'+
     (t.hora?'<div class="tarj-hora">'+esc(t.hora)+'</div>':'')+'</div>'+
     (t.cliente?'<div class="tarj-cli">'+esc(t.cliente)+'</div>':'')+
     (t.trabajo?'<div class="tarj-tra">'+esc(t.trabajo)+'</div>':'')+
+    aviso+
     '<div class="tarj-pie">'+
       (t.empresa?'<span class="tarj-emp">'+esc(t.empresa)+'</span>':'')+
       (t.estado==='Hecha'?'<span class="tarj-emp" style="color:var(--ok);border-color:var(--ok)">✓ hecha</span>':'')+
-      (t.estado==='Pendiente'?'<span class="tarj-ok" onclick="marcarHecha(\''+esc(t.id)+'\',\''+esc(t.cliente||'')+'\')" title="Marcar como hecha">✓</span>':'')+
-      (puedeMover?'<span class="tarj-x" onclick="anular(\''+esc(t.id)+'\')" title="Anular">✕</span>':'')+
+      // event.stopPropagation() para que pulsar ✓ o ✕ no abra además la ficha
+      (t.estado==='Pendiente'?'<span class="tarj-ok" onclick="event.stopPropagation();marcarHecha(\''+esc(t.id)+'\',\''+esc(t.cliente||'')+'\')" title="Marcar como hecha">✓</span>':'')+
+      (puedeMover?'<span class="tarj-x" onclick="event.stopPropagation();anular(\''+esc(t.id)+'\')" title="Anular">✕</span>':'')+
     '</div></div>';
 }
 
