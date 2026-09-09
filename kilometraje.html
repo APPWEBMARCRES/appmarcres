@@ -152,6 +152,20 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
       </div>
       <div class="tecnico-dropdown" id="tecnico-drop" style="display:none;"></div>
     </div>
+
+    <!-- ACOMPAÑANTE — opcional. Cuando van dos en la misma furgoneta, así
+         queda constancia de quién iba. Los kilómetros siguen contando UNA
+         sola vez, a nombre de quien envía el parte. -->
+    <div class="field-group acompanante-wrap">
+      <label class="field-label">Acompañante <span style="color:var(--muted);font-weight:400;">(opcional, si vais dos en la furgoneta)</span></label>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <input type="text" class="field-input" id="acompanante" placeholder="Escribe para buscar…" autocomplete="off"
+               oninput="onAcompananteInput(this)" onfocus="abrirAcompanantes()" style="flex:1;">
+        <button onclick="resetAcompanante()" title="Borrar acompañante" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--muted);flex-shrink:0;">✕</button>
+      </div>
+      <div class="tecnico-dropdown" id="acompanante-drop" style="display:none;"></div>
+    </div>
+
     <div class="field-group">
       <label class="field-label">Matrícula de la furgoneta <span style="color:var(--bad)">*</span></label>
       <input type="text" class="field-input" id="matricula" placeholder="Ej: 1234 ABC" maxlength="20"
@@ -339,6 +353,55 @@ function resetTecnico(){
 document.addEventListener('click', function(e){
   if (!e.target.closest('.tecnico-wrap'))
     document.getElementById('tecnico-drop').style.display = 'none';
+});
+
+// ══════════════════════════════════════════════════════════════
+// ACOMPAÑANTE
+// Mismo buscador que el de técnico, en funciones aparte para no
+// tocar nada de lo que ya funcionaba.
+// ══════════════════════════════════════════════════════════════
+function pintarAcompanantes(filtro){
+  var drop = document.getElementById('acompanante-drop');
+  var q = (filtro||'').trim().toLowerCase();
+  // Quien ya va como técnico no puede ser además su propio acompañante.
+  var titular = (document.getElementById('tecnico').value||'').trim().toLowerCase();
+  var lista = TECNICOS.filter(function(t){
+    if (t.toLowerCase() === titular) return false;
+    return q ? t.toLowerCase().indexOf(q) >= 0 : true;
+  });
+  drop.style.display = 'block';
+  if (!lista.length){
+    drop.innerHTML = '<div class="tecnico-vacio">Sin resultados — puedes escribir el nombre a mano</div>';
+    return;
+  }
+  drop.innerHTML = lista.map(function(t){
+    return '<div class="tecnico-item" onclick="elegirAcompanante(this.dataset.n)" data-n="'+t.replace(/"/g,'&quot;')+'">'
+         + '<div class="tecnico-item-name">'+t+'</div></div>';
+  }).join('');
+}
+function abrirAcompanantes(){ pintarAcompanantes(document.getElementById('acompanante').value); }
+function onAcompananteInput(el){
+  el.style.color=''; el.style.fontWeight='';
+  pintarAcompanantes(el.value);
+  guardarBorrador();
+}
+function elegirAcompanante(nombre){
+  var inp = document.getElementById('acompanante');
+  inp.value = nombre;
+  inp.style.color = 'var(--ok)';
+  inp.style.fontWeight = '600';
+  document.getElementById('acompanante-drop').style.display = 'none';
+  guardarBorrador();
+}
+function resetAcompanante(){
+  var inp = document.getElementById('acompanante');
+  inp.value=''; inp.style.color=''; inp.style.fontWeight='';
+  document.getElementById('acompanante-drop').style.display='none';
+  guardarBorrador();
+}
+document.addEventListener('click', function(e){
+  if (!e.target.closest('.acompanante-wrap'))
+    document.getElementById('acompanante-drop').style.display = 'none';
 });
 
 // Refresca la lista desde el backend (fuente de verdad). Si falla, se
@@ -616,6 +679,7 @@ function guardarBorrador(){
     localStorage.setItem(CLAVE_BORRADOR, JSON.stringify({
       dia: new Date().toDateString(),
       tecnico: document.getElementById('tecnico').value,
+      acompanante: document.getElementById('acompanante').value,
       matricula: document.getElementById('matricula').value,
       kmInicio: document.getElementById('km-inicio').value,
       kmFin: document.getElementById('km-fin').value,
@@ -636,6 +700,10 @@ function restaurarBorrador(){
     if (b.tecnico){
       var inp = document.getElementById('tecnico');
       inp.value = b.tecnico; inp.style.color='var(--ok)'; inp.style.fontWeight='600';
+    }
+    if (b.acompanante){
+      var inpAc = document.getElementById('acompanante');
+      inpAc.value = b.acompanante; inpAc.style.color='var(--ok)'; inpAc.style.fontWeight='600';
     }
     if (b.matricula) document.getElementById('matricula').value = b.matricula;
     if (b.kmInicio) document.getElementById('km-inicio').value = b.kmInicio;
@@ -734,6 +802,7 @@ function enviarKilometraje(){
     accion: 'kilometraje',
     idRegistro: _idRegistro,
     tecnico: tecnico,
+    acompanante: (document.getElementById('acompanante').value||'').trim(),
     matricula: matricula,
     fecha: fechaTexto,
     hora: horaActual,
