@@ -1,4 +1,4 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1838,7 +1838,64 @@ function _pedirGPS(){
 
 
 
-function enviarConProgreso(payload,btn,tipoLabel){
+/**
+ * Rescata la tarea que el técnico no pudo seleccionar.
+ *
+ * Caso real del 08/09/2026: la oficina creó una tarea a las 10:23, cuando el
+ * técnico ya había cargado su lista por la mañana. Hizo el trabajo y envió el
+ * parte, pero la tarea se quedó pendiente para siempre porque la app no la
+ * tenía.
+ *
+ * Antes de enviar se vuelve a pedir la lista. Si aparece UNA sola tarea
+ * pendiente de ese técnico para ese mismo cliente, se le pregunta si es esa.
+ * Decide él: la app no cierra nada por su cuenta.
+ *
+ * Si algo falla —sin cobertura, el panel no responde— no se dice nada y el
+ * parte se envía igual. Esto no puede estorbar al trabajo.
+ */
+async function enlazarTareaSiProcede(payload){
+  try {
+    if (_tareaPanelElegida) return;              // ya eligió una: no molestar
+    var tecnico = (payload && payload.tecnico) || '';
+    var cliente = (payload && payload.cliente) || '';
+    if (!tecnico || !cliente) return;
+
+    var frescas = await traerTareasPlanificadas(tecnico);
+    if (!frescas || !frescas.length) return;
+
+    var buscado = normalizarBusquedaCliente(cliente);
+    var candidatas = frescas.filter(function(t){
+      return normalizarBusquedaCliente(t.cliente || '') === buscado;
+    });
+
+    // Solo con UNA coincidencia exacta. Con dos no hay forma de saber cuál es,
+    // y cerrar la equivocada sería peor que no cerrar ninguna.
+    if (candidatas.length !== 1) return;
+
+    var t = candidatas[0];
+    var texto = 'Tienes una tarea asignada para este cliente que no has'
+              + ' seleccionado:' + String.fromCharCode(10) + String.fromCharCode(10)
+              + (t.cliente || '') + String.fromCharCode(10)
+              + (t.trabajo ? t.trabajo + String.fromCharCode(10) : '')
+              + String.fromCharCode(10)
+              + '¿Este parte corresponde a esa tarea?';
+    if (confirm(texto)) _tareaPanelElegida = t;
+  } catch (e) {
+    // Silencioso a propósito: el técnico ya ha terminado su trabajo.
+  }
+}
+
+// Compara nombres de cliente sin tildes, mayúsculas ni espacios de más.
+function normalizarBusquedaCliente(s){
+  return String(s || '')
+    .toUpperCase()
+    .replace(/[ÁÀÄÂ]/g,'A').replace(/[ÉÈËÊ]/g,'E').replace(/[ÍÌÏÎ]/g,'I')
+    .replace(/[ÓÒÖÔ]/g,'O').replace(/[ÚÙÜÛ]/g,'U').replace(/Ñ/g,'N')
+    .replace(/[^A-Z0-9]/g,'');
+}
+
+async function enviarConProgreso(payload,btn,tipoLabel){
+  await enlazarTareaSiProcede(payload);
   return new Promise(function(resolve,reject){
     // NOTA: no usar xhr.upload.onprogress — el simple hecho de registrar un
     // listener ahí obliga al navegador a hacer un preflight CORS (OPTIONS)
