@@ -86,6 +86,16 @@ textarea.inp{resize:vertical;min-height:76px;line-height:1.5;}
 .det-v.fuerte{font-weight:600;}
 .det-btn{display:inline-block;margin-top:5px;padding:8px 14px;border-radius:7px;text-decoration:none;font-size:13.5px;font-weight:600;color:#fff;}
 .det-aviso{margin:10px 18px 0;padding:9px 12px;border-radius:var(--radius-sm);font-size:12.5px;font-weight:600;line-height:1.45;}
+/* En móvil la ficha ocupa casi toda la pantalla: se aprovecha el ancho. */
+@media(max-width:640px){
+  .det-fondo{padding:10px;}
+  .det-cab{padding:12px 14px;}
+  .det-fila{padding:10px 14px;}
+  .det-aviso{margin:10px 14px 0;}
+  .pf-titulo{font-size:23px;}
+  .pf-sub,.pf-detalle{font-size:14px;}
+  .pantalla-final{padding:24px;}
+}
 
 .btn{width:100%;padding:15px;border:none;border-radius:var(--radius);background:var(--accent);color:#fff;font-family:var(--font);font-size:16px;font-weight:700;cursor:pointer;letter-spacing:.3px;}
 .btn:hover{background:var(--accent2);}
@@ -97,7 +107,20 @@ textarea.inp{resize:vertical;min-height:76px;line-height:1.5;}
 .sem-nav{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;}
 .sem-rango{font-size:14px;font-weight:700;color:var(--accent);}
 .sem-frescura{font-size:10px;color:var(--muted);margin-top:2px;font-style:italic;}
+/* Escritorio: los cinco días a la vez, como la pizarra de la oficina. */
 .tablero{display:grid;grid-template-columns:repeat(5,minmax(210px,1fr));gap:10px;overflow-x:auto;padding-bottom:8px;}
+/* Tablet: dos días por fila. Caben enteros sin apretar. */
+@media(max-width:1024px){
+  .tablero{grid-template-columns:repeat(2,minmax(0,1fr));overflow-x:visible;}
+}
+/* Móvil: un día debajo de otro. Desplazarse en horizontal por cinco
+   columnas con el móvil en la mano es incómodo; hacia abajo es natural. */
+@media(max-width:640px){
+  .tablero{grid-template-columns:1fr;overflow-x:visible;}
+  .dia{min-height:0;}
+  .sem-nav{flex-wrap:wrap;gap:8px;}
+  .sem-rango{font-size:15px;}
+}
 .dia{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;min-height:220px;display:flex;flex-direction:column;}
 .dia.hoy{border-color:var(--accent);border-width:2px;}
 .dia-h{background:var(--accent);color:#fff;padding:9px 11px;}
