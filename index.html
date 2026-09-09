@@ -574,14 +574,53 @@ table.hid-table{width:100%;border-collapse:collapse;font-size:12px;}
                   border-left:4px solid #184595;border-radius:8px;">
         <div id="a-descripcion-texto" style="font-size:14px;line-height:1.55;color:#101A2C;
              white-space:pre-wrap;word-break:break-word;"></div>
+
+        <!-- Dónde se hace el trabajo, con el enlace al mapa justo debajo:
+             las dos cosas responden a la misma pregunta. -->
+        <div id="a-descripcion-dir" style="display:none;margin-top:10px;padding-top:9px;
+             border-top:1px solid #C9D6EA;font-size:13.5px;line-height:1.5;color:#101A2C;">
+          <span style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+                color:#6B7891;display:block;margin-bottom:2px;">Dónde</span>
+          <span id="a-descripcion-dir-texto"></span>
+          <a id="a-descripcion-maps" href="#" target="_blank" rel="noopener noreferrer"
+             style="display:none;margin-top:8px;align-items:center;gap:7px;
+                    padding:9px 13px;background:#184595;color:#fff;text-decoration:none;
+                    border-radius:7px;font-size:14px;font-weight:600;">
+            📍 Abrir ubicación en Google Maps
+          </a>
+        </div>
+
+        <!-- Contacto en el sitio. El teléfono es pulsable: llama directamente. -->
+        <div id="a-descripcion-contacto" style="display:none;margin-top:9px;padding-top:9px;
+             border-top:1px solid #C9D6EA;font-size:13.5px;line-height:1.5;color:#101A2C;">
+          <span style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+                color:#6B7891;display:block;margin-bottom:2px;">Contacto</span>
+          <!-- Siempre en mayúsculas, como el resto de nombres de la app. -->
+          <span id="a-descripcion-contacto-texto" style="text-transform:uppercase;font-weight:600;"></span>
+        </div>
+
+        <!-- El teléfono va en su propio apartado, con su rótulo encima. -->
+        <div id="a-descripcion-telefono" style="display:none;margin-top:9px;padding-top:9px;
+             border-top:1px solid #C9D6EA;font-size:13.5px;line-height:1.5;color:#101A2C;">
+          <span style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+                color:#6B7891;display:block;margin-bottom:4px;">Teléfono</span>
+          <a id="a-descripcion-tel" href="#" style="display:none;
+             align-items:center;gap:7px;padding:9px 13px;background:#184595;color:#fff;
+             text-decoration:none;border-radius:7px;font-size:14px;font-weight:600;">
+            📞 <span id="a-descripcion-tel-texto"></span>
+          </a>
+        </div>
+
+        <!-- Quién lleva esa comunidad. No es quien va hoy: es a quien
+             preguntar si aparece algo que no cuadra. -->
+        <div id="a-descripcion-encargado" style="display:none;margin-top:9px;padding-top:9px;
+             border-top:1px solid #C9D6EA;font-size:13.5px;line-height:1.5;color:#101A2C;">
+          <span style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+                color:#6B7891;display:block;margin-bottom:2px;">Técnico encargado</span>
+          <span id="a-descripcion-encargado-texto" style="font-weight:600;"></span>
+        </div>
         <!-- Enlace a la ubicación. Se abre en otra pestaña para que el técnico
              no pierda el parte a medias. Solo aparece si la tarea trae enlace. -->
-        <a id="a-descripcion-maps" href="#" target="_blank" rel="noopener noreferrer"
-           style="display:none;margin-top:10px;align-items:center;gap:7px;
-                  padding:9px 13px;background:#184595;color:#fff;text-decoration:none;
-                  border-radius:7px;font-size:14px;font-weight:600;">
-          📍 Abrir ubicación en Google Maps
-        </a>
       </div>
     </div>
 
@@ -1112,6 +1151,10 @@ async function traerTareasPlanificadas(nombreTecnico) {
         // quitar. Se copia tal cual al campo que lee la sección Descripción.
         trabajo: t.trabajo || '',
         maps: t.maps || '',
+        dirTrabajo: t.dirTrabajo || '',
+        contacto: t.contacto || '',
+        telefono: t.telefono || '',
+        encargado: t.encargado || '',
         cliente: t.cliente || '',
         direccion: t.direccion || '',
         poblacion: t.poblacion || '',
@@ -2583,7 +2626,9 @@ function seleccionarTareaAlbaran(idx) {
 
   // Descripción del trabajo. Solo guía en pantalla: no se envía a ningún sitio
   // ni aparece en el PDF. Si la tarea no trae ninguna, la sección queda oculta.
-  mostrarDescripcionTarea(t.trabajo, t.maps);
+  mostrarDescripcionTarea(t.trabajo, t.maps, {
+    dirTrabajo: t.dirTrabajo, contacto: t.contacto, telefono: t.telefono, encargado: t.encargado
+  });
 
   // Cerrar el desplegable tras elegir
   var body  = document.getElementById('a-tareas-body');
@@ -2595,12 +2640,54 @@ function seleccionarTareaAlbaran(idx) {
 }
 
 // Enseña u oculta la sección Descripción. Se usa al elegir tarea y al quitarla.
-function mostrarDescripcionTarea(texto, enlaceMaps) {
+function mostrarDescripcionTarea(texto, enlaceMaps, extra) {
   var wrap = document.getElementById('a-descripcion-wrap');
   if (!wrap) return;
+  extra = extra || {};
 
   var limpio = String(texto || '').trim();
   document.getElementById('a-descripcion-texto').textContent = limpio;
+
+  // Dónde se hace el trabajo, si la oficina lo anotó.
+  var dir = String(extra.dirTrabajo || '').trim();
+  var wDir = document.getElementById('a-descripcion-dir');
+  if (wDir) {
+    document.getElementById('a-descripcion-dir-texto').textContent = dir;
+    wDir.style.display = dir ? 'block' : 'none';
+  }
+
+  // Persona de contacto y su teléfono, pulsable para llamar.
+  var quien = String(extra.contacto || '').trim();
+  var tel   = String(extra.telefono || '').trim();
+  var wCon  = document.getElementById('a-descripcion-contacto');
+  if (wCon) {
+    document.getElementById('a-descripcion-contacto-texto').textContent = quien;
+    wCon.style.display = quien ? 'block' : 'none';
+  }
+
+  // El teléfono, en su propio apartado.
+  var wTel = document.getElementById('a-descripcion-telefono');
+  var aTel = document.getElementById('a-descripcion-tel');
+  if (wTel && aTel) {
+    if (tel) {
+      document.getElementById('a-descripcion-tel-texto').textContent = tel;
+      // Solo dígitos y el + para el enlace de llamada; se enseña tal cual se escribió.
+      aTel.href = 'tel:' + tel.replace(/[^0-9+]/g, '');
+      aTel.style.display = 'inline-flex';
+    } else {
+      aTel.removeAttribute('href');
+      aTel.style.display = 'none';
+    }
+    wTel.style.display = tel ? 'block' : 'none';
+  }
+
+  // Técnico que lleva la comunidad.
+  var enc = String(extra.encargado || '').trim();
+  var wEnc = document.getElementById('a-descripcion-encargado');
+  if (wEnc) {
+    document.getElementById('a-descripcion-encargado-texto').textContent = enc;
+    wEnc.style.display = enc ? 'block' : 'none';
+  }
 
   // El botón solo se pinta si el enlace es de Google Maps. Aunque el backend
   // ya lo filtra, aquí se vuelve a mirar: es lo que el técnico va a pulsar.
@@ -2616,7 +2703,7 @@ function mostrarDescripcionTarea(texto, enlaceMaps) {
 
   // Se enseña la sección si hay descripción O enlace: con solo el enlace
   // también merece la pena verla.
-  wrap.style.display = (limpio || valido) ? 'block' : 'none';
+  wrap.style.display = (limpio || valido || dir || quien || tel || enc) ? 'block' : 'none';
 }
 
 function resetTareaSeleccionada() {
@@ -2624,7 +2711,7 @@ function resetTareaSeleccionada() {
   _tareaPanelElegida = null;
   document.querySelectorAll('.tarea-albaran-radio').forEach(r => r.classList.remove('sel'));
   document.getElementById('a-tarea-seleccionada').style.display = 'none';
-  mostrarDescripcionTarea('', '');   // que no quede la de la tarea anterior
+  mostrarDescripcionTarea('', '', {});   // que no quede la de la tarea anterior
   // Limpiar campos cliente
   resetCliente('a');
 }
