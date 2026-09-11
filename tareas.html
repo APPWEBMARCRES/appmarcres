@@ -1,4 +1,4 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -325,6 +325,9 @@ textarea.inp{resize:vertical;min-height:76px;line-height:1.5;}
       <div class="sem-rango" id="sem-rango">—</div>
       <div class="sem-frescura" id="sem-frescura" style="display:none;"></div>
     </div>
+    <!-- Faltaba el de avanzar: solo se podia retroceder, asi que una tarea
+         creada para la semana que viene no habia forma de verla. -->
+    <button class="btn-sm" onclick="cambiarSemana(7)">Siguiente →</button>
     <div style="display:flex;gap:8px;">
       <button class="btn-sm" onclick="irHoy()">Esta semana</button>
       <button class="btn-sm" onclick="cargarSemana()">↻ Actualizar</button>
