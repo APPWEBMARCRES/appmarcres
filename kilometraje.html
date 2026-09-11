@@ -244,6 +244,18 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
     </div>
   </div>
 
+  <!-- OBSERVACIONES Y AVERIAS DE LA FURGONETA -->
+  <div class="card">
+    <div class="field-group">
+      <label class="field-label">Observaciones / averías
+        <span style="color:var(--muted);font-weight:400;">(opcional)</span>
+      </label>
+      <textarea class="field-input" id="averias" rows="3" maxlength="600"
+                placeholder="Ruidos, luces encendidas, frenos, neumáticos, golpes, lo que sea…"
+                style="resize:vertical;min-height:76px;line-height:1.5;"></textarea>
+      <div class="furgo-hint">Cualquier cosa rara de la furgoneta. Si no hay nada, déjalo vacío.</div>
+    </div>
+  </div>
   <button class="btn-enviar" id="btn-enviar" onclick="enviarKilometraje()">✓ ENVIAR PARTE DE KM</button>
 
   <div class="pie">Desarrollado por Cristhian Andrés Serna Salazar © | 2026.<br>Todos los derechos reservados. Prohibida su reproducción total o parcial sin autorización.</div>
@@ -680,6 +692,7 @@ function guardarBorrador(){
       dia: new Date().toDateString(),
       tecnico: document.getElementById('tecnico').value,
       acompanante: document.getElementById('acompanante').value,
+      averias: document.getElementById('averias').value,
       matricula: document.getElementById('matricula').value,
       kmInicio: document.getElementById('km-inicio').value,
       kmFin: document.getElementById('km-fin').value,
@@ -705,6 +718,7 @@ function restaurarBorrador(){
       var inpAc = document.getElementById('acompanante');
       inpAc.value = b.acompanante; inpAc.style.color='var(--ok)'; inpAc.style.fontWeight='600';
     }
+    if (b.averias) document.getElementById('averias').value = b.averias;
     if (b.matricula) document.getElementById('matricula').value = b.matricula;
     if (b.kmInicio) document.getElementById('km-inicio').value = b.kmInicio;
     if (b.kmFin) document.getElementById('km-fin').value = b.kmFin;
@@ -803,6 +817,7 @@ function enviarKilometraje(){
     idRegistro: _idRegistro,
     tecnico: tecnico,
     acompanante: (document.getElementById('acompanante').value||'').trim(),
+    averias: (document.getElementById('averias').value||'').trim(),
     matricula: matricula,
     fecha: fechaTexto,
     hora: horaActual,
