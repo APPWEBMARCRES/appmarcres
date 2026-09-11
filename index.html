@@ -225,6 +225,8 @@ table.hid-table{width:100%;border-collapse:collapse;font-size:12px;}
 .tarea-albaran-sub{font-size:11px;color:var(--muted);margin-top:2px;}
 .tarea-albaran-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;white-space:nowrap;flex-shrink:0;}
 .tareas-cargando-alb{font-size:13px;color:var(--muted);padding:8px 0;font-style:italic;}
+/* Aviso de que el tecnico tiene trabajo en la OTRA empresa. */
+.aviso-otra-empresa{margin:8px 0;padding:11px 13px;background:#FFF3CD;border:1.5px solid #8B5A00;border-radius:var(--radius-sm);font-size:13px;color:#5C3D00;line-height:1.45;}
 
 .ubic-aviso{display:none;margin-top:10px;padding:12px 14px;background:#FFF3CD;border:1.5px solid #8B5A00;border-radius:var(--radius-sm);}
 .ubic-aviso.show{display:block;}
@@ -578,6 +580,14 @@ table.hid-table{width:100%;border-collapse:collapse;font-size:12px;}
              background:#B3261E;color:#fff;border-radius:6px 6px 0 0;
              font-size:15px;font-weight:800;letter-spacing:.5px;text-align:center;">
           🔔 AVISO URGENTE
+        </div>
+
+        <!-- La hora de la cita, si la oficina la puso. Detras del aviso
+             urgente y delante del texto: es lo segundo mas importante. -->
+        <div id="a-descripcion-hora" style="display:none;margin-bottom:11px;padding:9px 13px;
+             background:#184595;color:#fff;border-radius:7px;
+             font-size:15px;font-weight:700;letter-spacing:.3px;">
+          🕐 <span id="a-descripcion-hora-texto"></span>
         </div>
         <div id="a-descripcion-texto" style="font-size:14px;line-height:1.55;color:#101A2C;
              white-space:pre-wrap;word-break:break-word;"></div>
@@ -1122,6 +1132,22 @@ function soloTecnicosActivos(lista){
 // Las que NO traen empresa se dejan pasar a propósito: son tareas antiguas de
 // Holded y es preferible que se vean de más a que un trabajo desaparezca sin
 // que nadie sepa por qué.
+// Las tareas se filtran por la empresa elegida arriba. Cuando un tecnico
+// tiene trabajo en la OTRA, la lista se quedaba vacia y no decia por que:
+// el tecnico entendia que no tenia nada que hacer.
+//
+// Paso de verdad el 11/09/2026. Las dos tareas del dia de Duvan eran de
+// Rivagua y el estaba mirando en Marcres.
+function avisoOtraEmpresa(todas, visibles, empresa){
+  var ocultas = (todas || []).length - (visibles || []).length;
+  if (ocultas < 1 || !empresa) return "";
+  var otra = empresa === "rivagua" ? "Marcres" : "Rivagua";
+  return "<div class=\"aviso-otra-empresa\">" +
+         "Tienes " + ocultas + (ocultas === 1 ? " tarea" : " tareas") +
+         " asignadas en <b>" + otra + "</b>.<br>" +
+         "Cambia de empresa ahi arriba para verlas.</div>";
+}
+
 function soloDeLaEmpresa(tareas, empresa){
   var e = String(empresa || '').trim().toLowerCase();
   if (!e || !tareas || !tareas.length) return tareas || [];
@@ -2584,24 +2610,40 @@ async function cargarTareasAlbaran(id, nomFinal) {
   lista.innerHTML = '<div class="tareas-cargando-alb">⏳ Cargando tareas asignadas...</div>';
 
   try {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 30000);
-    const url = GAS_URL + '?action=tareas&empleadoId=' + encodeURIComponent(id) + '&empleadoNombre=' + encodeURIComponent(nomFinal);
-    const res = await fetch(url, { signal: ctrl.signal });
-    clearTimeout(timer);
-    const data = await res.json();
-    const deHolded = (data.ok && data.tareas && data.tareas.length) ? data.tareas : [];
-
-    // Las que ha puesto la oficina van PRIMERO: son el trabajo del día.
-    const delPanel = await traerTareasPlanificadas(nomFinal);
-    const tareas = soloDeLaEmpresa(delPanel.concat(deHolded), empresaAlbaran);
+    // Las dos fuentes se piden A LA VEZ, y cada una se apaña sola si falla.
+    //
+    // Antes iban en fila: primero Holded y despues el panel de la oficina.
+    // Holded tarda 24 segundos con la cache fria y el limite eran 30, asi que
+    // cuando se pasaba, el error se llevaba por delante la segunda llamada y
+    // el tecnico veia "sin tareas" teniendolas. Le paso a Duvan el 11/09/2026:
+    // sus dos tareas del dia estaban en el panel y Holded no tenia ninguna.
+    //
+    // Ahora, si Holded falla o tarda, las de la oficina salen igual.
+    const [deHolded, delPanel] = await Promise.all([
+      (async function(){
+        try {
+          const ctrl = new AbortController();
+          const timer = setTimeout(() => ctrl.abort(), 30000);
+          const url = GAS_URL + '?action=tareas&empleadoId=' + encodeURIComponent(id) + '&empleadoNombre=' + encodeURIComponent(nomFinal);
+          const res = await fetch(url, { signal: ctrl.signal });
+          clearTimeout(timer);
+          const data = await res.json();
+          return (data.ok && data.tareas && data.tareas.length) ? data.tareas : [];
+        } catch (e) { return []; }   // Holded no responde: se sigue sin ella
+      })(),
+      // Las de la oficina. Al juntarlas van PRIMERO: son el trabajo del día.
+      traerTareasPlanificadas(nomFinal)
+    ]);
+    const todasSinFiltrar = delPanel.concat(deHolded);
+    const tareas = soloDeLaEmpresa(todasSinFiltrar, empresaAlbaran);
+    const avisoA = avisoOtraEmpresa(todasSinFiltrar, tareas, empresaAlbaran);
 
     // Actualizar contador
     var count = document.getElementById('a-tareas-count');
     if (count) count.textContent = tareas.length;
 
     if (!tareas.length) {
-      lista.innerHTML = '<div class="tareas-cargando-alb">Sin tareas asignadas para este técnico.</div>';
+      lista.innerHTML = avisoA + '<div class="tareas-cargando-alb">Sin tareas asignadas para este técnico.</div>';
       // Abrir igualmente para que lo vea
       var body = document.getElementById('a-tareas-body');
       var arrow = document.getElementById('a-tareas-arrow');
@@ -2613,7 +2655,7 @@ async function cargarTareasAlbaran(id, nomFinal) {
     // Guardar en array global — el onclick solo pasa el índice
     window._tareasAlbaran = tareas;
 
-    lista.innerHTML = tareas.map(function(t, i) {
+    lista.innerHTML = avisoA + tareas.map(function(t, i) {
       var partes = [];
       if (t.fecha)     partes.push('📅 ' + t.fecha);
       if (t.hora)      partes.push('🕐 ' + t.hora);
@@ -2693,7 +2735,7 @@ function seleccionarTareaAlbaran(idx) {
   // Descripción del trabajo. Solo guía en pantalla: no se envía a ningún sitio
   // ni aparece en el PDF. Si la tarea no trae ninguna, la sección queda oculta.
   mostrarDescripcionTarea(t.trabajo, t.maps, {
-    dirTrabajo: t.dirTrabajo, contacto: t.contacto, telefono: t.telefono, encargado: t.encargado, urgente: t.urgente
+    hora: t.hora, dirTrabajo: t.dirTrabajo, contacto: t.contacto, telefono: t.telefono, encargado: t.encargado, urgente: t.urgente
   });
 
   // Cerrar el desplegable tras elegir
@@ -2713,6 +2755,19 @@ function mostrarDescripcionTarea(texto, enlaceMaps, extra) {
 
   var limpio = String(texto || '').trim();
   document.getElementById('a-descripcion-texto').textContent = limpio;
+
+  // La hora que puso la oficina al planificar la tarea. Va arriba del todo
+  // porque condiciona el resto del dia: saber a que hora hay que estar alli
+  // cambia el orden en que el tecnico se mueve.
+  //
+  // Si la tarea no lleva hora es de las de "cuando puedas", y entonces no se
+  // enseña nada: una casilla vacia solo estorba.
+  var hora = String(extra.hora || "").trim();
+  var wHora = document.getElementById("a-descripcion-hora");
+  if (wHora) {
+    document.getElementById("a-descripcion-hora-texto").textContent = hora ? ("A las " + hora) : "";
+    wHora.style.display = hora ? "block" : "none";
+  }
 
   // Dónde se hace el trabajo, si la oficina lo anotó.
   var dir = String(extra.dirTrabajo || '').trim();
@@ -2827,24 +2882,41 @@ async function cargarTareasChecklist(empleadoId, nombreTecnico) {
   if (count) count.textContent = '0';
 
   try {
-    var url = GAS_URL + '?action=tareas&empleadoId=' + encodeURIComponent(empleadoId) + '&empleadoNombre=' + encodeURIComponent(nombreTecnico || '');
-    var res  = await fetch(url);
-    var data = await res.json();
-    var deHolded = (data.ok && data.tareas && data.tareas.length) ? data.tareas : [];
-
-    // Las de la oficina primero, igual que en el albarán
-    var delPanel = await traerTareasPlanificadas(nombreTecnico);
-    var tareas = soloDeLaEmpresa(delPanel.concat(deHolded), empresaChecklist);
+    // Las dos fuentes se piden A LA VEZ, y cada una se apaña sola si falla.
+    //
+    // Antes iban en fila: primero Holded y despues el panel de la oficina.
+    // Holded tarda 24 segundos con la cache fria y el limite eran 30, asi que
+    // cuando se pasaba, el error se llevaba por delante la segunda llamada y
+    // el tecnico veia "sin tareas" teniendolas. Le paso a Duvan el 11/09/2026:
+    // sus dos tareas del dia estaban en el panel y Holded no tenia ninguna.
+    //
+    // Ahora, si Holded falla o tarda, las de la oficina salen igual.
+    var pareja = await Promise.all([
+      (async function(){
+        try {
+          var url = GAS_URL + '?action=tareas&empleadoId=' + encodeURIComponent(empleadoId) + '&empleadoNombre=' + encodeURIComponent(nombreTecnico || '');
+          var res  = await fetch(url);
+          var data = await res.json();
+          return (data.ok && data.tareas && data.tareas.length) ? data.tareas : [];
+        } catch (e) { return []; }   // Holded no responde: se sigue sin ella
+      })(),
+      traerTareasPlanificadas(nombreTecnico)
+    ]);
+    var deHolded = pareja[0];
+    var delPanel = pareja[1];
+    var todasSinFiltrarC = delPanel.concat(deHolded);
+    var tareas = soloDeLaEmpresa(todasSinFiltrarC, empresaChecklist);
+    var avisoC = avisoOtraEmpresa(todasSinFiltrarC, tareas, empresaChecklist);
 
     if (count) count.textContent = tareas.length;
 
     if (!tareas.length) {
-      lista.innerHTML = '<div class="tareas-cargando-alb">Sin tareas asignadas para este técnico.</div>';
+      lista.innerHTML = avisoC + '<div class="tareas-cargando-alb">Sin tareas asignadas para este técnico.</div>';
       return;
     }
 
     window._tareasChecklist = tareas;
-    lista.innerHTML = tareas.map(function(t, i) {
+    lista.innerHTML = avisoC + tareas.map(function(t, i) {
       var partes = [];
       if (t.fecha)     partes.push('📅 ' + t.fecha);
       if (t.hora)      partes.push('🕐 ' + t.hora);
