@@ -1,4 +1,4 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -795,8 +795,13 @@ function mostrarNotificacion(tecnico, empresa, cliente) {
   toast.className = 'notif-toast' + (empresa === 'rivagua' ? ' rivagua' : '');
   var primerNombre = tecnico.split(' ')[0];
   toast.innerHTML = ['🔔 <div><div>', primerNombre, ' inició un parte</div>',
-    '<div style="font-size:11px;font-weight:400;opacity:.85;">', (cliente || ''), '</div></div>'].join('');
-  toast.onclick = function() { toast.remove(); };
+    '<div style="font-size:11px;font-weight:400;opacity:.85;">', (cliente || ''), '</div>',
+    '<div style="font-size:10px;font-weight:400;opacity:.7;margin-top:3px;">Pulsa para verlo en el mapa</div></div>'].join('');
+  toast.style.cursor = 'pointer';
+  // Al pulsar el aviso se va al tecnico en el mapa. Si su posicion todavia no
+  // ha llegado (el marcador aparece en el siguiente refresco), el aviso se
+  // cierra igual: centrarEnTecnico no hace nada si no hay marcador.
+  toast.onclick = function() { try { centrarEnTecnico(tecnico); } catch(e) {} toast.remove(); };
   stack.appendChild(toast);
 
   // Notificación real del sistema operativo (aparece aunque el navegador esté minimizado u otra pestaña activa)
@@ -807,7 +812,11 @@ function mostrarNotificacion(tecnico, empresa, cliente) {
         tag: 'marcres-' + tecnico, // evita duplicados si llegan varias actualizaciones seguidas
         renotify: false
       });
-      notifSistema.onclick = function() { window.focus(); notifSistema.close(); };
+      notifSistema.onclick = function() {
+        window.focus();
+        try { centrarEnTecnico(tecnico); } catch(e) {}
+        notifSistema.close();
+      };
       setTimeout(function() { notifSistema.close(); }, 10000);
     }
   } catch(eNotif) {}
