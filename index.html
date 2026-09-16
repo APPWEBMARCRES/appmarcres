@@ -800,7 +800,7 @@ table.hid-table{width:100%;border-collapse:collapse;font-size:12px;}
         <div class="fotos-aviso" id="fotos-aviso-bomba">⚠ La fotografía de la bomba es obligatoria para enviar</div>
       </div>
     </div>
-    <div class="card"><div class="section-header section-open" onclick="toggleSec('sec-firma-bomba')"><span class="sec-title">✍️ Firma del técnico</span><span class="chevron">⌄</span></div><div class="section-body" id="sec-firma-bomba" style="display:block;"><div class="firma-section"><div class="firma-label">Firma del técnico <span style="color:var(--bad);font-size:10px;">*obligatoria</span></div><canvas class="firma-canvas" id="firma-tecnico-bomba"></canvas><div class="firma-btns"><button class="firma-clear" onclick="limpiarFirma('tecnico-bomba')">🗑 Borrar</button></div></div></div></div>
+    <div class="card"><div class="section-header section-open" onclick="toggleSec('sec-firma-bomba')"><span class="sec-title">✍️ Firmas</span><span class="chevron">⌄</span></div><div class="section-body" id="sec-firma-bomba" style="display:block;"><div id="firmas-tecnicos-bomba-wrap"></div></div></div>
     <button class="send-btn" id="send-bomba-btn" onclick="enviarAlbaran('bomba')">📤 Enviar Bombas o Equipos a Taller</button>
   </div>
 
@@ -821,7 +821,7 @@ table.hid-table{width:100%;border-collapse:collapse;font-size:12px;}
         <button class="add-row-btn" onclick="addMatRowFor('preparacion')">+ Añadir material</button>
       </div>
     </div>
-    <div class="card"><div class="section-header section-open" onclick="toggleSec('sec-firma-preparacion')"><span class="sec-title">✍️ Firma del técnico</span><span class="chevron">⌄</span></div><div class="section-body" id="sec-firma-preparacion" style="display:block;"><div class="firma-section"><div class="firma-label">Firma del técnico <span style="color:var(--bad);font-size:10px;">*obligatoria</span></div><canvas class="firma-canvas" id="firma-tecnico-preparacion"></canvas><div class="firma-btns"><button class="firma-clear" onclick="limpiarFirma('tecnico-preparacion')">🗑 Borrar</button></div></div></div></div>
+    <div class="card"><div class="section-header section-open" onclick="toggleSec('sec-firma-preparacion')"><span class="sec-title">✍️ Firmas</span><span class="chevron">⌄</span></div><div class="section-body" id="sec-firma-preparacion" style="display:block;"><div id="firmas-tecnicos-preparacion-wrap"></div></div></div>
     <button class="send-btn" id="send-preparacion-btn" onclick="enviarAlbaran('preparacion')">📤 Enviar Preparación Materiales</button>
   </div>
 
@@ -1046,7 +1046,7 @@ table.hid-table{width:100%;border-collapse:collapse;font-size:12px;}
     </div>
 
     <!-- FIRMA TÉCNICO -->
-    <div class="card"><div class="section-header section-open" onclick="toggleSec('sec-firma-taller')"><span class="sec-title">✍️ Firma del técnico</span><span class="chevron">⌄</span></div><div class="section-body" id="sec-firma-taller" style="display:block;"><div class="firma-section"><div class="firma-label">Firma del técnico <span style="color:var(--bad);font-size:10px;">*obligatoria</span></div><canvas class="firma-canvas" id="firma-tecnico-taller"></canvas><div class="firma-btns"><button class="firma-clear" onclick="limpiarFirma('tecnico-taller')">🗑 Borrar</button></div></div></div></div>
+    <div class="card"><div class="section-header section-open" onclick="toggleSec('sec-firma-taller')"><span class="sec-title">✍️ Firmas</span><span class="chevron">⌄</span></div><div class="section-body" id="sec-firma-taller" style="display:block;"><div id="firmas-tecnicos-taller-wrap"></div></div></div>
 
     <button class="send-btn" id="send-taller-btn" onclick="enviarAlbaran('taller')">📤 Enviar Trabajo en Taller</button>
   </div>
@@ -1091,7 +1091,7 @@ const TECNICOS_ACTIVOS = [
   'IVAN BAUDI CORTES',
   'JOSE RUBEN PEREZ',
   'MIGUEL HUERTA MARTINEZ',
-  'JULIAN ANDRES MORENO RONZEWSKI',
+  'DENYS IVANOV',
   'JOSE FRANCISCO GARCIA GARCIA',
   'CHRISTIAN RICARDO SALINAS BARAHONA',
   'ROMAN CHAGOVTSEV',
@@ -1400,7 +1400,10 @@ function selectTipo(t){
   if(!esMant&&!esBomba&&!esPrep&&!esDescal&&!esTaller){const labels={aviso:'Aviso',trabajo:'Trabajo',guardia:'Guardia'};document.getElementById('send-simple-btn').textContent='📤 Enviar albarán de '+labels[t];}
   if(esMant) renderFirmasTecnicos('mant','a');
   else if(esDescal) renderFirmasTecnicos('descal','a');
-  else if(!esBomba&&!esPrep&&!esDescal&&!esTaller) renderFirmasTecnicos('simple','a');
+  else if(esBomba) renderFirmasTecnicos('bomba','a');
+  else if(esPrep) renderFirmasTecnicos('preparacion','a');
+  else if(esTaller) renderFirmasTecnicos('taller','a');
+  else renderFirmasTecnicos('simple','a');
 }
 
 // Genera una firma por cada técnico (principal + extras) en el panel indicado, sin perder
@@ -1439,6 +1442,9 @@ function panelKeyActivoParaFirmas(prefix){
   if(prefix==='a'){
     if(tipoAlbaran==='mantenimiento') return 'mant';
     if(tipoAlbaran==='descal') return 'descal';
+    if(tipoAlbaran==='bomba') return 'bomba';
+    if(tipoAlbaran==='preparacion') return 'preparacion';
+    if(tipoAlbaran==='taller') return 'taller';
     if(['aviso','trabajo','guardia'].indexOf(tipoAlbaran)>-1) return 'simple';
   }
   return null;
@@ -1982,7 +1988,7 @@ async function enviarAlbaran(panel){
     const ubicacion=await obtenerUbicacionFinal();
     if(!ubicacion.ok){if(ubicacion.motivo==='senal'){showToast('📡 Sin señal de ubicación — busca un sitio con mejor cobertura e inténtalo de nuevo.','error');}else{registrarIncidenciaUbicacion('Ubicación desactivada al intentar enviar el parte');mostrarAvisoUbicacionManual('No se puede enviar el parte porque el permiso de ubicación está desactivado o denegado en este dispositivo.');}btn.disabled=false;btn.textContent='📤 Enviar Bombas o Equipos a Taller';return;}
     btn.textContent='⏳ Generando PDF...';
-    const payload={empresa:empresaAlbaran,tipo:'Bombas o Equipos a Taller',fecha:fechaTexto,horaInicio:document.getElementById('a-hora-inicio').value,horaFin:calcHoraFin(),totalHoras:calcDuracion(),tiempoTranscurrido:getTiempoTranscurrido(),cliente,direccion:document.getElementById('a-direccion').value.trim(),poblacion:document.getElementById('a-poblacion').value.trim(),cp:document.getElementById('a-cp').value.trim(),tecnico,tecnicosExtra:getTecnicosExtra('a'),...getFurgoneta('a'),bloque:document.getElementById('a-bloque')?.value.trim()||'',observaciones:document.getElementById('bomba-obs').value.trim(),incidencia:document.getElementById('bomba-incidencia')?.value.trim()||'',fotos:bombaFotoData.filter(Boolean),firmaTecnico:getFirmaBase64('tecnico-bomba'),firmaCliente:null,clienteAusente:true,motivoAusencia:'No requerida',numDoc:genNumDoc(),idParte:_idParteActual.a,ubicacion,ubicacionInicio:getUbicacionInicio(),incidenciasUbicacion:_incidenciasUbicacion,horaEnvio:calcHoraFin()};
+    const payload={empresa:empresaAlbaran,tipo:'Bombas o Equipos a Taller',fecha:fechaTexto,horaInicio:document.getElementById('a-hora-inicio').value,horaFin:calcHoraFin(),totalHoras:calcDuracion(),tiempoTranscurrido:getTiempoTranscurrido(),cliente,direccion:document.getElementById('a-direccion').value.trim(),poblacion:document.getElementById('a-poblacion').value.trim(),cp:document.getElementById('a-cp').value.trim(),tecnico,tecnicosExtra:getTecnicosExtra('a'),...getFurgoneta('a'),bloque:document.getElementById('a-bloque')?.value.trim()||'',observaciones:document.getElementById('bomba-obs').value.trim(),incidencia:document.getElementById('bomba-incidencia')?.value.trim()||'',fotos:bombaFotoData.filter(Boolean),firmaTecnico:getFirmasTecnicosArray('bomba')[0]?.firma||null,firmasTecnicos:getFirmasTecnicosArray('bomba'),firmaCliente:null,clienteAusente:true,motivoAusencia:'No requerida',numDoc:genNumDoc(),idParte:_idParteActual.a,ubicacion,ubicacionInicio:getUbicacionInicio(),incidenciasUbicacion:_incidenciasUbicacion,horaEnvio:calcHoraFin()};
     try{const data=await enviarConProgreso(payload,btn,'Bombas o Equipos a Taller');mostrarPantallaFinal(data.url||null);}
     catch(err){showToast('❌ Error: '+(err.message||'sin conexión')+' — Espera 30s','error');btn.textContent='⏳ Espera 30s...';setTimeout(function(){btn.disabled=false;btn.textContent='📤 Enviar Bombas o Equipos a Taller';},30000);}
     return;
@@ -1996,7 +2002,7 @@ async function enviarAlbaran(panel){
     const ubicacion=await obtenerUbicacionFinal();
     if(!ubicacion.ok){if(ubicacion.motivo==='senal'){showToast('📡 Sin señal de ubicación — busca un sitio con mejor cobertura e inténtalo de nuevo.','error');}else{registrarIncidenciaUbicacion('Ubicación desactivada al intentar enviar el parte');mostrarAvisoUbicacionManual('No se puede enviar el parte porque el permiso de ubicación está desactivado o denegado en este dispositivo.');}btn.disabled=false;btn.textContent='📤 Enviar Preparación Materiales';return;}
     btn.textContent='⏳ Generando PDF...';
-    const payload={empresa:empresaAlbaran,tipo:'Preparación Materiales',fecha:fechaTexto,horaInicio:document.getElementById('a-hora-inicio').value,horaFin:calcHoraFin(),totalHoras:calcDuracion(),tiempoTranscurrido:getTiempoTranscurrido(),cliente,direccion:document.getElementById('a-direccion').value.trim(),poblacion:document.getElementById('a-poblacion').value.trim(),cp:document.getElementById('a-cp').value.trim(),tecnico,tecnicosExtra:getTecnicosExtra('a'),...getFurgoneta('a'),bloque:document.getElementById('a-bloque')?.value.trim()||'',observaciones:document.getElementById('preparacion-obs').value.trim(),incidencia:document.getElementById('preparacion-incidencia')?.value.trim()||'',materiales:getMaterilesFor('preparacion'),firmaTecnico:getFirmaBase64('tecnico-preparacion'),firmaCliente:null,clienteAusente:true,motivoAusencia:'No requerida',numDoc:genNumDoc(),idParte:_idParteActual.a,ubicacion,ubicacionInicio:getUbicacionInicio(),incidenciasUbicacion:_incidenciasUbicacion,horaEnvio:calcHoraFin()};
+    const payload={empresa:empresaAlbaran,tipo:'Preparación Materiales',fecha:fechaTexto,horaInicio:document.getElementById('a-hora-inicio').value,horaFin:calcHoraFin(),totalHoras:calcDuracion(),tiempoTranscurrido:getTiempoTranscurrido(),cliente,direccion:document.getElementById('a-direccion').value.trim(),poblacion:document.getElementById('a-poblacion').value.trim(),cp:document.getElementById('a-cp').value.trim(),tecnico,tecnicosExtra:getTecnicosExtra('a'),...getFurgoneta('a'),bloque:document.getElementById('a-bloque')?.value.trim()||'',observaciones:document.getElementById('preparacion-obs').value.trim(),incidencia:document.getElementById('preparacion-incidencia')?.value.trim()||'',materiales:getMaterilesFor('preparacion'),firmaTecnico:getFirmasTecnicosArray('preparacion')[0]?.firma||null,firmasTecnicos:getFirmasTecnicosArray('preparacion'),firmaCliente:null,clienteAusente:true,motivoAusencia:'No requerida',numDoc:genNumDoc(),idParte:_idParteActual.a,ubicacion,ubicacionInicio:getUbicacionInicio(),incidenciasUbicacion:_incidenciasUbicacion,horaEnvio:calcHoraFin()};
     try{const data=await enviarConProgreso(payload,btn,'Preparación Materiales');mostrarPantallaFinal(data.url||null);}
     catch(err){showToast('❌ Error: '+(err.message||'sin conexión')+' — Espera 30s','error');btn.textContent='⏳ Espera 30s...';setTimeout(function(){btn.disabled=false;btn.textContent='📤 Enviar Preparación Materiales';},30000);}
     return;
@@ -2029,7 +2035,7 @@ async function enviarAlbaran(panel){
     const ubicacion=await obtenerUbicacionFinal();
     if(!ubicacion.ok){if(ubicacion.motivo==='senal'){showToast('📡 Sin señal de ubicación — busca un sitio con mejor cobertura e inténtalo de nuevo.','error');}else{registrarIncidenciaUbicacion('Ubicación desactivada al intentar enviar el parte');mostrarAvisoUbicacionManual('No se puede enviar el parte porque el permiso de ubicación está desactivado o denegado en este dispositivo.');}btn.disabled=false;btn.textContent='📤 Enviar Trabajo en Taller';return;}
     btn.textContent='⏳ Generando PDF...';
-    const payload={empresa:empresaAlbaran,tipo:'Trabajo en Taller',fecha:fechaTexto,horaInicio:document.getElementById('a-hora-inicio').value,horaFin:calcHoraFin(),totalHoras:calcDuracion(),tiempoTranscurrido:getTiempoTranscurrido(),cliente,direccion:document.getElementById('a-direccion').value.trim(),poblacion:document.getElementById('a-poblacion').value.trim(),cp:document.getElementById('a-cp').value.trim(),tecnico,tecnicosExtra:getTecnicosExtra('a'),...getFurgoneta('a'),bloque:document.getElementById('a-bloque')?.value.trim()||'',observaciones:document.getElementById('taller-obs').value.trim(),incidencia:document.getElementById('taller-incidencia')?.value.trim()||'',horasPresupuestadas:document.getElementById('horas-pres-taller')?.value.trim()||'',numTecnicos:document.getElementById('num-tec-taller')?.value.trim()||'',materiales:getMaterilesFor('taller'),fotosAntes:tallerAntesData.filter(Boolean),fotosDespues:tallerDespuesData.filter(Boolean),firmaTecnico:getFirmaBase64('tecnico-taller'),firmaCliente:null,clienteAusente:true,motivoAusencia:'No requerida',numDoc:genNumDoc(),idParte:_idParteActual.a,ubicacion,ubicacionInicio:getUbicacionInicio(),incidenciasUbicacion:_incidenciasUbicacion,horaEnvio:calcHoraFin()};
+    const payload={empresa:empresaAlbaran,tipo:'Trabajo en Taller',fecha:fechaTexto,horaInicio:document.getElementById('a-hora-inicio').value,horaFin:calcHoraFin(),totalHoras:calcDuracion(),tiempoTranscurrido:getTiempoTranscurrido(),cliente,direccion:document.getElementById('a-direccion').value.trim(),poblacion:document.getElementById('a-poblacion').value.trim(),cp:document.getElementById('a-cp').value.trim(),tecnico,tecnicosExtra:getTecnicosExtra('a'),...getFurgoneta('a'),bloque:document.getElementById('a-bloque')?.value.trim()||'',observaciones:document.getElementById('taller-obs').value.trim(),incidencia:document.getElementById('taller-incidencia')?.value.trim()||'',horasPresupuestadas:document.getElementById('horas-pres-taller')?.value.trim()||'',numTecnicos:document.getElementById('num-tec-taller')?.value.trim()||'',materiales:getMaterilesFor('taller'),fotosAntes:tallerAntesData.filter(Boolean),fotosDespues:tallerDespuesData.filter(Boolean),firmaTecnico:getFirmasTecnicosArray('taller')[0]?.firma||null,firmasTecnicos:getFirmasTecnicosArray('taller'),firmaCliente:null,clienteAusente:true,motivoAusencia:'No requerida',numDoc:genNumDoc(),idParte:_idParteActual.a,ubicacion,ubicacionInicio:getUbicacionInicio(),incidenciasUbicacion:_incidenciasUbicacion,horaEnvio:calcHoraFin()};
     try{const data=await enviarConProgreso(payload,btn,'Trabajo en Taller');mostrarPantallaFinal(data.url||null);}
     catch(err){showToast('❌ Error: '+(err.message||'sin conexión')+' — Espera 30s','error');btn.textContent='⏳ Espera 30s...';setTimeout(function(){btn.disabled=false;btn.textContent='📤 Enviar Trabajo en Taller';},30000);}
     return;
@@ -3109,6 +3115,63 @@ function refrescarCatalogo(uid,q){
 }
 // Inventario unificado: carga productos de Marcres Y Rivagua, fusionados sin duplicados
 var EMPRESA_INVENTARIO='ambas';
+// Descarga el catálogo de las dos empresas, lo fusiona y lo deja en memoria y
+// en el móvil. Devuelve la lista fusionada, o [] si no se pudo.
+// La usan dos sitios: el buscador de materiales y la precarga de más abajo.
+var _cargaCatalogoEnMarcha=null;
+async function descargarCatalogoProductos(){
+  if(productosCache[EMPRESA_INVENTARIO]) return productosCache[EMPRESA_INVENTARIO];
+  // Si ya hay una descarga en marcha (por ejemplo la precarga), se espera a esa
+  // en lugar de lanzar otra igual.
+  if(_cargaCatalogoEnMarcha) return _cargaCatalogoEnMarcha;
+  _cargaCatalogoEnMarcha=(async function(){
+    // Timeout de 60s por empresa: el catálogo de Holded puede pasar por varias
+    // páginas si hay muchos productos.
+    var ctrl1=new AbortController(),ctrl2=new AbortController();
+    var t1=setTimeout(function(){ctrl1.abort();},60000),t2=setTimeout(function(){ctrl2.abort();},60000);
+    try{
+      var res=await Promise.all([
+        fetch(GAS_URL+'?action=productos&empresa=marcres',{signal:ctrl1.signal}),
+        fetch(GAS_URL+'?action=productos&empresa=rivagua',{signal:ctrl2.signal})
+      ]);
+      var dataMarcres=await res[0].json();
+      var dataRivagua=await res[1].json();
+      var listaM=dataMarcres.ok?dataMarcres.productos:[];
+      var listaR=dataRivagua.ok?dataRivagua.productos:[];
+      // Fusionar sin duplicados por nombre normalizado
+      var vistos={},fusionados=[];
+      listaM.concat(listaR).forEach(function(p){
+        var key=_sinAcentos(p.name||'').replace(/\s+/g,'');
+        if(!vistos[key]){vistos[key]=true;fusionados.push(p);}
+      });
+      fusionados.sort(function(a,b){return (a.name||'').localeCompare(b.name||'');});
+      if(fusionados.length){
+        productosCache[EMPRESA_INVENTARIO]=fusionados;
+        _guardarCatalogoLocal(fusionados);   // si no cabe, simplemente no se guarda
+      }
+      return fusionados;
+    }finally{
+      clearTimeout(t1);clearTimeout(t2);
+      _cargaCatalogoEnMarcha=null;
+    }
+  })();
+  return _cargaCatalogoEnMarcha;
+}
+
+// El catálogo tarda porque son miles de referencias. Se empieza a traer solo,
+// sin avisar y sin bloquear nada, unos segundos después de abrir la app: así,
+// cuando el técnico busca un material, normalmente ya está. Si falla, se calla:
+// el buscador lo volverá a intentar cuando haga falta, igual que antes.
+function precargarCatalogoProductos(){
+  try{
+    if(productosCache[EMPRESA_INVENTARIO]) return;
+    var guardado=_leerCatalogoLocal();
+    if(guardado){ productosCache[EMPRESA_INVENTARIO]=guardado; return; }
+    descargarCatalogoProductos().catch(function(){});
+  }catch(e){}
+}
+setTimeout(precargarCatalogoProductos,4000);
+
 async function buscarProductosHolded(q,uid){
   _prodUidActivo=uid;
   if(!q||q.length<1){cerrarOverlayProductos();return;}
@@ -3125,33 +3188,11 @@ async function buscarProductosHolded(q,uid){
       if(guardado) productosCache[EMPRESA_INVENTARIO]=guardado;
     }
     if(!productosCache[EMPRESA_INVENTARIO]){
-      // Cargar ambas empresas en paralelo (con timeout de 60s cada una — el catálogo
-      // de Holded puede paginar varias veces si hay muchos productos)
-      var ctrl1=new AbortController(),ctrl2=new AbortController();
-      var t1=setTimeout(()=>ctrl1.abort(),60000),t2=setTimeout(()=>ctrl2.abort(),60000);
-      var [resMarcres,resRivagua]=await Promise.all([
-        fetch(GAS_URL+'?action=productos&empresa=marcres',{signal:ctrl1.signal}),
-        fetch(GAS_URL+'?action=productos&empresa=rivagua',{signal:ctrl2.signal})
-      ]);
-      clearTimeout(t1);clearTimeout(t2);
-      var dataMarcres=await resMarcres.json();
-      var dataRivagua=await resRivagua.json();
-      var listaM=dataMarcres.ok?dataMarcres.productos:[];
-      var listaR=dataRivagua.ok?dataRivagua.productos:[];
-      // Fusionar sin duplicados por nombre normalizado
-      var vistos={};
-      var fusionados=[];
-      listaM.concat(listaR).forEach(function(p){
-        var key=_sinAcentos(p.name||'').replace(/\s+/g,'');
-        if(!vistos[key]){vistos[key]=true;fusionados.push(p);}
-      });
-      fusionados.sort(function(a,b){return (a.name||'').localeCompare(b.name||'');});
+      var fusionados=await descargarCatalogoProductos();
       if(!fusionados.length){
         lista.innerHTML='<div style="padding:20px;text-align:center;color:var(--bad);">No se pudo cargar el catálogo de productos.</div>';
         return;
       }
-      productosCache[EMPRESA_INVENTARIO]=fusionados;
-      _guardarCatalogoLocal(fusionados);   // si no cabe, simplemente no se guarda
     }
     filtrarProductosPanel(q);
   }catch(err){lista.innerHTML='<div style="padding:20px;text-align:center;color:var(--bad);">⚠ Sin conexión al cargar productos. <button onclick="delete productosCache[\'ambas\'];buscarProductosHolded(\''+q.replace(/'/g,"\\'")+'\',\''+uid+'\')" style="display:block;margin:10px auto 0;padding:8px 16px;background:var(--accent);color:#fff;border:none;border-radius:8px;">🔄 Reintentar</button></div>';}
