@@ -191,6 +191,67 @@ textarea.inp{resize:vertical;min-height:76px;line-height:1.5;}
 .cli-item:hover{background:var(--surface2);}
 .pie{text-align:center;font-size:10px;color:var(--muted);padding:20px 14px 8px;line-height:1.5;}
 @media(max-width:760px){.row2,.row3{grid-template-columns:1fr;}.main{padding:11px;}}
+
+/* ── Calendario: vacaciones (Holded) y trabajos del mes ── */
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;}
+.cal-cab{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;text-align:center;padding:4px 0;}
+.cal-dia{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);min-height:108px;padding:6px 7px;cursor:pointer;display:flex;flex-direction:column;gap:4px;overflow:hidden;min-width:0;}
+.cal-dia:hover{border-color:var(--accent);}
+.cal-dia.finde{background:var(--surface2);}
+.cal-dia.otro{opacity:.45;}
+.cal-dia.hoy{border:2px solid var(--accent);}
+.cal-dia.sel{box-shadow:0 0 0 2px var(--celeste) inset;}
+.cal-num{font-size:13px;font-weight:700;color:var(--text);}
+.cal-dia.hoy .cal-num{color:var(--accent);}
+.cal-chips{display:flex;flex-direction:column;gap:3px;}
+.cal-chip{font-size:11px;font-weight:600;background:var(--warn-bg);color:var(--warn);border:1px solid #EFDCB4;border-radius:5px;padding:2px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+/* Pendiente de aprobar: se ve, pero distinta de una aprobada */
+.cal-chip.pend{background:transparent;border-style:dashed;}
+.cal-tar{display:flex;flex-direction:column;gap:2px;}
+.cal-t{font-size:11px;color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.cal-t.hecha{color:var(--ok);}
+.cal-mas{font-size:10px;color:var(--muted);}
+.cal-mini{display:none;}
+.cal-mini .m-aus{color:var(--warn);font-weight:700;}
+.cal-mini .m-tar{color:var(--accent);font-weight:600;}
+.cal-leyenda{font-size:11px;color:var(--muted);margin:0 0 8px;display:flex;gap:14px;flex-wrap:wrap;}
+.cal-leyenda .l-aus{color:var(--warn);font-weight:600;}
+.cal-leyenda .l-pend{color:var(--warn);border:1px dashed var(--warn);border-radius:5px;padding:0 5px;}
+.cal-aviso{background:var(--warn-bg);border:1px solid #EFDCB4;border-left:4px solid var(--warn);color:var(--warn);border-radius:var(--radius-sm);padding:10px 12px;font-size:13px;line-height:1.45;margin-bottom:10px;}
+.cal-det-fila{padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;line-height:1.45;}
+.cal-det-fila:last-child{border-bottom:none;}
+.cal-det-fila .sub{font-size:11px;color:var(--muted);}
+.cal-det-fila.aus{color:var(--warn);}
+.cal-det-fila.pend{font-style:italic;}
+.cal-cerrar{float:right;cursor:pointer;color:var(--muted);text-transform:none;font-size:14px;line-height:1;}
+/* Aviso en el formulario al elegir a alguien que no está */
+.aus-aviso{margin:0 15px 12px;background:var(--warn-bg);border:1px solid #EFDCB4;border-left:4px solid var(--warn);color:var(--warn);border-radius:var(--radius-sm);padding:9px 12px;font-size:13px;line-height:1.45;}
+.tec-aus{font-size:11px;font-weight:700;color:var(--warn);background:var(--warn-bg);border-radius:99px;padding:1px 7px;margin-left:6px;white-space:nowrap;}
+/* Tablet: las celdas se estrechan. Se quitan las líneas de trabajos y
+   queda su número; las ausencias se siguen viendo con nombre. */
+@media(max-width:1024px){
+  .cal-dia{min-height:92px;}
+  .cal-tar{display:none;}
+  .cal-mini{display:flex;}
+  .cal-mini .m-aus{display:none;}
+}
+/* Móvil: siete columnas de 45 px no dan para nombres. Queda el número del
+   día y dos contadores; al tocar el día, el detalle sale debajo. */
+@media(max-width:640px){
+  .cal{gap:3px;}
+  .cal-cab{font-size:10px;letter-spacing:0;}
+  .cal-dia{min-height:56px;padding:4px;border-radius:6px;gap:2px;}
+  .cal-dia.con-aus{background:var(--warn-bg);}
+  .cal-chips{display:none;}
+  .cal-mini{display:flex;flex-direction:column;gap:1px;font-size:10px;line-height:1.2;}
+  .cal-mini .m-aus{display:block;}
+  .cal-num{font-size:12px;}
+  /* Con cuatro pestañas, "Nueva tarea" se partía en dos líneas y la barra
+     crecía de 41 a 57 px. En una sola línea caben a partir de 375 px. */
+  .tab{font-size:12px;padding:11px 3px;white-space:nowrap;}
+}
+/* Móviles muy estrechos: antes partir la línea que cortar el texto */
+@media(max-width:360px){ .tab{white-space:normal;} }
 </style>
 </head>
 <body>
@@ -224,6 +285,7 @@ textarea.inp{resize:vertical;min-height:76px;line-height:1.5;}
   <div class="tab act" data-p="nueva"  onclick="verPane('nueva')">➕ Nueva tarea</div>
   <div class="tab"     data-p="semana" onclick="verPane('semana')">🗓 La semana</div>
   <div class="tab"     data-p="term"   onclick="verPane('term')">✅ Terminadas <span class="badge" id="badge-term" style="display:none">0</span></div>
+  <div class="tab"     data-p="cal"    onclick="verPane('cal')">📅 Calendario</div>
 </div>
 
 <div class="main">
@@ -241,6 +303,7 @@ textarea.inp{resize:vertical;min-height:76px;line-height:1.5;}
   <div class="card">
     <div class="card-h">Técnicos <span style="text-transform:none;font-weight:400;color:var(--muted)" id="tec-fuente">— cargando de Holded…</span></div>
     <div id="tecnicos-box"></div>
+    <div class="aus-aviso" id="aus-aviso" style="display:none;"></div>
     <div class="fg" style="padding-top:9px;">
       <button class="btn-sm" onclick="anadirTecnico()">＋ Añadir técnico</button>
     </div>
@@ -354,6 +417,33 @@ textarea.inp{resize:vertical;min-height:76px;line-height:1.5;}
     histórico completo queda en la hoja de Drive. En Holded hay que cerrarlas a
     mano, porque su API no lo permite.
   </div>
+</div>
+
+<!-- ══ CALENDARIO ══ -->
+<!-- Vacaciones y demás ausencias (de Holded) y los trabajos del mes.
+     Solo lee: desde aquí no se crea ni se mueve nada. -->
+<div class="pane" id="pane-cal">
+  <div class="sem-nav">
+    <button class="btn-sm" onclick="cambiarMes(-1)">← Anterior</button>
+    <div>
+      <div class="sem-rango" id="cal-titulo">—</div>
+      <div class="sem-frescura" id="cal-estado" style="display:none;"></div>
+    </div>
+    <button class="btn-sm" onclick="cambiarMes(1)">Siguiente →</button>
+    <div style="display:flex;gap:8px;">
+      <button class="btn-sm" onclick="irMesActual()">Este mes</button>
+      <button class="btn-sm" onclick="cargarCalendario(true)">↻ Actualizar</button>
+    </div>
+  </div>
+  <div class="cal-aviso" id="cal-aviso" style="display:none;"></div>
+  <div class="cal-leyenda">
+    <span class="l-aus">🏖 Vacaciones o ausencia</span>
+    <span class="l-pend">pendiente de aprobar</span>
+    <span>🔧 Trabajos programados</span>
+    <span>Toca un día para ver el detalle</span>
+  </div>
+  <div class="cal" id="cal"></div>
+  <div class="card" id="cal-detalle" style="display:none;margin-top:12px;"></div>
 </div>
 
 </div>
@@ -489,6 +579,7 @@ function verPane(p){
   document.getElementById('pane-'+p).classList.add('act');
   if(p==='semana') cargarSemana();
   if(p==='term') cargarTerminadas();
+  if(p==='cal') cargarCalendario();
 }
 
 // Prioridad del trabajo. Solo dos opciones: normal o aviso urgente.
@@ -609,6 +700,7 @@ function quitarTecnico(i){
   filasTec.splice(i,1);
   if(!filasTec.length) filasTec=[''];
   pintarFilas();
+  revisarAusenciasFormulario(false);
 }
 
 // ── TÉCNICO ENCARGADO ─────────────────────────────────────────
@@ -635,7 +727,7 @@ function filtrarEncargado(){
   if(!res.length){ drop.innerHTML='<div class="enc-lista"><div class="tec-vacio">Ningún técnico con ese nombre</div></div>'; return; }
   var h='<div class="enc-lista">';
   for(var m=0;m<res.length;m++){
-    h+='<div class="tec-op" onclick="elegirEncargado(\''+esc(res[m]).replace(/'/g,"\\'")+'\')">'+esc(res[m])+'</div>';
+    h+='<div class="tec-op" onclick="elegirEncargado(\''+esc(res[m]).replace(/'/g,"\\'")+'\')">'+esc(res[m])+marcaAusencia(res[m])+'</div>';
   }
   drop.innerHTML=h+'</div>';
 }
@@ -646,6 +738,7 @@ function elegirEncargado(nombre){
   inp.classList.add('puesto');
   encargadoElegido=nombre;
   document.getElementById('enc-drop').innerHTML='';
+  avisarAusencia(nombre);
 }
 
 function quitarEncargado(){
@@ -653,6 +746,7 @@ function quitarEncargado(){
   inp.value=''; inp.classList.remove('puesto');
   encargadoElegido='';
   document.getElementById('enc-drop').innerHTML='';
+  revisarAusenciasFormulario(false);
 }
 
 document.addEventListener('click', function(e){
@@ -682,7 +776,7 @@ function filtrarTec(i){
   if(!res.length){ drop.innerHTML='<div class="tec-drop"><div class="tec-vacio">Ningún técnico con ese nombre</div></div>'; return; }
   var h='<div class="tec-drop">';
   for(var m=0;m<res.length;m++){
-    h+='<div class="tec-op" onclick="elegirTec('+i+',\''+esc(res[m]).replace(/'/g,"\\'")+'\')">'+esc(res[m])+'</div>';
+    h+='<div class="tec-op" onclick="elegirTec('+i+',\''+esc(res[m]).replace(/'/g,"\\'")+'\')">'+esc(res[m])+marcaAusencia(res[m])+'</div>';
   }
   drop.innerHTML=h+'</div>';
 }
@@ -691,6 +785,7 @@ function elegirTec(i,nombre){
   var inp=document.getElementById('tec-inp-'+i);
   if(inp){ inp.value=nombre; inp.classList.add('puesto'); }
   document.getElementById('tec-drop-'+i).innerHTML='';
+  avisarAusencia(nombre);
 }
 // Buscar sin que estorben las tildes: en Holded conviven "SONIA CANDELA LOPEZ"
 // y "SONIA CANDELA LÓPEZ", y quien escribe no sabe cuál es cuál.
@@ -786,6 +881,9 @@ function crearTarea(){
 
   var iso=document.getElementById('f-fecha').value;
   if(!iso){ showToast('⚠ Falta el día','error'); return; }
+  // Si alguno de los elegidos está de vacaciones o de baja ese día, se
+  // pregunta antes de crear. Ver "AUSENCIAS" más abajo.
+  if(!confirmarAusencias(choquesFormulario(aTxt(deIso(iso))), '¿Crear la tarea igualmente?')) return;
 
   var payload={
     accion:'crear',
@@ -822,6 +920,7 @@ function crearTarea(){
     try{ localStorage.removeItem(CLAVE_PANEL+'_'+aTxt(lunesDe(deIso(iso)))); }catch(e){}
     window._terminadas = null;
     limpiarFormulario();
+    revisarAusenciasFormulario(false);
   }, function(msg){
     enviando=false; btn.disabled=false; btn.textContent='✓ CREAR Y ASIGNAR';
     showToast('❌ '+msg,'error');
@@ -1131,6 +1230,10 @@ function soltar(e){
   var id=e.dataTransfer.getData('text/plain');
   var fecha=e.currentTarget.dataset.fecha;
   if(!id||!fecha) return;
+  // Mover una tarjeta a otro día es asignar a sus técnicos ese día: si
+  // alguno no está, se pregunta igual que al crearla.
+  var tMov=_tareasTablero[id];
+  if(tMov && !confirmarAusencias(choquesDe(tMov.tecnicos||[], fecha), '¿Moverla igualmente?')) return;
   post({accion:'mover', id:id, fecha:fecha}, function(d){
     if(d.ok){ showToast('Movida al '+fecha,'success'); cargarSemana(); }
     else showToast('❌ '+(d.error||'No se pudo mover'),'error');
@@ -1226,12 +1329,355 @@ function columnaTerminadas(empresa, lista){
 }
 
 // ══════════════════════════════════════════════════════════════
+// AUSENCIAS: vacaciones, bajas y permisos que hay en Holded
+// ══════════════════════════════════════════════════════════════
+// Las trae el backend (acción "ausencias", ver ausencias.gs), que las pide a
+// Holded con una clave aparte. Si esa clave no está, o el backend todavía no
+// tiene la acción, todo lo de aquí se calla: el calendario sale solo con los
+// trabajos y los avisos no saltan. Nada de lo anterior depende de esto.
+
+function deTxt(t){ var p=String(t||'').split('/'); return new Date(+p[2],+p[1]-1,+p[0]); }
+
+// ¿Esa ausencia cubre ese día? Todo en texto dd/MM/yyyy.
+function ausenciaCubre(a, txt){
+  var f=deTxt(txt).getTime();
+  return f>=deTxt(a.desde).getTime() && f<=deTxt(a.hasta).getTime();
+}
+
+// Solo las de los técnicos: la oficina también tiene vacaciones, pero no se
+// le asignan trabajos. Las de todo el centro (un festivo local) sí cuentan.
+function soloTecnicosAus(lista){
+  var validos={};
+  for(var i=0;i<TECNICOS_ACTIVOS.length;i++) validos[quitarTildes(TECNICOS_ACTIVOS[i])]=true;
+  var out=[];
+  for(var j=0;j<(lista||[]).length;j++){
+    var a=lista[j];
+    if(a.todos || (a.tecnico && validos[quitarTildes(a.tecnico)])) out.push(a);
+  }
+  return out;
+}
+
+function rangoAus(a){
+  return a.desde===a.hasta ? 'el '+a.desde : 'del '+a.desde+' al '+a.hasta;
+}
+
+// ── Avisos al asignar ─────────────────────────────────────────
+// Se cargan al abrir la app para un margen amplio (una semana atrás y seis
+// meses adelante). Así el aviso es instantáneo al elegir un técnico, sin
+// esperar a Holded en ese momento.
+var AUS_AVISOS=[];
+
+function cargarAusenciasAvisos(){
+  if(GAS_URL.indexOf('PEGA_AQUI')===0) return;
+  var h=new Date();
+  var qs='&desde='+encodeURIComponent(aTxt(sumar(h,-7)))+'&hasta='+encodeURIComponent(aTxt(sumar(h,183)));
+  fetch(GAS_URL+'?action=ausencias'+qs)
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if(d && d.ok && d.conectado){
+        AUS_AVISOS=soloTecnicosAus(d.ausencias);
+        revisarAusenciasFormulario(false);
+      }
+    })
+    .catch(function(){});
+}
+
+function ausenciasDeTecnico(nombre, txt){
+  if(!nombre || !txt) return [];
+  var k=quitarTildes(nombre), out=[];
+  for(var i=0;i<AUS_AVISOS.length;i++){
+    var a=AUS_AVISOS[i];
+    if((a.todos || quitarTildes(a.tecnico)===k) && ausenciaCubre(a, txt)) out.push(a);
+  }
+  return out;
+}
+
+// El día elegido en el formulario, en dd/MM/yyyy, o '' si no hay.
+function fechaFormulario(){
+  var el=document.getElementById('f-fecha');
+  return (el && el.value) ? aTxt(deIso(el.value)) : '';
+}
+
+// Choques de una lista de técnicos con un día: [{nombre, a}]
+function choquesDe(nombres, txt){
+  var out=[], vistos={};
+  for(var i=0;i<nombres.length;i++){
+    var l=ausenciasDeTecnico(nombres[i], txt);
+    for(var j=0;j<l.length;j++){
+      var k=(l[j].todos?'TODOS':nombres[i])+'|'+l[j].desde+'|'+l[j].hasta;
+      if(vistos[k]) continue;
+      vistos[k]=true;
+      out.push({nombre:nombres[i], a:l[j]});
+    }
+  }
+  return out;
+}
+
+// Los de la tarea que se está preparando: técnicos y encargado.
+function choquesFormulario(txt){
+  var nombres=tecnicosElegidos().slice();
+  if(encargadoElegido && nombres.indexOf(encargadoElegido)<0) nombres.push(encargadoElegido);
+  return choquesDe(nombres, txt);
+}
+
+function textoChoque(c){
+  var a=c.a;
+  if(a.todos) return a.tipo+' '+rangoAus(a)+' (todo el centro)';
+  return nombreCorto(c.nombre)+': '+String(a.tipo||'ausencia').toLowerCase()+' '+rangoAus(a)
+       + (a.estado==='pendiente' ? ' (pendiente de aprobar)' : '');
+}
+
+// La etiqueta que sale al lado del nombre en la lista desplegable
+function marcaAusencia(nombre){
+  var l=ausenciasDeTecnico(nombre, fechaFormulario());
+  if(!l.length) return '';
+  return ' <span class="tec-aus">🏖 '+esc(l[0].todos ? l[0].tipo : String(l[0].tipo||'ausencia').toLowerCase())+'</span>';
+}
+
+// Pinta (o quita) el aviso fijo bajo los técnicos. Con conToast, además
+// salta el aviso flotante, para que no pase desapercibido.
+function revisarAusenciasFormulario(conToast){
+  var caja=document.getElementById('aus-aviso');
+  if(!caja) return;
+  var txt=fechaFormulario();
+  var ch=txt ? choquesFormulario(txt) : [];
+  if(!ch.length){ caja.style.display='none'; caja.innerHTML=''; return; }
+  var h='<b>⚠ '+(ch.length===1?'Hay una ausencia':'Hay '+ch.length+' ausencias')+' el '+txt+'</b>';
+  for(var i=0;i<ch.length;i++) h+='<div>'+esc(textoChoque(ch[i]))+'</div>';
+  caja.innerHTML=h;
+  caja.style.display='block';
+  if(conToast) showToast('⚠ '+textoChoque(ch[0]),'error');
+}
+
+// Al elegir un técnico o el encargado
+function avisarAusencia(nombre){
+  revisarAusenciasFormulario(false);
+  var txt=fechaFormulario();
+  var l=ausenciasDeTecnico(nombre, txt);
+  if(l.length) showToast('⚠ '+textoChoque({nombre:nombre, a:l[0]}),'error');
+}
+
+// Pregunta antes de seguir si hay choques. No bloquea: puede que la ausencia
+// se haya cambiado y Holded aún no lo refleje, así que se deja continuar.
+function confirmarAusencias(choques, pregunta){
+  if(!choques.length) return true;
+  var lineas=[];
+  for(var i=0;i<choques.length;i++) lineas.push('• '+textoChoque(choques[i]));
+  return confirm('⚠ Hay ausencias ese día:'+String.fromCharCode(10,10)
+               + lineas.join(String.fromCharCode(10))
+               + String.fromCharCode(10,10)+pregunta);
+}
+
+// ── Calendario ────────────────────────────────────────────────
+var MESES_CAL=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto',
+               'Septiembre','Octubre','Noviembre','Diciembre'];
+var DIAS_CAL=['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+var DIAS_CAL_LARGOS=['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+
+var mesCal=null;            // día 1 del mes que se está viendo
+var _calPeticion=0;         // para descartar la respuesta de un mes que ya no se mira
+var _calDatos=null;
+var _calDiaSel='';
+
+function cambiarMes(n){
+  if(!mesCal){ var h=new Date(); mesCal=new Date(h.getFullYear(), h.getMonth(), 1); }
+  mesCal=new Date(mesCal.getFullYear(), mesCal.getMonth()+n, 1);
+  _calDiaSel='';
+  cargarCalendario();
+}
+function irMesActual(){
+  var h=new Date();
+  mesCal=new Date(h.getFullYear(), h.getMonth(), 1);
+  _calDiaSel='';
+  cargarCalendario();
+}
+
+// Semanas completas, de lunes a domingo, que cubren el mes
+function rangoCal(){
+  var ultimo=new Date(mesCal.getFullYear(), mesCal.getMonth()+1, 0);
+  return { ini:lunesDe(mesCal), fin:sumar(lunesDe(ultimo),6) };
+}
+
+function calEstado(txt){
+  var e=document.getElementById('cal-estado');
+  if(e){ e.textContent=txt; e.style.display = txt ? 'block' : 'none'; }
+}
+
+function cargarCalendario(fresco){
+  if(!mesCal){ var h=new Date(); mesCal=new Date(h.getFullYear(), h.getMonth(), 1); }
+  document.getElementById('cal-titulo').textContent=MESES_CAL[mesCal.getMonth()]+' '+mesCal.getFullYear();
+  document.getElementById('cal-detalle').style.display='none';
+  var yo=++_calPeticion;
+  _calDatos=null;
+  pintarCalendario();
+  if(GAS_URL.indexOf('PEGA_AQUI')===0) return;
+  calEstado('Cargando…');
+
+  var r=rangoCal();
+  var qs='&desde='+encodeURIComponent(aTxt(r.ini))+'&hasta='+encodeURIComponent(aTxt(r.fin));
+  // anio = el del mes que se mira. Sin esto, en enero el rango empieza en
+  // diciembre y el backend leería la hoja del año anterior.
+  var pTareas=fetch(GAS_URL+'?action=tareas'+qs+'&anio='+mesCal.getFullYear())
+    .then(function(x){ return x.json(); }).catch(function(){ return null; });
+  var pAus=fetch(GAS_URL+'?action=ausencias'+qs+(fresco?'&fresco=si':''))
+    .then(function(x){ return x.json(); }).catch(function(){ return null; });
+
+  Promise.all([pTareas, pAus]).then(function(res){
+    if(yo!==_calPeticion) return;
+    var dt=res[0], da=res[1];
+    _calDatos={
+      tareas:    (dt && dt.ok && dt.tareas) || [],
+      ausencias: (da && da.ok) ? soloTecnicosAus(da.ausencias) : [],
+      sinTareas: !(dt && dt.ok),
+      conectado: !!(da && da.ok && da.conectado),
+      sinAus:    !(da && da.ok),
+      problemas: (da && da.problemas) || []
+    };
+    calEstado('');
+    avisoCal();
+    pintarCalendario();
+    if(_calDiaSel) verDiaCal(_calDiaSel);
+  });
+}
+
+function avisoCal(){
+  var caja=document.getElementById('cal-aviso');
+  var d=_calDatos, msg='';
+  if(d.sinTareas) msg+='<div>No he podido cargar los trabajos del mes.</div>';
+  if(d.sinAus){
+    msg+='<div>Las vacaciones no están disponibles todavía: falta actualizar el servidor de tareas.</div>';
+  } else if(!d.conectado){
+    msg+='<div><b>Vacaciones sin conectar.</b> Falta darle al servidor una clave de Holded con permiso '
+       + 'para leer ausencias. Mientras tanto, aquí se ven solo los trabajos.</div>';
+  } else if(d.problemas.length){
+    msg+='<div><b>Holded no ha devuelto las vacaciones:</b> '+esc(d.problemas.join(' · '))+'</div>';
+  }
+  caja.innerHTML=msg;
+  caja.style.display = msg ? 'block' : 'none';
+}
+
+function tituloTarea(t){
+  return (t.hora?t.hora+' · ':'')+(t.cliente||t.trabajo||'Tarea')
+       + ' · '+(t.tecnicos||[]).map(nombreCorto).join(' / ')
+       + (t.estado==='Hecha'?' · hecha':'');
+}
+
+function pintarCalendario(){
+  var cont=document.getElementById('cal');
+  var d=_calDatos, r=rangoCal(), porDia={};
+  if(d) for(var i=0;i<d.tareas.length;i++){
+    (porDia[d.tareas[i].fecha]=porDia[d.tareas[i].fecha]||[]).push(d.tareas[i]);
+  }
+  var h='';
+  for(var c=0;c<7;c++) h+='<div class="cal-cab">'+DIAS_CAL[c]+'</div>';
+
+  for(var f=r.ini; f.getTime()<=r.fin.getTime(); f=sumar(f,1)){
+    var txt=aTxt(f), dow=(f.getDay()+6)%7;
+    var aus=[], tar=porDia[txt]||[];
+    if(d) for(var k=0;k<d.ausencias.length;k++) if(ausenciaCubre(d.ausencias[k], txt)) aus.push(d.ausencias[k]);
+
+    h+='<div class="cal-dia'+(f.getMonth()!==mesCal.getMonth()?' otro':'')+(dow>4?' finde':'')
+      + (esHoy(f)?' hoy':'')+(txt===_calDiaSel?' sel':'')+(aus.length?' con-aus':'')
+      + '" onclick="verDiaCal(\''+txt+'\')">'
+      + '<div class="cal-num">'+f.getDate()+'</div>';
+
+    if(aus.length){
+      h+='<div class="cal-chips">';
+      for(var a=0;a<aus.length && a<3;a++){
+        var x=aus[a];
+        h+='<div class="cal-chip'+(x.estado==='pendiente'?' pend':'')+'" title="'
+          + esc((x.todos?'Todo el centro':x.tecnico)+' · '+x.tipo+' '+rangoAus(x)+' · '+x.estado)+'">'
+          + (x.todos?'🏢 '+esc(x.tipo):'🏖 '+esc(nombreCorto(x.tecnico)))+'</div>';
+      }
+      if(aus.length>3) h+='<div class="cal-mas">+'+(aus.length-3)+' más</div>';
+      h+='</div>';
+    }
+    if(tar.length){
+      h+='<div class="cal-tar">';
+      for(var t=0;t<tar.length && t<2;t++){
+        h+='<div class="cal-t'+(tar[t].estado==='Hecha'?' hecha':'')+'" title="'+esc(tituloTarea(tar[t]))+'">'
+          + (tar[t].estado==='Hecha'?'✓ ':'')+(tar[t].hora?esc(tar[t].hora)+' ':'')
+          + esc(tar[t].cliente||tar[t].trabajo||'Tarea')+'</div>';
+      }
+      if(tar.length>2) h+='<div class="cal-mas">+'+(tar.length-2)+' más</div>';
+      h+='</div>';
+    }
+    // Resumen para pantallas estrechas, donde no caben los nombres
+    if(aus.length || tar.length){
+      h+='<div class="cal-mini">'
+        + (aus.length?'<span class="m-aus">🏖 '+aus.length+'</span>':'')
+        + (tar.length?'<span class="m-tar">🔧 '+tar.length+'</span>':'')
+        + '</div>';
+    }
+    h+='</div>';
+  }
+  cont.innerHTML=h;
+}
+
+function verDiaCal(txt){
+  if(!_calDatos) return;
+  _calDiaSel=txt;
+  pintarCalendario();
+  var d=_calDatos, f=deTxt(txt);
+  var aus=[], tar=[];
+  for(var i=0;i<d.ausencias.length;i++) if(ausenciaCubre(d.ausencias[i], txt)) aus.push(d.ausencias[i]);
+  for(var j=0;j<d.tareas.length;j++) if(d.tareas[j].fecha===txt) tar.push(d.tareas[j]);
+
+  var h='<div class="card-h">'+DIAS_CAL_LARGOS[(f.getDay()+6)%7]+' '+txt
+      + '<span class="cal-cerrar" onclick="cerrarDiaCal()" title="Cerrar">✕</span></div>';
+
+  h+='<div class="fg"><label class="lbl">Ausencias</label>';
+  if(d.sinAus || !d.conectado) h+='<div class="nota">Las vacaciones no están conectadas todavía.</div>';
+  else if(!aus.length) h+='<div class="nota">Nadie de vacaciones ni de baja.</div>';
+  else for(var a=0;a<aus.length;a++){
+    var x=aus[a];
+    h+='<div class="cal-det-fila aus'+(x.estado==='pendiente'?' pend':'')+'">'
+      + (x.todos?'🏢 <b>Todo el centro</b>':'🏖 <b>'+esc(x.tecnico)+'</b>')
+      + '<div class="sub">'+esc(x.tipo)+' '+esc(rangoAus(x))
+      + (x.dias?' · '+esc(x.dias)+' día(s)':'')
+      + ' · '+(x.estado==='pendiente'?'pendiente de aprobar':esc(x.estado))+'</div></div>';
+  }
+  h+='</div>';
+
+  h+='<div class="fg"><label class="lbl">Trabajos programados ('+tar.length+')</label>';
+  if(d.sinTareas) h+='<div class="nota">No se han podido cargar.</div>';
+  else if(!tar.length) h+='<div class="nota">Sin trabajos ese día.</div>';
+  else for(var t=0;t<tar.length;t++){
+    var y=tar[t];
+    h+='<div class="cal-det-fila">'
+      + (y.estado==='Hecha'?'✓ ':'')+(y.hora?'<b>'+esc(y.hora)+'</b> · ':'')
+      + esc(y.cliente||y.trabajo||'Tarea')
+      + '<div class="sub">'+esc((y.tecnicos||[]).map(nombreCorto).join(' / '))
+      + (y.empresa?' · '+esc(y.empresa):'')
+      + (y.estado==='Hecha'?' · hecha':'')+'</div></div>';
+  }
+  h+='</div>';
+
+  var caja=document.getElementById('cal-detalle');
+  caja.innerHTML=h;
+  caja.style.display='block';
+  // En el móvil el detalle queda debajo del mes: se baja hasta él
+  if(window.innerWidth<=640){
+    try{ caja.scrollIntoView({behavior:'smooth', block:'start'}); }catch(e){}
+  }
+}
+
+function cerrarDiaCal(){
+  _calDiaSel='';
+  document.getElementById('cal-detalle').style.display='none';
+  pintarCalendario();
+}
+
+// ══════════════════════════════════════════════════════════════
 // ARRANQUE
 // ══════════════════════════════════════════════════════════════
 (function(){
   tick(); setInterval(tick,20000);
   pintarFilas();
   cargarTecnicos();
+  cargarAusenciasAvisos();
+  // Al cambiar el día se revisa si alguno de los elegidos no está ese día
+  document.getElementById('f-fecha').addEventListener('change', function(){ revisarAusenciasFormulario(true); });
   // Por defecto, mañana: lo normal es dejar preparado el día siguiente
   document.getElementById('f-fecha').value = aIso(sumar(new Date(),1));
   lunesActual = lunesDe(new Date());
