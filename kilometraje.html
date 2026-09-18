@@ -859,6 +859,13 @@ function mandar(payload, tecnico, matricula){
     showToast('❌ '+msg, 'error');
   }
 
+  // Si Google devuelve su página de error en vez de la respuesta, se repite
+  // solo, hasta 3 veces. Es seguro: el parte lleva su idRegistro y el servidor
+  // no guarda dos veces el mismo (devuelve el resultado ya guardado).
+  // "Sin conexión" y "tiempo agotado" siguen como estaban.
+  var ESPERAS = [3000, 8000];
+  var MAX = payload.idRegistro ? 3 : 1;
+  function intentar(n){
   var xhr = new XMLHttpRequest();
   xhr.open('POST', GAS_URL, true);
   xhr.setRequestHeader('Content-Type','text/plain;charset=utf-8');
@@ -867,7 +874,14 @@ function mandar(payload, tecnico, matricula){
     clearInterval(timer);
     var data;
     try{ data = JSON.parse(xhr.responseText); }
-    catch(err){ fallo('Respuesta inválida del servidor'); return; }
+    catch(err){
+      if (n < MAX){
+        btn.textContent = '⏳ Google no responde bien, reintentando ('+(n+1)+'/'+MAX+')…';
+        setTimeout(function(){ intentar(n+1); }, ESPERAS[n-1] || 8000);
+        return;
+      }
+      fallo('Respuesta inválida del servidor'); return;
+    }
 
     if (data.ok){
       btn.textContent = '⏳ Enviando... 100%';
@@ -902,6 +916,8 @@ function mandar(payload, tecnico, matricula){
   xhr.onerror   = function(){ fallo('Sin conexión — revisa la señal e inténtalo otra vez'); };
   xhr.ontimeout = function(){ fallo('Tiempo de espera agotado (120s) — busca mejor cobertura'); };
   xhr.send(JSON.stringify(payload));
+  }
+  intentar(1);
 }
 
 // ══════════════════════════════════════════════════════════════
