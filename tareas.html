@@ -1004,20 +1004,33 @@ function limpiarFormulario(){
   document.getElementById('f-cliente').focus();
 }
 
+// Si Google devuelve su página de error en vez de la respuesta, se repite
+// solo, hasta 3 veces. Es seguro: "crear" lleva idEnvio y el servidor no crea
+// dos veces la misma tarea; mover, anular, cerrar o una nota repetidos dejan
+// todo igual que una sola vez. "Sin conexión" y "tardó demasiado" no se
+// repiten: el servidor podría seguir trabajando con el primero.
 function post(payload, ok, err){
-  var xhr=new XMLHttpRequest();
-  xhr.open('POST', GAS_URL, true);
-  xhr.setRequestHeader('Content-Type','text/plain;charset=utf-8');
-  xhr.timeout=60000;
-  xhr.onload=function(){
-    var d; try{ d=JSON.parse(xhr.responseText); }
-    catch(e){ err('Respuesta inválida del servidor'); return; }
-    ok(d);
-  };
-  xhr.onerror=function(){ err('Sin conexión'); };
-  xhr.ontimeout=function(){ err('El servidor ha tardado demasiado'); };
-  xhr.send(JSON.stringify(payload));
+  var esperas=[3000, 8000];
+  function intentar(n){
+    var xhr=new XMLHttpRequest();
+    xhr.open('POST', GAS_URL, true);
+    xhr.setRequestHeader('Content-Type','text/plain;charset=utf-8');
+    xhr.timeout=60000;
+    xhr.onload=function(){
+      var d; try{ d=JSON.parse(xhr.responseText); }
+      catch(e){
+        if(n<=esperas.length){ setTimeout(function(){ intentar(n+1); }, esperas[n-1]); return; }
+        err('Respuesta inválida del servidor'); return;
+      }
+      ok(d);
+    };
+    xhr.onerror=function(){ err('Sin conexión'); };
+    xhr.ontimeout=function(){ err('El servidor ha tardado demasiado'); };
+    xhr.send(JSON.stringify(payload));
+  }
+  intentar(1);
 }
+
 
 // ══════════════════════════════════════════════════════════════
 // TABLERO SEMANAL
@@ -1075,7 +1088,8 @@ function cargarSemana(){
   // fin de semana no se pintan porque el tablero solo tiene cinco columnas.
   var url=GAS_URL+'?action=panel&desde='+encodeURIComponent(clave)+
           '&hasta='+encodeURIComponent(aTxt(sumar(lunesActual,6)));
-  fetch(url).then(function(r){return r.json();}).then(function(d){
+  // pedirJSON repite si Google devuelve su página de error
+  pedirJSON(url).then(function(d){
     if(!d || !d.ok) throw new Error('respuesta no válida');
     pintarTablero(d.tareas||[]);
     guardarPanelLocal(clave, d);
@@ -1563,16 +1577,49 @@ function calEstado(txt){
   if(e){ e.textContent=txt; e.style.display = txt ? 'block' : 'none'; }
 }
 
+// Copia del calendario en el móvil, por mes, como ya hacía La semana: al
+// volver a un mes sale al instante y se actualiza por detrás. Se guarda solo lo
+// que pinta el calendario (sin descripciones largas) y como mucho 4 meses.
+var CLAVE_CAL='marcres_calendario_v1';
+function _mesClave(){ return mesCal.getFullYear()+'-'+(mesCal.getMonth()+1); }
+function _leerCal(){
+  try{ var g=JSON.parse(localStorage.getItem(CLAVE_CAL)||'null'); return (g && g[_mesClave()]) || null; }
+  catch(e){ return null; }
+}
+function _guardarCal(parte){
+  try{
+    var g=JSON.parse(localStorage.getItem(CLAVE_CAL)||'null') || {};
+    var k=_mesClave(), c=g[k] || {};
+    Object.keys(parte).forEach(function(x){ c[x]=parte[x]; });
+    c.ts=Date.now(); g[k]=c;
+    Object.keys(g).sort(function(a,b){ return (g[b].ts||0)-(g[a].ts||0); })
+      .slice(4).forEach(function(x){ delete g[x]; });
+    localStorage.setItem(CLAVE_CAL, JSON.stringify(g));
+  }catch(e){ /* sin sitio: se sigue sin copia, como antes */ }
+}
+function _tareaCal(t){
+  return { id:t.id, fecha:t.fecha, hora:t.hora, cliente:t.cliente, trabajo:t.trabajo,
+           tecnicos:t.tecnicos, empresa:t.empresa, estado:t.estado, urgente:!!t.urgente };
+}
+
 function cargarCalendario(fresco){
   if(!mesCal){ var h=new Date(); mesCal=new Date(h.getFullYear(), h.getMonth(), 1); }
   document.getElementById('cal-titulo').textContent=MESES_CAL[mesCal.getMonth()]+' '+mesCal.getFullYear();
   document.getElementById('cal-detalle').style.display='none';
   var yo=++_calPeticion;
-  _calDatos=null;
+
+  // Lo último guardado de este mes, al instante
+  var copia=_leerCal();
+  _calDatos = (copia && copia.tareas) ? {
+    tareas: copia.tareas, ausencias: copia.ausencias || [],
+    sinTareas: false, conectado: !!copia.conectado, sinAus: !copia.ausencias,
+    sinRespuestaAus: false, problemas: []
+  } : null;
   pintarCalendario();
   resumenMes();
+  if(_calDatos) avisoCal();
   if(GAS_URL.indexOf('PEGA_AQUI')===0) return;
-  calEstado('Cargando…');
+  calEstado(_calDatos ? 'Mostrando lo de '+haceCuanto(copia.ts)+', actualizando…' : 'Cargando…');
 
   var r=rangoCal();
   var qs='&desde='+encodeURIComponent(aTxt(r.ini))+'&hasta='+encodeURIComponent(aTxt(r.fin));
@@ -1584,16 +1631,28 @@ function cargarCalendario(fresco){
   Promise.all([pTareas, pAus]).then(function(res){
     if(yo!==_calPeticion) return;
     var dt=res[0], da=res[1];
+    var tOk=!!(dt && dt.ok), aOk=!!(da && da.ok);
+    var tieneT=!!(copia && copia.tareas), tieneA=!!(copia && copia.ausencias);
+
+    // Lo que haya fallado se toma de la copia; lo que llegó, se guarda
+    var tareas = tOk ? (dt.tareas||[]).map(_tareaCal) : (tieneT ? copia.tareas : []);
+    var aus    = aOk ? soloTecnicosAus(da.ausencias) : (tieneA ? copia.ausencias : []);
+    var guardar={};
+    if(tOk) guardar.tareas=tareas;
+    if(aOk && da.conectado){ guardar.ausencias=aus; guardar.conectado=true; }
+    if(Object.keys(guardar).length) _guardarCal(guardar);
+
     _calDatos={
-      tareas:    (dt && dt.ok && dt.tareas) || [],
-      ausencias: (da && da.ok) ? soloTecnicosAus(da.ausencias) : [],
-      sinTareas: !(dt && dt.ok),
-      conectado: !!(da && da.ok && da.conectado),
-      sinAus:    !(da && da.ok),
-      sinRespuestaAus: da===null,   // ni tras los reintentos
+      tareas:    tareas,
+      ausencias: aus,
+      sinTareas: !tOk && !tieneT,
+      conectado: aOk ? !!da.conectado : !!(copia && copia.conectado),
+      sinAus:    !aOk && !tieneA,
+      sinRespuestaAus: da===null && !tieneA,   // ni tras los reintentos
       problemas: (da && da.problemas) || []
     };
-    calEstado('');
+    var tirandoDeCopia = (!tOk && tieneT) || (!aOk && tieneA);
+    calEstado(tirandoDeCopia ? 'Google no ha respondido · mostrando lo de '+haceCuanto(copia.ts) : '');
     avisoCal();
     resumenMes();
     pintarCalendario();
