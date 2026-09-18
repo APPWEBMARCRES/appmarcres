@@ -207,16 +207,45 @@ textarea.inp{resize:vertical;min-height:76px;line-height:1.5;}
 .cal-chip{font-size:11px;font-weight:600;background:var(--warn-bg);color:var(--warn);border:1px solid #EFDCB4;border-radius:5px;padding:2px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 /* Pendiente de aprobar: se ve, pero distinta de una aprobada */
 .cal-chip.pend{background:transparent;border-style:dashed;}
+/* Festivo: un color propio, para no confundirlo con unas vacaciones */
+.cal-chip.fest{background:#E6F4FE;color:#0B5E8E;border-color:#BFE3FB;}
+.cal-mini .m-fest{display:none;color:#0B5E8E;}
+.cal-leyenda .l-fest{color:#0B5E8E;font-weight:600;}
+.cal-resumen .r-fest{color:#0B5E8E;font-weight:600;}
+.lbl-fest{color:#0B5E8E;}
+.cal-det-fila.fest{color:#0B5E8E;}
 .cal-tar{display:flex;flex-direction:column;gap:2px;}
-.cal-t{font-size:11px;color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.cal-t.hecha{color:var(--ok);}
+.cal-t{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.cal-t.urg{color:var(--bad);font-weight:700;}
+.cal-t.pend{color:var(--accent);}
+/* Un día con un aviso urgente sin hacer lleva una franja roja a la izquierda */
+.cal-dia.con-urg{border-left:3px solid var(--bad);}
 .cal-mas{font-size:10px;color:var(--muted);}
-.cal-mini{display:none;}
-.cal-mini .m-aus{color:var(--warn);font-weight:700;}
-.cal-mini .m-tar{color:var(--accent);font-weight:600;}
+/* Contadores al pie de cada día. Las vacaciones ya se ven con nombre,
+   así que su contador solo sale en el móvil. */
+.cal-mini{display:flex;flex-wrap:wrap;gap:1px 7px;font-size:11px;margin-top:auto;}
+.cal-mini .m-aus{display:none;color:var(--warn);font-weight:700;}
+.cal-mini .m-urg{color:var(--bad);font-weight:700;}
+.cal-mini .m-pend{color:var(--accent);font-weight:600;}
+.cal-mini .m-hecha{color:var(--ok);font-weight:600;}
 .cal-leyenda{font-size:11px;color:var(--muted);margin:0 0 8px;display:flex;gap:14px;flex-wrap:wrap;}
 .cal-leyenda .l-aus{color:var(--warn);font-weight:600;}
 .cal-leyenda .l-pend{color:var(--warn);border:1px dashed var(--warn);border-radius:5px;padding:0 5px;}
+.cal-leyenda .l-urg{color:var(--bad);font-weight:600;}
+.cal-leyenda .l-tpend{color:var(--accent);font-weight:600;}
+.cal-leyenda .l-hecha{color:var(--ok);font-weight:600;}
+/* Resumen del mes, encima del calendario */
+.cal-resumen{font-size:13px;margin:0 0 10px;display:flex;gap:6px 16px;flex-wrap:wrap;align-items:baseline;}
+.cal-resumen b{color:var(--accent);}
+.cal-resumen .r-urg{color:var(--bad);font-weight:600;}
+.cal-resumen .r-pend{color:var(--accent);font-weight:600;}
+.cal-resumen .r-hecha{color:var(--ok);font-weight:600;}
+.cal-resumen .r-aus{color:var(--warn);font-weight:600;}
+/* Detalle del día, por grupos */
+.lbl-urg{color:var(--bad);} .lbl-pend{color:var(--accent);} .lbl-hecha{color:var(--ok);} .lbl-aus{color:var(--warn);}
+.cal-det-fila.t-urg{border-left:3px solid var(--bad);padding-left:9px;}
+.cal-det-fila.t-pend{border-left:3px solid var(--accent);padding-left:9px;}
+.cal-det-fila.t-hecha{border-left:3px solid var(--ok);padding-left:9px;color:var(--muted);}
 .cal-aviso{background:var(--warn-bg);border:1px solid #EFDCB4;border-left:4px solid var(--warn);color:var(--warn);border-radius:var(--radius-sm);padding:10px 12px;font-size:13px;line-height:1.45;margin-bottom:10px;}
 .cal-det-fila{padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;line-height:1.45;}
 .cal-det-fila:last-child{border-bottom:none;}
@@ -232,8 +261,6 @@ textarea.inp{resize:vertical;min-height:76px;line-height:1.5;}
 @media(max-width:1024px){
   .cal-dia{min-height:92px;}
   .cal-tar{display:none;}
-  .cal-mini{display:flex;}
-  .cal-mini .m-aus{display:none;}
 }
 /* Móvil: siete columnas de 45 px no dan para nombres. Queda el número del
    día y dos contadores; al tocar el día, el detalle sale debajo. */
@@ -241,10 +268,13 @@ textarea.inp{resize:vertical;min-height:76px;line-height:1.5;}
   .cal{gap:3px;}
   .cal-cab{font-size:10px;letter-spacing:0;}
   .cal-dia{min-height:56px;padding:4px;border-radius:6px;gap:2px;}
+  .cal-dia.con-fest{background:#E6F4FE;}
   .cal-dia.con-aus{background:var(--warn-bg);}
+  .cal-mini .m-fest{display:inline;}
   .cal-chips{display:none;}
-  .cal-mini{display:flex;flex-direction:column;gap:1px;font-size:10px;line-height:1.2;}
-  .cal-mini .m-aus{display:block;}
+  .cal-mini{gap:0 3px;font-size:10px;line-height:1.25;}
+  .cal-mini .m-aus{display:inline;}
+  .cal-dia.con-urg{border-left-width:3px;}
   .cal-num{font-size:12px;}
   /* Con cuatro pestañas, "Nueva tarea" se partía en dos líneas y la barra
      crecía de 41 a 57 px. En una sola línea caben a partir de 375 px. */
@@ -436,10 +466,14 @@ textarea.inp{resize:vertical;min-height:76px;line-height:1.5;}
     </div>
   </div>
   <div class="cal-aviso" id="cal-aviso" style="display:none;"></div>
+  <div class="cal-resumen" id="cal-resumen"></div>
   <div class="cal-leyenda">
+    <span class="l-urg">🔔 Aviso urgente</span>
+    <span class="l-tpend">⏳ Por hacer</span>
+    <span class="l-hecha">✅ Hecha</span>
     <span class="l-aus">🏖 Vacaciones o ausencia</span>
+    <span class="l-fest">🎉 Festivo</span>
     <span class="l-pend">pendiente de aprobar</span>
-    <span>🔧 Trabajos programados</span>
     <span>Toca un día para ver el detalle</span>
   </div>
   <div class="cal" id="cal"></div>
@@ -1367,19 +1401,45 @@ function rangoAus(a){
 // esperar a Holded en ese momento.
 var AUS_AVISOS=[];
 
+// Google a veces devuelve su propia página de error en lugar de la respuesta,
+// sobre todo en las peticiones que tardan (leer Holded puede llevar 30 s).
+// Se reintenta dos veces antes de darla por perdida. Devuelve el JSON, o null.
+function pedirJSON(url){
+  var esperas=[4000, 10000];
+  return new Promise(function(resolve){
+    function uno(n){
+      fetch(url)
+        .then(function(r){ return r.text(); })
+        .then(function(t){ resolve(JSON.parse(t)); })
+        .catch(function(){
+          if(n<=esperas.length) setTimeout(function(){ uno(n+1); }, esperas[n-1]);
+          else resolve(null);
+        });
+    }
+    uno(1);
+  });
+}
+
+// Holded apunta los festivos persona a persona: el 12 de octubre salen trece
+// técnicos con un "Festivo". En el calendario se agrupan en uno solo, y el 🏖
+// se queda para las vacaciones y ausencias de cada uno.
+function esFestivo(a){ return !!a.todos || /festiv/i.test(String(a.tipo||'')); }
+// Cómo se nombra en los avisos. En Holded conviven "Festivo" y "Festivos".
+function nombreTipo(a){ return esFestivo(a) ? 'festivo' : String(a.tipo||'ausencia').toLowerCase(); }
+
 function cargarAusenciasAvisos(){
   if(GAS_URL.indexOf('PEGA_AQUI')===0) return;
   var h=new Date();
-  var qs='&desde='+encodeURIComponent(aTxt(sumar(h,-7)))+'&hasta='+encodeURIComponent(aTxt(sumar(h,183)));
-  fetch(GAS_URL+'?action=ausencias'+qs)
-    .then(function(r){ return r.json(); })
-    .then(function(d){
-      if(d && d.ok && d.conectado){
-        AUS_AVISOS=soloTecnicosAus(d.ausencias);
-        revisarAusenciasFormulario(false);
-      }
-    })
-    .catch(function(){});
+  // Tres meses por delante: se planifica con semanas de antelación, y pedir
+  // más a Holded alarga la petición hasta que Google la corta (medido: seis
+  // meses tardaban unos 32 s y a veces fallaban; tres, pocos segundos).
+  var qs='&desde='+encodeURIComponent(aTxt(sumar(h,-7)))+'&hasta='+encodeURIComponent(aTxt(sumar(h,90)));
+  pedirJSON(GAS_URL+'?action=ausencias'+qs).then(function(d){
+    if(d && d.ok && d.conectado){
+      AUS_AVISOS=soloTecnicosAus(d.ausencias);
+      revisarAusenciasFormulario(false);
+    }
+  });
 }
 
 function ausenciasDeTecnico(nombre, txt){
@@ -1423,7 +1483,7 @@ function choquesFormulario(txt){
 function textoChoque(c){
   var a=c.a;
   if(a.todos) return a.tipo+' '+rangoAus(a)+' (todo el centro)';
-  return nombreCorto(c.nombre)+': '+String(a.tipo||'ausencia').toLowerCase()+' '+rangoAus(a)
+  return nombreCorto(c.nombre)+': '+nombreTipo(a)+' '+rangoAus(a)
        + (a.estado==='pendiente' ? ' (pendiente de aprobar)' : '');
 }
 
@@ -1431,7 +1491,7 @@ function textoChoque(c){
 function marcaAusencia(nombre){
   var l=ausenciasDeTecnico(nombre, fechaFormulario());
   if(!l.length) return '';
-  return ' <span class="tec-aus">🏖 '+esc(l[0].todos ? l[0].tipo : String(l[0].tipo||'ausencia').toLowerCase())+'</span>';
+  return ' <span class="tec-aus">'+(esFestivo(l[0])?'🎉 ':'🏖 ')+esc(l[0].todos ? l[0].tipo : nombreTipo(l[0]))+'</span>';
 }
 
 // Pinta (o quita) el aviso fijo bajo los técnicos. Con conToast, además
@@ -1510,6 +1570,7 @@ function cargarCalendario(fresco){
   var yo=++_calPeticion;
   _calDatos=null;
   pintarCalendario();
+  resumenMes();
   if(GAS_URL.indexOf('PEGA_AQUI')===0) return;
   calEstado('Cargando…');
 
@@ -1517,10 +1578,8 @@ function cargarCalendario(fresco){
   var qs='&desde='+encodeURIComponent(aTxt(r.ini))+'&hasta='+encodeURIComponent(aTxt(r.fin));
   // anio = el del mes que se mira. Sin esto, en enero el rango empieza en
   // diciembre y el backend leería la hoja del año anterior.
-  var pTareas=fetch(GAS_URL+'?action=tareas'+qs+'&anio='+mesCal.getFullYear())
-    .then(function(x){ return x.json(); }).catch(function(){ return null; });
-  var pAus=fetch(GAS_URL+'?action=ausencias'+qs+(fresco?'&fresco=si':''))
-    .then(function(x){ return x.json(); }).catch(function(){ return null; });
+  var pTareas=pedirJSON(GAS_URL+'?action=tareas'+qs+'&anio='+mesCal.getFullYear());
+  var pAus=pedirJSON(GAS_URL+'?action=ausencias'+qs+(fresco?'&fresco=si':''));
 
   Promise.all([pTareas, pAus]).then(function(res){
     if(yo!==_calPeticion) return;
@@ -1531,10 +1590,12 @@ function cargarCalendario(fresco){
       sinTareas: !(dt && dt.ok),
       conectado: !!(da && da.ok && da.conectado),
       sinAus:    !(da && da.ok),
+      sinRespuestaAus: da===null,   // ni tras los reintentos
       problemas: (da && da.problemas) || []
     };
     calEstado('');
     avisoCal();
+    resumenMes();
     pintarCalendario();
     if(_calDiaSel) verDiaCal(_calDiaSel);
   });
@@ -1543,8 +1604,12 @@ function cargarCalendario(fresco){
 function avisoCal(){
   var caja=document.getElementById('cal-aviso');
   var d=_calDatos, msg='';
-  if(d.sinTareas) msg+='<div>No he podido cargar los trabajos del mes.</div>';
-  if(d.sinAus){
+  if(d.sinTareas) msg+='<div>No he podido cargar los trabajos del mes: Google no ha respondido. '
+     + 'Pulsa <b>↻ Actualizar</b> para volver a intentarlo.</div>';
+  if(d.sinAus && d.sinRespuestaAus){
+    msg+='<div>No se han podido traer las vacaciones: Google no ha respondido. '
+       + 'Pulsa <b>↻ Actualizar</b> para volver a intentarlo.</div>';
+  } else if(d.sinAus){
     msg+='<div>Las vacaciones no están disponibles todavía: falta actualizar el servidor de tareas.</div>';
   } else if(!d.conectado){
     msg+='<div><b>Vacaciones sin conectar.</b> Falta darle al servidor una clave de Holded con permiso '
@@ -1556,10 +1621,62 @@ function avisoCal(){
   caja.style.display = msg ? 'block' : 'none';
 }
 
+// Qué es cada tarea en el calendario: aviso urgente, por hacer o hecha.
+// Un aviso ya hecho cuenta como hecho: lo que importa es lo que queda.
+var ICONO_TAREA={ urg:'🔔', pend:'⏳', hecha:'✅' };
+var NOMBRE_TAREA={ urg:'Aviso urgente', pend:'Por hacer', hecha:'Hecha' };
+var ORDEN_TAREA={ urg:0, pend:1, hecha:2 };
+
+function claseTarea(t){
+  if(t.estado==='Hecha') return 'hecha';
+  return t.urgente ? 'urg' : 'pend';
+}
+
+// Primero los avisos, luego lo que queda por hacer, y al final lo hecho.
+// Dentro de cada grupo, por hora; las que no tienen hora, al final.
+function ordenarDia(lista){
+  return lista.slice().sort(function(a,b){
+    var d=ORDEN_TAREA[claseTarea(a)]-ORDEN_TAREA[claseTarea(b)];
+    if(d) return d;
+    return String(a.hora||'99:99').localeCompare(String(b.hora||'99:99'));
+  });
+}
+
+function contarTareas(lista){
+  var c={urg:0, pend:0, hecha:0};
+  for(var i=0;i<lista.length;i++) c[claseTarea(lista[i])]++;
+  return c;
+}
+
 function tituloTarea(t){
-  return (t.hora?t.hora+' · ':'')+(t.cliente||t.trabajo||'Tarea')
-       + ' · '+(t.tecnicos||[]).map(nombreCorto).join(' / ')
-       + (t.estado==='Hecha'?' · hecha':'');
+  return NOMBRE_TAREA[claseTarea(t)]+' · '+(t.hora?t.hora+' · ':'')+(t.cliente||t.trabajo||'Tarea')
+       + ' · '+(t.tecnicos||[]).map(nombreCorto).join(' / ');
+}
+
+// Lo que hay en el mes que se mira, sin contar los días grises de los
+// meses de al lado.
+function resumenMes(){
+  var caja=document.getElementById('cal-resumen');
+  if(!caja) return;
+  var d=_calDatos;
+  if(!d || d.sinTareas){ caja.innerHTML=''; return; }
+  var m=mesCal.getMonth(), c={urg:0, pend:0, hecha:0};
+  for(var i=0;i<d.tareas.length;i++){
+    if(deTxt(d.tareas[i].fecha).getMonth()===m) c[claseTarea(d.tareas[i])]++;
+  }
+  var ini=mesCal.getTime(), fin=new Date(mesCal.getFullYear(), m+1, 0).getTime(), aus=0, diasFest={};
+  for(var j=0;j<d.ausencias.length;j++){
+    var a=d.ausencias[j];
+    if(deTxt(a.hasta).getTime()<ini || deTxt(a.desde).getTime()>fin) continue;
+    if(esFestivo(a)) diasFest[a.desde]=true; else aus++;
+  }
+  var nf=Object.keys(diasFest).length;
+  caja.innerHTML='<b>'+MESES_CAL[m]+'</b>'
+    + '<span class="r-urg">🔔 '+c.urg+' aviso'+(c.urg===1?'':'s')+'</span>'
+    + '<span class="r-pend">⏳ '+c.pend+' por hacer</span>'
+    + '<span class="r-hecha">✅ '+c.hecha+' hecha'+(c.hecha===1?'':'s')+'</span>'
+    + (d.conectado ? '<span class="r-aus">🏖 '+aus+' ausencia'+(aus===1?'':'s')+'</span>'
+                   + (nf ? '<span class="r-fest">🎉 '+nf+' festivo'+(nf===1?'':'s')+'</span>' : '') : '');
 }
 
 function pintarCalendario(){
@@ -1575,43 +1692,73 @@ function pintarCalendario(){
     var txt=aTxt(f), dow=(f.getDay()+6)%7;
     var aus=[], tar=porDia[txt]||[];
     if(d) for(var k=0;k<d.ausencias.length;k++) if(ausenciaCubre(d.ausencias[k], txt)) aus.push(d.ausencias[k]);
+    var n=contarTareas(tar);
+    var fest=aus.filter(esFestivo), pers=aus.filter(function(z){ return !esFestivo(z); });
 
     h+='<div class="cal-dia'+(f.getMonth()!==mesCal.getMonth()?' otro':'')+(dow>4?' finde':'')
-      + (esHoy(f)?' hoy':'')+(txt===_calDiaSel?' sel':'')+(aus.length?' con-aus':'')
+      + (esHoy(f)?' hoy':'')+(txt===_calDiaSel?' sel':'')+(pers.length?' con-aus':'')+(fest.length?' con-fest':'')+(n.urg?' con-urg':'')
       + '" onclick="verDiaCal(\''+txt+'\')">'
       + '<div class="cal-num">'+f.getDate()+'</div>';
 
+    // Festivo (uno solo, aunque Holded lo apunte a cada técnico) y vacaciones con nombre
     if(aus.length){
       h+='<div class="cal-chips">';
-      for(var a=0;a<aus.length && a<3;a++){
-        var x=aus[a];
+      if(fest.length){
+        var todoCentro=fest.some(function(z){ return z.todos; });
+        h+='<div class="cal-chip fest" title="'+esc(todoCentro?'Festivo de todo el centro':'Festivo · '+fest.length+' técnico(s)')+'">🎉 Festivo</div>';
+      }
+      for(var a=0;a<pers.length && a<3;a++){
+        var x=pers[a];
         h+='<div class="cal-chip'+(x.estado==='pendiente'?' pend':'')+'" title="'
-          + esc((x.todos?'Todo el centro':x.tecnico)+' · '+x.tipo+' '+rangoAus(x)+' · '+x.estado)+'">'
-          + (x.todos?'🏢 '+esc(x.tipo):'🏖 '+esc(nombreCorto(x.tecnico)))+'</div>';
+          + esc(x.tecnico+' · '+x.tipo+' '+rangoAus(x)+' · '+x.estado)+'">'
+          + '🏖 '+esc(nombreCorto(x.tecnico))+'</div>';
       }
-      if(aus.length>3) h+='<div class="cal-mas">+'+(aus.length-3)+' más</div>';
+      if(pers.length>3) h+='<div class="cal-mas">+'+(pers.length-3)+' más</div>';
       h+='</div>';
     }
-    if(tar.length){
+
+    // Lo que queda por hacer, con nombre: primero los avisos. Lo hecho no se
+    // lista (ya pasó); se cuenta abajo.
+    var abiertas=ordenarDia(tar).filter(function(y){ return claseTarea(y)!=='hecha'; });
+    if(abiertas.length){
       h+='<div class="cal-tar">';
-      for(var t=0;t<tar.length && t<2;t++){
-        h+='<div class="cal-t'+(tar[t].estado==='Hecha'?' hecha':'')+'" title="'+esc(tituloTarea(tar[t]))+'">'
-          + (tar[t].estado==='Hecha'?'✓ ':'')+(tar[t].hora?esc(tar[t].hora)+' ':'')
-          + esc(tar[t].cliente||tar[t].trabajo||'Tarea')+'</div>';
+      for(var t=0;t<abiertas.length && t<2;t++){
+        var y=abiertas[t], q=claseTarea(y);
+        h+='<div class="cal-t '+q+'" title="'+esc(tituloTarea(y))+'">'+ICONO_TAREA[q]+' '
+          + (y.hora?esc(y.hora)+' ':'')+esc(y.cliente||y.trabajo||'Tarea')+'</div>';
       }
-      if(tar.length>2) h+='<div class="cal-mas">+'+(tar.length-2)+' más</div>';
       h+='</div>';
     }
-    // Resumen para pantallas estrechas, donde no caben los nombres
+
+    // Contadores de las cuatro cosas. En el móvil es lo único que cabe.
     if(aus.length || tar.length){
       h+='<div class="cal-mini">'
-        + (aus.length?'<span class="m-aus">🏖 '+aus.length+'</span>':'')
-        + (tar.length?'<span class="m-tar">🔧 '+tar.length+'</span>':'')
+        + (fest.length?'<span class="m-fest">🎉</span>':'')
+        + (pers.length?'<span class="m-aus">🏖'+pers.length+'</span>':'')
+        + (n.urg?'<span class="m-urg">🔔'+n.urg+'</span>':'')
+        + (n.pend?'<span class="m-pend">⏳'+n.pend+'</span>':'')
+        + (n.hecha?'<span class="m-hecha">✅'+n.hecha+'</span>':'')
         + '</div>';
     }
     h+='</div>';
   }
   cont.innerHTML=h;
+}
+
+// Un bloque del detalle del día: avisos, por hacer o hechas.
+function bloqueTareasDia(q, lista){
+  if(!lista.length) return '';
+  var h='<div class="fg"><label class="lbl lbl-'+q+'">'+ICONO_TAREA[q]+' '
+      + (q==='urg'?'Avisos urgentes':(q==='pend'?'Por hacer':'Hechas'))+' ('+lista.length+')</label>';
+  for(var i=0;i<lista.length;i++){
+    var y=lista[i];
+    h+='<div class="cal-det-fila t-'+q+'">'
+      + (y.hora?'<b>'+esc(y.hora)+'</b> · ':'')+esc(y.cliente||y.trabajo||'Tarea')
+      + '<div class="sub">'+esc((y.tecnicos||[]).map(nombreCorto).join(' / '))
+      + (y.cliente && y.trabajo ? ' · '+esc(y.trabajo) : '')
+      + (y.empresa?' · '+esc(y.empresa):'')+'</div></div>';
+  }
+  return h+'</div>';
 }
 
 function verDiaCal(txt){
@@ -1622,36 +1769,36 @@ function verDiaCal(txt){
   var aus=[], tar=[];
   for(var i=0;i<d.ausencias.length;i++) if(ausenciaCubre(d.ausencias[i], txt)) aus.push(d.ausencias[i]);
   for(var j=0;j<d.tareas.length;j++) if(d.tareas[j].fecha===txt) tar.push(d.tareas[j]);
+  var grupos={urg:[], pend:[], hecha:[]};
+  ordenarDia(tar).forEach(function(y){ grupos[claseTarea(y)].push(y); });
 
   var h='<div class="card-h">'+DIAS_CAL_LARGOS[(f.getDay()+6)%7]+' '+txt
       + '<span class="cal-cerrar" onclick="cerrarDiaCal()" title="Cerrar">✕</span></div>';
 
-  h+='<div class="fg"><label class="lbl">Ausencias</label>';
+  var fest=aus.filter(esFestivo), pers=aus.filter(function(z){ return !esFestivo(z); });
+  if(fest.length){
+    var deTodos=fest.some(function(z){ return z.todos; });
+    var quienes=fest.filter(function(z){ return !z.todos; }).map(function(z){ return nombreCorto(z.tecnico); });
+    h+='<div class="fg"><label class="lbl lbl-fest">🎉 Festivo</label>'
+      + '<div class="cal-det-fila fest"><b>'+(deTodos?'Todo el centro':quienes.length+' técnico'+(quienes.length===1?'':'s'))+'</b>'
+      + (quienes.length?'<div class="sub">'+esc(quienes.join(', '))+'</div>':'')+'</div></div>';
+  }
+  h+='<div class="fg"><label class="lbl lbl-aus">🏖 Vacaciones y ausencias'+(pers.length?' ('+pers.length+')':'')+'</label>';
   if(d.sinAus || !d.conectado) h+='<div class="nota">Las vacaciones no están conectadas todavía.</div>';
-  else if(!aus.length) h+='<div class="nota">Nadie de vacaciones ni de baja.</div>';
-  else for(var a=0;a<aus.length;a++){
-    var x=aus[a];
+  else if(!pers.length) h+='<div class="nota">Nadie de vacaciones ni de baja.</div>';
+  else for(var a=0;a<pers.length;a++){
+    var x=pers[a];
     h+='<div class="cal-det-fila aus'+(x.estado==='pendiente'?' pend':'')+'">'
-      + (x.todos?'🏢 <b>Todo el centro</b>':'🏖 <b>'+esc(x.tecnico)+'</b>')
+      + '<b>'+esc(x.tecnico)+'</b>'
       + '<div class="sub">'+esc(x.tipo)+' '+esc(rangoAus(x))
       + (x.dias?' · '+esc(x.dias)+' día(s)':'')
       + ' · '+(x.estado==='pendiente'?'pendiente de aprobar':esc(x.estado))+'</div></div>';
   }
   h+='</div>';
 
-  h+='<div class="fg"><label class="lbl">Trabajos programados ('+tar.length+')</label>';
-  if(d.sinTareas) h+='<div class="nota">No se han podido cargar.</div>';
-  else if(!tar.length) h+='<div class="nota">Sin trabajos ese día.</div>';
-  else for(var t=0;t<tar.length;t++){
-    var y=tar[t];
-    h+='<div class="cal-det-fila">'
-      + (y.estado==='Hecha'?'✓ ':'')+(y.hora?'<b>'+esc(y.hora)+'</b> · ':'')
-      + esc(y.cliente||y.trabajo||'Tarea')
-      + '<div class="sub">'+esc((y.tecnicos||[]).map(nombreCorto).join(' / '))
-      + (y.empresa?' · '+esc(y.empresa):'')
-      + (y.estado==='Hecha'?' · hecha':'')+'</div></div>';
-  }
-  h+='</div>';
+  if(d.sinTareas) h+='<div class="fg"><div class="nota">No se han podido cargar los trabajos.</div></div>';
+  else if(!tar.length) h+='<div class="fg"><label class="lbl">Trabajos</label><div class="nota">Sin trabajos ese día.</div></div>';
+  else h+=bloqueTareasDia('urg', grupos.urg)+bloqueTareasDia('pend', grupos.pend)+bloqueTareasDia('hecha', grupos.hecha);
 
   var caja=document.getElementById('cal-detalle');
   caja.innerHTML=h;
