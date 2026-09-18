@@ -1176,6 +1176,7 @@ const GAS_TAREAS='https://script.google.com/macros/s/AKfycbzRA5IGI-KpJDUfYfMyIRR
 // mañana, y los devuelve con la misma forma que las tareas de Holded para
 // poder pintarlos con el código que ya existe.
 async function traerTareasPlanificadas(nombreTecnico) {
+  _panelUltimaOk = false;   // se pone a true solo si responde bien
   if (!nombreTecnico) return [];
   try {
     const ctrl = new AbortController();
@@ -1185,6 +1186,7 @@ async function traerTareasPlanificadas(nombreTecnico) {
     clearTimeout(timer);
     const data = await res.json();
     if (!data || !data.ok || !data.tareas) return [];
+    _panelUltimaOk = true;
     return data.tareas.map(function(t) {
       return {
         id: t.id,
@@ -2141,6 +2143,122 @@ async function enviarAlbaran(panel){
 let tecnicoElegido={c:false,a:false};
 let empleadosCache=null;
 
+// ══════════════════════════════════════════════════════════════
+// COPIA EN EL MÓVIL: técnicos y tareas al instante
+// ══════════════════════════════════════════════════════════════
+// Google Apps Script tarda a ratos entre 1 y 80 segundos en contestar, y a
+// veces no contesta (medido el 18/09/2026). Antes la app esperaba a Google
+// cada vez: la lista de técnicos salía tarde o con "Error al buscar", y las
+// tareas igual. Ahora se enseña al instante lo último guardado en el móvil y
+// se actualiza por detrás, como ya hacían La semana y el catálogo.
+//
+// Sin copia guardada (la primera vez en un móvil), todo funciona igual que
+// antes: se espera a Google.
+
+// ── Técnicos ──────────────────────────────────────────────────
+var CLAVE_EMPLEADOS='marcres_empleados_v1';
+var _cargaEmpleados=null;
+
+function _leerEmpleadosLocal(){
+  try{
+    var g=JSON.parse(localStorage.getItem(CLAVE_EMPLEADOS)||'null');
+    return (g && g.lista && g.lista.length) ? g.lista : null;
+  }catch(e){ return null; }
+}
+function _guardarEmpleadosLocal(lista){
+  try{ localStorage.setItem(CLAVE_EMPLEADOS, JSON.stringify({ts:Date.now(), lista:lista})); }catch(e){}
+}
+// Pide la lista a Google (como antes), la deja en memoria y en el móvil.
+// Si ya hay una petición en marcha, se espera a esa.
+function _descargarEmpleados(){
+  if(_cargaEmpleados) return _cargaEmpleados;
+  var ctrl=new AbortController();
+  var timer=setTimeout(function(){ ctrl.abort(); },20000);
+  _cargaEmpleados=fetch(GAS_URL+'?action=empleados&q=',{signal:ctrl.signal})
+    .then(function(r){ clearTimeout(timer); return r.text(); })
+    .then(function(t){
+      var d=JSON.parse(t);
+      if(!d || !d.ok || !d.empleados || !d.empleados.length) throw new Error('lista vacía');
+      var l=soloTecnicosActivos(d.empleados);
+      empleadosCache=l;
+      _guardarEmpleadosLocal(l);
+      return l;
+    });
+  _cargaEmpleados.then(function(){ _cargaEmpleados=null; }, function(){ clearTimeout(timer); _cargaEmpleados=null; });
+  return _cargaEmpleados;
+}
+// La lista de técnicos: memoria → copia del móvil → Google → la lista fija.
+//   soloReales=true: sin la lista fija (la pantalla de operarios necesita el
+//   identificador de Holded de cada uno, y la lista fija no lo tiene).
+function obtenerEmpleados(soloReales){
+  if(empleadosCache && empleadosCache.length) return Promise.resolve(empleadosCache);
+  var guardada=_leerEmpleadosLocal();
+  if(guardada){
+    empleadosCache=guardada;
+    _descargarEmpleados().catch(function(){});        // se actualiza por detrás
+    return Promise.resolve(guardada);
+  }
+  return _descargarEmpleados()
+    .catch(function(){                                 // un reintento: los fallos de Google son pasajeros
+      return new Promise(function(r){ setTimeout(r,2000); }).then(_descargarEmpleados);
+    })
+    .catch(function(e){
+      if(soloReales) throw e;
+      // Último recurso: los técnicos que ya lleva escritos la app. Van sin el
+      // identificador de Holded, que aquí no hace falta: las tareas del
+      // técnico se buscan por su nombre.
+      return TECNICOS_ACTIVOS.map(function(n){ return {id:'', name:n}; });
+    });
+}
+
+// ── Tareas del técnico ───────────────────────────────────────
+// Se guardan las de HOY, cada fuente por separado (panel de la oficina y
+// Holded): si al actualizar falla una, se conserva su parte de la copia en
+// vez de dejar la lista a medias o vacía.
+var CLAVE_TAREAS_TEC='marcres_tareas_tecnico_v1';
+var _panelUltimaOk=false;     // lo apunta traerTareasPlanificadas
+var _eleccionesTarea=0;       // sube cada vez que el técnico elige una tarea
+
+function _hoyClave(){ var d=new Date(); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); }
+function _claveTec(n){ return _sinTildes(n||'').replace(/\s+/g,' ').trim(); }
+
+function leerTareasCopia(nombre){
+  try{
+    var g=JSON.parse(localStorage.getItem(CLAVE_TAREAS_TEC)||'null');
+    if(!g || g.dia!==_hoyClave() || !g.tec) return null;   // solo las de hoy
+    var c=g.tec[_claveTec(nombre)];
+    return (c && c.panel && c.holded) ? c : null;
+  }catch(e){ return null; }
+}
+function guardarTareasCopia(nombre, panel, holded){
+  try{
+    var g=JSON.parse(localStorage.getItem(CLAVE_TAREAS_TEC)||'null');
+    if(!g || g.dia!==_hoyClave() || !g.tec) g={dia:_hoyClave(), tec:{}};
+    g.tec[_claveTec(nombre)]={ts:Date.now(), panel:panel, holded:holded};
+    localStorage.setItem(CLAVE_TAREAS_TEC, JSON.stringify(g));
+  }catch(e){ /* sin sitio: se sigue sin copia, como antes */ }
+}
+// Junta lo recién traído con la copia: la fuente que haya fallado se toma de
+// la copia. Sin copia, queda exactamente lo recién traído (como antes).
+function mezclarTareas(nombre, panel, panelOk, holded, holdedOk){
+  var copia=leerTareasCopia(nombre);
+  var r={
+    panel:  panelOk  ? panel  : (copia ? copia.panel  : panel),
+    holded: holdedOk ? holded : (copia ? copia.holded : holded),
+    todasFallaron: !panelOk && !holdedOk,
+    tsCopia: copia ? copia.ts : 0
+  };
+  if(panelOk || holdedOk) guardarTareasCopia(nombre, r.panel, r.holded);   // solo si llegó algo de verdad
+  return r;
+}
+function _horaDe(ts){ var d=new Date(ts); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
+function avisoCopiaTareas(tipo, ts){
+  if(tipo==='copia') return '<div class="tareas-cargando-alb" style="font-size:11px;padding:6px 10px;">📋 Lista guardada a las '+_horaDe(ts)+' · actualizando…</div>';
+  if(tipo==='sinNada') return '<div class="tareas-cargando-alb" style="color:var(--warn);">⚠ Google no ha respondido y no se han podido cargar tus tareas. Vuelve a elegir tu nombre para reintentarlo.</div>';
+  if(tipo==='sinRed') return '<div class="tareas-cargando-alb" style="font-size:11px;padding:6px 10px;color:var(--warn);">⚠ Google no ha respondido: es la lista de las '+_horaDe(ts)+'. Puede faltar algo nuevo.</div>';
+  return '';
+}
+
 // ── TÉCNICOS EXTRA (2, 3, 4...) con búsqueda Holded ──────────
 var _tecnicosExtra={c:[],a:[]};
 var _tecnicoExtraCounter=0;
@@ -2430,12 +2548,10 @@ async function iniciarPantallasTareas() {
   // Reutilizar caché de empleados si existe
   const grid = document.getElementById('operarios-grid');
   try {
-    if (!empleadosCache) {
-      const res = await fetch(GAS_URL + '?action=empleados&q=');
-      const data = await res.json();
-      empleadosCache = soloTecnicosActivos(data.ok ? data.empleados : []);
-    }
-    if (!empleadosCache.length) {
+    // Copia del móvil o Google. Aquí NO vale la lista fija de la app: esta
+    // pantalla necesita el identificador de Holded de cada técnico.
+    await obtenerEmpleados(true);
+    if (!empleadosCache || !empleadosCache.length) {
       grid.innerHTML = '<div class="tareas-empty"><div class="empty-icon">⚠️</div><p>No se encontraron técnicos en Holded</p></div>';
       return;
     }
@@ -2628,14 +2744,10 @@ async function buscarEmpleadoAlbaran(q) {
   drop.style.display = 'block';
   drop.innerHTML = '<div class="holded-searching">Cargando técnicos...</div>';
   try {
-    if (!empleadosCache) {
-      const res = await fetch(GAS_URL + '?action=empleados&q=');
-      const data = await res.json();
-      empleadosCache = soloTecnicosActivos(data.ok ? data.empleados : []);
-    }
+    const listaEmp = await obtenerEmpleados();
     const filtrados = q.length > 0
-      ? empleadosCache.filter(e => e.name.toLowerCase().includes(q.toLowerCase()))
-      : empleadosCache;
+      ? listaEmp.filter(e => e.name.toLowerCase().includes(q.toLowerCase()))
+      : listaEmp;
     if (!filtrados.length) { drop.innerHTML = '<div class="holded-searching">Sin resultados</div>'; return; }
     // Guardar empleados filtrados en array global para evitar comillas en onclick
     window._empleadosAlbaran = filtrados.slice(0, 50);
@@ -2687,11 +2799,18 @@ async function elegirTecnicoAlbaran(idxOId, nombre) {
   cargarTareasAlbaran(id, nomFinal);
 }
 
+var _cargaTareasAlbN=0;   // para no pintar la respuesta de un técnico o empresa que ya no se mira
 async function cargarTareasAlbaran(id, nomFinal) {
   const wrap = document.getElementById('a-tareas-wrap');
   wrap.style.display = 'block';
   const lista = document.getElementById('a-tareas-lista');
   lista.innerHTML = '<div class="tareas-cargando-alb">⏳ Cargando tareas asignadas...</div>';
+  var yo = ++_cargaTareasAlbN;
+
+  // Lo último guardado de hoy, al instante. Lo nuevo llega detrás.
+  var copia = leerTareasCopia(nomFinal);
+  var eleccionesAntes = _eleccionesTarea;
+  if (copia) pintarTareasAlbaran(copia.panel.concat(copia.holded), avisoCopiaTareas('copia', copia.ts));
 
   try {
     // Las dos fuentes se piden A LA VEZ, y cada una se apaña sola si falla.
@@ -2703,6 +2822,7 @@ async function cargarTareasAlbaran(id, nomFinal) {
     // sus dos tareas del dia estaban en el panel y Holded no tenia ninguna.
     //
     // Ahora, si Holded falla o tarda, las de la oficina salen igual.
+    var holdedOk = false;
     const [deHolded, delPanel] = await Promise.all([
       (async function(){
         try {
@@ -2712,70 +2832,90 @@ async function cargarTareasAlbaran(id, nomFinal) {
           const res = await fetch(url, { signal: ctrl.signal });
           clearTimeout(timer);
           const data = await res.json();
+          holdedOk = !!(data && data.ok);
           return (data.ok && data.tareas && data.tareas.length) ? data.tareas : [];
         } catch (e) { return []; }   // Holded no responde: se sigue sin ella
       })(),
       // Las de la oficina. Al juntarlas van PRIMERO: son el trabajo del día.
       traerTareasPlanificadas(nomFinal)
     ]);
-    const todasSinFiltrar = delPanel.concat(deHolded);
-    const tareas = soloDeLaEmpresa(todasSinFiltrar, empresaAlbaran);
-    const avisoA = avisoOtraEmpresa(todasSinFiltrar, tareas, empresaAlbaran);
+    var panelOk = _panelUltimaOk;
+    if (yo !== _cargaTareasAlbN) return;       // mientras tanto se pidió otra lista
 
-    // Actualizar contador
-    var count = document.getElementById('a-tareas-count');
-    if (count) count.textContent = tareas.length;
+    // Lo que haya fallado se completa con la copia, y se guarda lo nuevo
+    var m = mezclarTareas(nomFinal, delPanel, panelOk, deHolded, holdedOk);
 
-    if (!tareas.length) {
-      lista.innerHTML = avisoA + '<div class="tareas-cargando-alb">Sin tareas asignadas para este técnico.</div>';
-      // Abrir igualmente para que lo vea
-      var body = document.getElementById('a-tareas-body');
-      var arrow = document.getElementById('a-tareas-arrow');
-      if (body)  body.classList.add('open');
-      if (arrow) arrow.classList.add('open');
-      return;
-    }
+    // Si el técnico ya eligió una tarea de la copia, no se le cambia la lista
+    // debajo del dedo: su elección se respeta (la copia es de hoy mismo).
+    if (copia && _eleccionesTarea !== eleccionesAntes) return;
 
-    // Guardar en array global — el onclick solo pasa el índice
-    window._tareasAlbaran = tareas;
-
-    lista.innerHTML = avisoA + tareas.map(function(t, i) {
-      var partes = [];
-      if (t.fecha)     partes.push('📅 ' + t.fecha);
-      if (t.hora)      partes.push('🕐 ' + t.hora);
-      if (t.prioridad) partes.push('⚡ ' + t.prioridad);
-      if (t.cliente)   partes.push(t.cliente);
-      if (t.direccion) partes.push(t.direccion);
-      var sub = partes.join(' · ');
-
-      var tipo = t.tipo || '';
-      var badgeCls = tipo.toLowerCase().indexOf('mant') >= 0 ? 'mant' :
-                     tipo.toLowerCase().indexOf('urge') >= 0 ? 'urg' :
-                     tipo.toLowerCase().indexOf('inst') >= 0 ? 'inst' : 'aviso';
-
-      var html = '<div class="tarea-albaran-item" id="talb-' + i + '" onclick="seleccionarTareaAlbaran(' + i + ')">';
-      html += '<div class="tarea-albaran-radio" id="talb-radio-' + i + '"></div>';
-      html += '<div class="tarea-albaran-info">';
-      html += '<div class="tarea-albaran-titulo">' + (t.titulo || t.nombre || 'Sin título') + '</div>';
-      if (sub) html += '<div class="tarea-albaran-sub">' + sub + '</div>';
-      html += '</div>';
-      if (tipo) html += '<span class="tarea-albaran-badge tarea-badge ' + badgeCls + '">' + tipo + '</span>';
-      html += '</div>';
-      return html;
-    }).join('');
-
-    // Abrir automáticamente al cargar
-    var body  = document.getElementById('a-tareas-body');
-    var arrow = document.getElementById('a-tareas-arrow');
-    if (body)  body.classList.add('open');
-    if (arrow) arrow.classList.add('open');
+    var aviso = !m.todasFallaron ? '' : (m.tsCopia ? avisoCopiaTareas('sinRed', m.tsCopia) : avisoCopiaTareas('sinNada', 0));
+    pintarTareasAlbaran(m.panel.concat(m.holded), aviso, m.todasFallaron && !m.tsCopia);
 
   } catch(e) {
+    if (copia) return;   // ya se está viendo la copia: mejor eso que un error
     lista.innerHTML = '<div class="tareas-cargando-alb" style="color:var(--bad);">⚠️ Error. Reintentar o rellena manualmente.</div>';
     var body = document.getElementById('a-tareas-body');
     if (body) body.classList.add('open');
   }
 }
+
+// Pinta la lista de tareas del albarán. Es el mismo código de antes, sacado a
+// una función para poder usarlo dos veces: con la copia y con lo nuevo.
+function pintarTareasAlbaran(todasSinFiltrar, avisoExtra, sinDatos) {
+  const lista = document.getElementById('a-tareas-lista');
+  const tareas = soloDeLaEmpresa(todasSinFiltrar, empresaAlbaran);
+  const avisoA = (avisoExtra || '') + avisoOtraEmpresa(todasSinFiltrar, tareas, empresaAlbaran);
+
+  // Actualizar contador
+  var count = document.getElementById('a-tareas-count');
+  if (count) count.textContent = tareas.length;
+
+  if (!tareas.length) {
+    lista.innerHTML = avisoA + (sinDatos ? '' : '<div class="tareas-cargando-alb">Sin tareas asignadas para este técnico.</div>');
+    // Abrir igualmente para que lo vea
+    var body = document.getElementById('a-tareas-body');
+    var arrow = document.getElementById('a-tareas-arrow');
+    if (body)  body.classList.add('open');
+    if (arrow) arrow.classList.add('open');
+    return;
+  }
+
+  // Guardar en array global — el onclick solo pasa el índice
+  window._tareasAlbaran = tareas;
+
+  lista.innerHTML = avisoA + tareas.map(function(t, i) {
+    var partes = [];
+    if (t.fecha)     partes.push('📅 ' + t.fecha);
+    if (t.hora)      partes.push('🕐 ' + t.hora);
+    if (t.prioridad) partes.push('⚡ ' + t.prioridad);
+    if (t.cliente)   partes.push(t.cliente);
+    if (t.direccion) partes.push(t.direccion);
+    var sub = partes.join(' · ');
+
+    var tipo = t.tipo || '';
+    var badgeCls = tipo.toLowerCase().indexOf('mant') >= 0 ? 'mant' :
+                   tipo.toLowerCase().indexOf('urge') >= 0 ? 'urg' :
+                   tipo.toLowerCase().indexOf('inst') >= 0 ? 'inst' : 'aviso';
+
+    var html = '<div class="tarea-albaran-item" id="talb-' + i + '" onclick="seleccionarTareaAlbaran(' + i + ')">';
+    html += '<div class="tarea-albaran-radio" id="talb-radio-' + i + '"></div>';
+    html += '<div class="tarea-albaran-info">';
+    html += '<div class="tarea-albaran-titulo">' + (t.titulo || t.nombre || 'Sin título') + '</div>';
+    if (sub) html += '<div class="tarea-albaran-sub">' + sub + '</div>';
+    html += '</div>';
+    if (tipo) html += '<span class="tarea-albaran-badge tarea-badge ' + badgeCls + '">' + tipo + '</span>';
+    html += '</div>';
+    return html;
+  }).join('');
+
+  // Abrir automáticamente al cargar
+  var body  = document.getElementById('a-tareas-body');
+  var arrow = document.getElementById('a-tareas-arrow');
+  if (body)  body.classList.add('open');
+  if (arrow) arrow.classList.add('open');
+}
+
 
 function toggleSeccionTareas() {
   var body  = document.getElementById('a-tareas-body');
@@ -2786,6 +2926,7 @@ function toggleSeccionTareas() {
 }
 
 function seleccionarTareaAlbaran(idx) {
+  _eleccionesTarea++;
   var tareas = window._tareasAlbaran || [];
   var t = tareas[idx];
   if (!t) return;
@@ -2959,11 +3100,18 @@ function toggleSeccionTareasC() {
   if (arrow) arrow.classList.toggle('open');
 }
 
+var _cargaTareasChkN=0;   // para no pintar la respuesta de un técnico o empresa que ya no se mira
 async function cargarTareasChecklist(empleadoId, nombreTecnico) {
   var lista = document.getElementById('c-tareas-lista');
   var count = document.getElementById('c-tareas-count');
   lista.innerHTML = '<div class="tareas-cargando-alb">⏳ Cargando tareas...</div>';
   if (count) count.textContent = '0';
+  var yo = ++_cargaTareasChkN;
+
+  // Lo último guardado de hoy, al instante. Lo nuevo llega detrás.
+  var copia = leerTareasCopia(nombreTecnico);
+  var eleccionesAntes = _eleccionesTarea;
+  if (copia) pintarTareasChecklist(copia.panel.concat(copia.holded), avisoCopiaTareas('copia', copia.ts));
 
   try {
     // Las dos fuentes se piden A LA VEZ, y cada una se apaña sola si falla.
@@ -2975,66 +3123,83 @@ async function cargarTareasChecklist(empleadoId, nombreTecnico) {
     // sus dos tareas del dia estaban en el panel y Holded no tenia ninguna.
     //
     // Ahora, si Holded falla o tarda, las de la oficina salen igual.
+    var holdedOk = false;
     var pareja = await Promise.all([
       (async function(){
         try {
           var url = GAS_URL + '?action=tareas&empleadoId=' + encodeURIComponent(empleadoId) + '&empleadoNombre=' + encodeURIComponent(nombreTecnico || '');
           var res  = await fetch(url);
           var data = await res.json();
+          holdedOk = !!(data && data.ok);
           return (data.ok && data.tareas && data.tareas.length) ? data.tareas : [];
         } catch (e) { return []; }   // Holded no responde: se sigue sin ella
       })(),
       traerTareasPlanificadas(nombreTecnico)
     ]);
-    var deHolded = pareja[0];
-    var delPanel = pareja[1];
-    var todasSinFiltrarC = delPanel.concat(deHolded);
-    var tareas = soloDeLaEmpresa(todasSinFiltrarC, empresaChecklist);
-    var avisoC = avisoOtraEmpresa(todasSinFiltrarC, tareas, empresaChecklist);
+    var panelOk = _panelUltimaOk;
+    if (yo !== _cargaTareasChkN) return;       // mientras tanto se pidió otra lista
 
-    if (count) count.textContent = tareas.length;
+    var m = mezclarTareas(nombreTecnico, pareja[1], panelOk, pareja[0], holdedOk);
+    if (copia && _eleccionesTarea !== eleccionesAntes) return;   // ya eligió de la copia: se respeta
 
-    if (!tareas.length) {
-      lista.innerHTML = avisoC + '<div class="tareas-cargando-alb">Sin tareas asignadas para este técnico.</div>';
-      return;
-    }
-
-    window._tareasChecklist = tareas;
-    lista.innerHTML = avisoC + tareas.map(function(t, i) {
-      var partes = [];
-      if (t.fecha)     partes.push('📅 ' + t.fecha);
-      if (t.hora)      partes.push('🕐 ' + t.hora);
-      if (t.prioridad) partes.push('⚡ ' + t.prioridad);
-      if (t.cliente)   partes.push(t.cliente);
-      if (t.direccion) partes.push(t.direccion);
-      var sub = partes.join(' · ');
-      var tipo = t.tipo || '';
-      var badgeCls = tipo.toLowerCase().indexOf('mant') >= 0 ? 'mant' :
-                     tipo.toLowerCase().indexOf('urge') >= 0 ? 'urg' :
-                     tipo.toLowerCase().indexOf('inst') >= 0 ? 'inst' : 'aviso';
-      var html = '<div class="tarea-albaran-item" id="ctalb-' + i + '" onclick="seleccionarTareaChecklist(' + i + ')">';
-      html += '<div class="tarea-albaran-radio" id="ctalb-radio-' + i + '"></div>';
-      html += '<div class="tarea-albaran-info">';
-      html += '<div class="tarea-albaran-titulo">' + (t.titulo || t.nombre || 'Sin título') + '</div>';
-      if (sub) html += '<div class="tarea-albaran-sub">' + sub + '</div>';
-      html += '</div>';
-      if (tipo) html += '<span class="tarea-albaran-badge tarea-badge ' + badgeCls + '">' + tipo + '</span>';
-      html += '</div>';
-      return html;
-    }).join('');
-
-    // Abrir sección
-    var body  = document.getElementById('c-tareas-body');
-    var arrow = document.getElementById('c-tareas-arrow');
-    if (body)  body.classList.add('open');
-    if (arrow) arrow.classList.add('open');
+    var aviso = !m.todasFallaron ? '' : (m.tsCopia ? avisoCopiaTareas('sinRed', m.tsCopia) : avisoCopiaTareas('sinNada', 0));
+    pintarTareasChecklist(m.panel.concat(m.holded), aviso, m.todasFallaron && !m.tsCopia);
 
   } catch(err) {
+    if (copia) return;   // ya se está viendo la copia: mejor eso que un error
     lista.innerHTML = '<div class="tareas-cargando-alb" style="color:var(--bad);">Error cargando tareas.</div>';
   }
 }
 
+// Pinta la lista de tareas del checklist. Es el mismo código de antes, sacado
+// a una función para poder usarlo dos veces: con la copia y con lo nuevo.
+function pintarTareasChecklist(todasSinFiltrarC, avisoExtra, sinDatos) {
+  var lista = document.getElementById('c-tareas-lista');
+  var count = document.getElementById('c-tareas-count');
+  var tareas = soloDeLaEmpresa(todasSinFiltrarC, empresaChecklist);
+  var avisoC = (avisoExtra || '') + avisoOtraEmpresa(todasSinFiltrarC, tareas, empresaChecklist);
+
+  if (count) count.textContent = tareas.length;
+
+  if (!tareas.length) {
+    lista.innerHTML = avisoC + (sinDatos ? '' : '<div class="tareas-cargando-alb">Sin tareas asignadas para este técnico.</div>');
+    return;
+  }
+
+  window._tareasChecklist = tareas;
+  lista.innerHTML = avisoC + tareas.map(function(t, i) {
+    var partes = [];
+    if (t.fecha)     partes.push('📅 ' + t.fecha);
+    if (t.hora)      partes.push('🕐 ' + t.hora);
+    if (t.prioridad) partes.push('⚡ ' + t.prioridad);
+    if (t.cliente)   partes.push(t.cliente);
+    if (t.direccion) partes.push(t.direccion);
+    var sub = partes.join(' · ');
+    var tipo = t.tipo || '';
+    var badgeCls = tipo.toLowerCase().indexOf('mant') >= 0 ? 'mant' :
+                   tipo.toLowerCase().indexOf('urge') >= 0 ? 'urg' :
+                   tipo.toLowerCase().indexOf('inst') >= 0 ? 'inst' : 'aviso';
+    var html = '<div class="tarea-albaran-item" id="ctalb-' + i + '" onclick="seleccionarTareaChecklist(' + i + ')">';
+    html += '<div class="tarea-albaran-radio" id="ctalb-radio-' + i + '"></div>';
+    html += '<div class="tarea-albaran-info">';
+    html += '<div class="tarea-albaran-titulo">' + (t.titulo || t.nombre || 'Sin título') + '</div>';
+    if (sub) html += '<div class="tarea-albaran-sub">' + sub + '</div>';
+    html += '</div>';
+    if (tipo) html += '<span class="tarea-albaran-badge tarea-badge ' + badgeCls + '">' + tipo + '</span>';
+    html += '</div>';
+    return html;
+  }).join('');
+
+  // Abrir sección
+  var body  = document.getElementById('c-tareas-body');
+  var arrow = document.getElementById('c-tareas-arrow');
+  if (body)  body.classList.add('open');
+  if (arrow) arrow.classList.add('open');
+}
+
+
 function seleccionarTareaChecklist(idx) {
+  _eleccionesTarea++;
   var tareas = window._tareasChecklist || [];
   var t = tareas[idx];
   if (!t) return;
@@ -3249,6 +3414,9 @@ function precargarCatalogoProductos(){
   }catch(e){}
 }
 setTimeout(precargarCatalogoProductos,4000);
+// La lista de técnicos también se trae sola al abrir, para que al tocar el
+// campo ya esté. Si hay copia en el móvil, se enseña esa y se actualiza detrás.
+setTimeout(function(){ obtenerEmpleados().catch(function(){}); },1500);
 
 async function buscarProductosHolded(q,uid){
   _prodUidActivo=uid;
@@ -4367,9 +4535,11 @@ async function buscarTecnicoExtra(q,prefix,idx){
   drop.style.display='block';
   drop.innerHTML='<div class="holded-searching">⏳ Buscando...</div>';
   try{
-    var res=await fetch(GAS_URL+'?action=empleados&q='+encodeURIComponent(q));
-    var data=await res.json();
-    var empleados=soloTecnicosActivos(data.ok?data.empleados:[]);
+    // Antes se preguntaba a Google letra a letra. La lista es la misma de
+    // siempre, así que se filtra aquí, al instante.
+    var todosEmp=await obtenerEmpleados();
+    var ql=q.toLowerCase();
+    var empleados=todosEmp.filter(function(e){ return (e.name||'').toLowerCase().indexOf(ql)>-1; });
     if(!empleados.length){drop.innerHTML='<div class="holded-searching">Sin resultados</div>';return;}
     drop.innerHTML=empleados.slice(0,8).map(function(e){
       return '<div class="holded-item" onclick="elegirTecnicoExtra(\''+prefix+'\','+idx+',\''+e.name.replace(/'/g,"\\'")+'\')">'
@@ -4408,14 +4578,10 @@ async function buscarEmpleado(q,prefix){
   drop.style.display='block';
   drop.innerHTML='<div class="holded-searching">Cargando técnicos...</div>';
   try{
-    if(!empleadosCache){
-      const res=await fetch(GAS_URL+'?action=empleados&q=');
-      const data=await res.json();
-      empleadosCache=soloTecnicosActivos(data.ok?data.empleados:[]);
-    }
+    const listaEmp=await obtenerEmpleados();
     const filtrados=q.length>0
-      ?empleadosCache.filter(e=>e.name.toLowerCase().includes(q.toLowerCase()))
-      :empleadosCache;
+      ?listaEmp.filter(e=>e.name.toLowerCase().includes(q.toLowerCase()))
+      :listaEmp;
     if(!filtrados.length){drop.innerHTML='<div class="holded-searching">Sin resultados</div>';return;}
     drop.innerHTML=filtrados.slice(0,50).map(e=>
       `<div class="holded-item" onclick="elegirTecnico('${e.id}','${e.name.replace(/'/g,"\\'")}','${prefix}')">
