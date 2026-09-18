@@ -1175,16 +1175,32 @@ const GAS_TAREAS='https://script.google.com/macros/s/AKfycbzRA5IGI-KpJDUfYfMyIRR
 // Trae los trabajos que la oficina le ha puesto a este técnico para hoy y
 // mañana, y los devuelve con la misma forma que las tareas de Holded para
 // poder pintarlos con el código que ya existe.
+// Pide JSON a Google. Si en vez de la respuesta llega su página de error (o
+// se corta la conexión), lo repite una vez a los 2 s. Si lo que pasa es que
+// tarda demasiado (msTimeout), NO se repite: ya se ha esperado bastante.
+async function pedirJSONPartes(url, msTimeout) {
+  for (var intento = 1; intento <= 2; intento++) {
+    var ctrl = new AbortController();
+    var timer = setTimeout(function(){ ctrl.abort(); }, msTimeout || 20000);
+    try {
+      var res = await fetch(url, { signal: ctrl.signal });
+      var txt = await res.text();
+      clearTimeout(timer);
+      return JSON.parse(txt);
+    } catch (e) {
+      clearTimeout(timer);
+      if ((e && e.name === 'AbortError') || intento === 2) throw e;
+      await new Promise(function(r){ setTimeout(r, 2000); });
+    }
+  }
+}
+
 async function traerTareasPlanificadas(nombreTecnico) {
   _panelUltimaOk = false;   // se pone a true solo si responde bien
   if (!nombreTecnico) return [];
   try {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 20000);
     const url = GAS_TAREAS + '?action=misTareas&dias=2&tecnico=' + encodeURIComponent(nombreTecnico);
-    const res = await fetch(url, { signal: ctrl.signal });
-    clearTimeout(timer);
-    const data = await res.json();
+    const data = await pedirJSONPartes(url, 20000);   // repite si Google devuelve su página de error
     if (!data || !data.ok || !data.tareas) return [];
     _panelUltimaOk = true;
     return data.tareas.map(function(t) {
@@ -2826,12 +2842,8 @@ async function cargarTareasAlbaran(id, nomFinal) {
     const [deHolded, delPanel] = await Promise.all([
       (async function(){
         try {
-          const ctrl = new AbortController();
-          const timer = setTimeout(() => ctrl.abort(), 30000);
           const url = GAS_URL + '?action=tareas&empleadoId=' + encodeURIComponent(id) + '&empleadoNombre=' + encodeURIComponent(nomFinal);
-          const res = await fetch(url, { signal: ctrl.signal });
-          clearTimeout(timer);
-          const data = await res.json();
+          const data = await pedirJSONPartes(url, 30000);   // repite si Google devuelve su página de error
           holdedOk = !!(data && data.ok);
           return (data.ok && data.tareas && data.tareas.length) ? data.tareas : [];
         } catch (e) { return []; }   // Holded no responde: se sigue sin ella
@@ -3128,8 +3140,7 @@ async function cargarTareasChecklist(empleadoId, nombreTecnico) {
       (async function(){
         try {
           var url = GAS_URL + '?action=tareas&empleadoId=' + encodeURIComponent(empleadoId) + '&empleadoNombre=' + encodeURIComponent(nombreTecnico || '');
-          var res  = await fetch(url);
-          var data = await res.json();
+          var data = await pedirJSONPartes(url, 30000);   // repite si Google devuelve su página de error
           holdedOk = !!(data && data.ok);
           return (data.ok && data.tareas && data.tareas.length) ? data.tareas : [];
         } catch (e) { return []; }   // Holded no responde: se sigue sin ella
