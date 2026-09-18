@@ -695,7 +695,7 @@ table.hid-table{width:100%;border-collapse:collapse;font-size:12px;}
       <button class="tipo-btn" id="tipo-trabajo" onclick="selectTipo('trabajo')">🛠️ Trabajo</button>
       <button class="tipo-btn" id="tipo-guardia" onclick="selectTipo('guardia')">🕒 Guardia</button>
       <button class="tipo-btn" id="tipo-bomba" onclick="selectTipo('bomba')">🔩 Bombas o Equipos a Taller</button>
-      <button class="tipo-btn" id="tipo-preparacion" onclick="selectTipo('preparacion')">📦 Preparación Materiales</button>
+      <button class="tipo-btn" id="tipo-preparacion" onclick="selectTipo('preparacion')">📦 Prep. Material / Presupuesto</button>
       <button class="tipo-btn" id="tipo-descal" onclick="selectTipo('descal')">🧂 Descalcificadores</button>
       <button class="tipo-btn" id="tipo-taller" onclick="selectTipo('taller')">🏭 Trabajo en Taller</button>
     </div>
@@ -821,8 +821,18 @@ table.hid-table{width:100%;border-collapse:collapse;font-size:12px;}
         <button class="add-row-btn" onclick="addMatRowFor('preparacion')">+ Añadir material</button>
       </div>
     </div>
+    <!-- Fotografías: mínimo una, y se pueden añadir más si hace falta -->
+    <div class="card" id="sec-foto-preparacion">
+      <div class="section-header section-open" onclick="toggleSec('sec-foto-preparacion')"><span class="sec-title">📷 Fotografías <span style="font-size:11px;color:var(--bad);">*mínimo 1</span></span><span class="chevron">⌄</span></div>
+      <div class="section-body" style="display:block;">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Haz al menos una fotografía del material o de lo que hay que presupuestar. Puedes añadir más si hace falta.</div>
+        <div class="taller-grid" id="prep-foto-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"></div>
+        <input type="file" accept="image/*" capture="environment" id="prep-foto-input" style="display:none;" onchange="onPrepFoto(this)">
+        <div class="fotos-aviso" id="fotos-aviso-preparacion">⚠ Hace falta al menos una fotografía para enviar</div>
+      </div>
+    </div>
     <div class="card"><div class="section-header section-open" onclick="toggleSec('sec-firma-preparacion')"><span class="sec-title">✍️ Firmas</span><span class="chevron">⌄</span></div><div class="section-body" id="sec-firma-preparacion" style="display:block;"><div id="firmas-tecnicos-preparacion-wrap"></div></div></div>
-    <button class="send-btn" id="send-preparacion-btn" onclick="enviarAlbaran('preparacion')">📤 Enviar Preparación Materiales</button>
+    <button class="send-btn" id="send-preparacion-btn" onclick="enviarAlbaran('preparacion')">📤 Enviar Prep. Material / Presupuesto</button>
   </div>
 
   <div id="panel-descal" class="panel">
@@ -1840,6 +1850,37 @@ function obtenerUbicacion(){
   }
   return _pedirGPS();
 }
+// Para el botón INICIO — siempre una lectura NUEVA, como al enviar.
+//
+// Antes el inicio usaba obtenerUbicacion(), que reutiliza la posición guardada.
+// Y esa posición se guarda al ABRIR la app (al comprobar el permiso). Así que
+// si el técnico abría la app en la nave o en casa, elegía la tarea, iba a la
+// comunidad y pulsaba Inicio allí, el parte salía con el inicio en la nave.
+// Le pasó a Christian Salinas en septiembre de 2026.
+//
+// Si el GPS preciso no responde (sótanos, cuartos de bombas), se pide una
+// lectura menos precisa pero ACTUAL (wifi y antenas): sitúa igual en la
+// comunidad, y es mucho mejor que una exacta de hace una hora.
+function obtenerUbicacionInicioFresca(){
+  return _pedirGPS().then(function(ub){
+    if(ub && ub.lat) return ub;
+    if(!ub || ub.motivo!=='senal' || !navigator.geolocation) return ub;   // permiso denegado: no hay nada que reintentar
+    return new Promise(function(resolve){
+      navigator.geolocation.getCurrentPosition(
+        function(pos){
+          resolve({
+            ok:true,
+            lat: String(Math.round(pos.coords.latitude*1000000)/1000000).replace(',','.'),
+            lng: String(Math.round(pos.coords.longitude*1000000)/1000000).replace(',','.'),
+            precision: Math.round(pos.coords.accuracy)
+          });
+        },
+        function(){ resolve(ub); },   // tampoco: se devuelve el fallo original
+        { enableHighAccuracy:false, timeout:10000, maximumAge:60000 }   // como mucho de hace un minuto
+      );
+    });
+  });
+}
 function obtenerUbicacionFinal(){
   // Para el ENVÍO — siempre pide coordenadas nuevas, ignora la caché
   return _pedirGPS();
@@ -1941,28 +1982,58 @@ async function enviarConProgreso(payload,btn,tipoLabel){
     const pasoMs=300;
     const pasos=Math.floor((segundosEstimados*1000)/pasoMs);
     let pasoActual=0;
-    const progresoTimer=setInterval(function(){
-      pasoActual++;
-      pct=Math.min(92,Math.round((pasoActual/pasos)*92)); // se detiene en 92% hasta tener respuesta real
-      btn.textContent='⏳ Enviando... '+pct+'%';
-    },pasoMs);
+    let progresoTimer=null;
+    function arrancarProgreso(){
+      progresoTimer=setInterval(function(){
+        pasoActual++;
+        pct=Math.min(92,Math.round((pasoActual/pasos)*92)); // se detiene en 92% hasta tener respuesta real
+        btn.textContent='⏳ Enviando... '+pct+'%';
+      },pasoMs);
+    }
 
-    const xhr=new XMLHttpRequest();
-    xhr.open('POST',GAS_URL,true);
-    xhr.setRequestHeader('Content-Type','text/plain;charset=utf-8');
-    xhr.timeout=120000;
-    xhr.onload=function(){
-      clearInterval(progresoTimer);
-      btn.textContent='⏳ Enviando... 100%';
-      let data;
-      try{data=JSON.parse(xhr.responseText);}
-      catch(err){reject(new Error('Respuesta inválida del servidor'));return;}
-      if(xhr.status>=200&&xhr.status<300&&data.ok)resolve(data);
-      else reject(new Error(data.error||'Error desconocido'));
-    };
-    xhr.onerror=function(){clearInterval(progresoTimer);reject(new Error('sin conexión'));};
-    xhr.ontimeout=function(){clearInterval(progresoTimer);reject(new Error('Tiempo de espera agotado (120s) — revisa tu señal'));};
-    xhr.send(JSON.stringify(payload));
+    // A veces Google no entrega la respuesta y devuelve su propia página de
+    // error ("No se puede abrir el archivo en estos momentos"). Al técnico le
+    // salía "Respuesta inválida del servidor" y tenía que reenviar a mano, a
+    // veces dos o tres veces. Es un fallo pasajero de Google: al repetir, entra.
+    //
+    // Ahora ese caso lo reintenta la app sola. Es seguro porque cada parte
+    // lleva su idParte y el servidor no procesa dos veces el mismo: si el
+    // primer intento sí llegó a guardarse, el siguiente recibe el mismo
+    // resultado sin duplicar nada.
+    //
+    // SOLO para ese error. "Sin conexión" y "tiempo agotado" siguen como
+    // estaban (aviso + espera de 30 s), porque ahí el servidor podría seguir
+    // trabajando todavía con el primer intento.
+    const MAX_INTENTOS = payload.idParte ? 3 : 1;
+    const ESPERAS_MS = [3000, 8000];
+
+    function intentar(n){
+      arrancarProgreso();
+      const xhr=new XMLHttpRequest();
+      xhr.open('POST',GAS_URL,true);
+      xhr.setRequestHeader('Content-Type','text/plain;charset=utf-8');
+      xhr.timeout=120000;
+      xhr.onload=function(){
+        clearInterval(progresoTimer);
+        let data;
+        try{data=JSON.parse(xhr.responseText);}
+        catch(err){
+          if(n<MAX_INTENTOS){
+            btn.textContent='⏳ Google no responde bien, reintentando ('+(n+1)+'/'+MAX_INTENTOS+')…';
+            setTimeout(function(){ intentar(n+1); }, ESPERAS_MS[n-1]||8000);
+            return;
+          }
+          reject(new Error('Respuesta inválida del servidor'));return;
+        }
+        btn.textContent='⏳ Enviando... 100%';
+        if(xhr.status>=200&&xhr.status<300&&data.ok)resolve(data);
+        else reject(new Error(data.error||'Error desconocido'));
+      };
+      xhr.onerror=function(){clearInterval(progresoTimer);reject(new Error('sin conexión'));};
+      xhr.ontimeout=function(){clearInterval(progresoTimer);reject(new Error('Tiempo de espera agotado (120s) — revisa tu señal'));};
+      xhr.send(JSON.stringify(payload));
+    }
+    intentar(1);
   });
 }
 
@@ -1994,17 +2065,24 @@ async function enviarAlbaran(panel){
     return;
   }
 
-  // Panel Preparación Materiales
+  // Panel Prep. Material / Presupuesto (por dentro sigue siendo "Preparación
+  // Materiales": las horas y los informes lo buscan por ese nombre)
   if(panel==='preparacion'){
+    if(!prepFotoData.length){
+      showToast('⚠ Hace falta al menos una fotografía','error');
+      var avP=document.getElementById('fotos-aviso-preparacion'); if(avP) avP.classList.add('show');
+      var secP=document.getElementById('sec-foto-preparacion'); if(secP){ try{ secP.scrollIntoView({behavior:'smooth',block:'center'}); }catch(e){} }
+      return;
+    }
     if(!validarFirmas('preparacion','soloTecnico'))return;
     const btn=document.getElementById('send-preparacion-btn');
     btn.disabled=true;btn.textContent='📍 Obteniendo ubicación...';
     const ubicacion=await obtenerUbicacionFinal();
-    if(!ubicacion.ok){if(ubicacion.motivo==='senal'){showToast('📡 Sin señal de ubicación — busca un sitio con mejor cobertura e inténtalo de nuevo.','error');}else{registrarIncidenciaUbicacion('Ubicación desactivada al intentar enviar el parte');mostrarAvisoUbicacionManual('No se puede enviar el parte porque el permiso de ubicación está desactivado o denegado en este dispositivo.');}btn.disabled=false;btn.textContent='📤 Enviar Preparación Materiales';return;}
+    if(!ubicacion.ok){if(ubicacion.motivo==='senal'){showToast('📡 Sin señal de ubicación — busca un sitio con mejor cobertura e inténtalo de nuevo.','error');}else{registrarIncidenciaUbicacion('Ubicación desactivada al intentar enviar el parte');mostrarAvisoUbicacionManual('No se puede enviar el parte porque el permiso de ubicación está desactivado o denegado en este dispositivo.');}btn.disabled=false;btn.textContent='📤 Enviar Prep. Material / Presupuesto';return;}
     btn.textContent='⏳ Generando PDF...';
-    const payload={empresa:empresaAlbaran,tipo:'Preparación Materiales',fecha:fechaTexto,horaInicio:document.getElementById('a-hora-inicio').value,horaFin:calcHoraFin(),totalHoras:calcDuracion(),tiempoTranscurrido:getTiempoTranscurrido(),cliente,direccion:document.getElementById('a-direccion').value.trim(),poblacion:document.getElementById('a-poblacion').value.trim(),cp:document.getElementById('a-cp').value.trim(),tecnico,tecnicosExtra:getTecnicosExtra('a'),...getFurgoneta('a'),bloque:document.getElementById('a-bloque')?.value.trim()||'',observaciones:document.getElementById('preparacion-obs').value.trim(),incidencia:document.getElementById('preparacion-incidencia')?.value.trim()||'',materiales:getMaterilesFor('preparacion'),firmaTecnico:getFirmasTecnicosArray('preparacion')[0]?.firma||null,firmasTecnicos:getFirmasTecnicosArray('preparacion'),firmaCliente:null,clienteAusente:true,motivoAusencia:'No requerida',numDoc:genNumDoc(),idParte:_idParteActual.a,ubicacion,ubicacionInicio:getUbicacionInicio(),incidenciasUbicacion:_incidenciasUbicacion,horaEnvio:calcHoraFin()};
-    try{const data=await enviarConProgreso(payload,btn,'Preparación Materiales');mostrarPantallaFinal(data.url||null);}
-    catch(err){showToast('❌ Error: '+(err.message||'sin conexión')+' — Espera 30s','error');btn.textContent='⏳ Espera 30s...';setTimeout(function(){btn.disabled=false;btn.textContent='📤 Enviar Preparación Materiales';},30000);}
+    const payload={empresa:empresaAlbaran,tipo:'Preparación Materiales',fecha:fechaTexto,horaInicio:document.getElementById('a-hora-inicio').value,horaFin:calcHoraFin(),totalHoras:calcDuracion(),tiempoTranscurrido:getTiempoTranscurrido(),cliente,direccion:document.getElementById('a-direccion').value.trim(),poblacion:document.getElementById('a-poblacion').value.trim(),cp:document.getElementById('a-cp').value.trim(),tecnico,tecnicosExtra:getTecnicosExtra('a'),...getFurgoneta('a'),bloque:document.getElementById('a-bloque')?.value.trim()||'',observaciones:document.getElementById('preparacion-obs').value.trim(),incidencia:document.getElementById('preparacion-incidencia')?.value.trim()||'',materiales:getMaterilesFor('preparacion'),fotos:prepFotoData.slice(),firmaTecnico:getFirmasTecnicosArray('preparacion')[0]?.firma||null,firmasTecnicos:getFirmasTecnicosArray('preparacion'),firmaCliente:null,clienteAusente:true,motivoAusencia:'No requerida',numDoc:genNumDoc(),idParte:_idParteActual.a,ubicacion,ubicacionInicio:getUbicacionInicio(),incidenciasUbicacion:_incidenciasUbicacion,horaEnvio:calcHoraFin()};
+    try{const data=await enviarConProgreso(payload,btn,'Prep. Material / Presupuesto');mostrarPantallaFinal(data.url||null);}
+    catch(err){showToast('❌ Error: '+(err.message||'sin conexión')+' — Espera 30s','error');btn.textContent='⏳ Espera 30s...';setTimeout(function(){btn.disabled=false;btn.textContent='📤 Enviar Prep. Material / Presupuesto';},30000);}
     return;
   }
 
@@ -2213,7 +2291,7 @@ function iniciarParte(prefix) {
   var textoBtn = btnIni ? btnIni.textContent : '';
   if(btnIni){ btnIni.disabled = true; btnIni.textContent = '📍 Obteniendo ubicación...'; }
 
-  obtenerUbicacion().then(function(ub){
+  obtenerUbicacionInicioFresca().then(function(ub){
     if(btnIni){ btnIni.disabled = false; btnIni.textContent = textoBtn; }
     // Lo que decide si hay ubicación es tener coordenada, no un campo "ok":
     // así da igual de dónde venga el dato y no se puede repetir el fallo de
@@ -3305,6 +3383,59 @@ function quitarFotoBomba(e,idx){
   }
 }
 
+// ── Fotos de "Prep. Material / Presupuesto" ──────────────────────
+// Mínimo una, y se pueden añadir más. Van al PDF (interno y del cliente)
+// como "Fotografias del servicio", igual que las de los demás partes.
+// Tope de 8: cada foto pesa y un parte muy cargado tarda más en enviarse.
+var prepFotoData=[];
+var PREP_MAX_FOTOS=8;
+
+function pintarFotosPrep(){
+  var grid=document.getElementById('prep-foto-grid');
+  if(!grid) return;
+  var h='';
+  for(var i=0;i<prepFotoData.length;i++){
+    h+='<div class="taller-slot filled"><img src="'+prepFotoData[i]+'" alt="Foto '+(i+1)+'" style="width:100%;height:100%;object-fit:cover;border-radius:8px;">'
+     + '<button class="taller-remove" onclick="quitarFotoPrep(event,'+i+')">&#x2715;</button></div>';
+  }
+  if(prepFotoData.length<PREP_MAX_FOTOS){
+    h+='<div class="taller-slot" onclick="abrirFotoPrep()"><span style="font-size:22px;">📷</span>'
+     + '<span style="font-size:11px;color:var(--muted);margin-top:4px;">'+(prepFotoData.length?'Añadir otra':'Foto 1')+'</span></div>';
+  }
+  grid.innerHTML=h;
+}
+function abrirFotoPrep(){
+  var inp=document.getElementById('prep-foto-input');
+  if(inp){ inp.value=''; inp.click(); }
+}
+function onPrepFoto(input){
+  var file=input.files[0]; if(!file) return;
+  var reader=new FileReader();
+  reader.onload=function(e){
+    var img=new Image();
+    img.onload=function(){
+      var canvas=document.createElement('canvas'),MAX=1200;
+      var w=img.width,h=img.height;
+      if(w>MAX){h=Math.round(h*MAX/w);w=MAX;} if(h>MAX){w=Math.round(w*MAX/h);h=MAX;}
+      canvas.width=w;canvas.height=h;canvas.getContext('2d').drawImage(img,0,0,w,h);
+      if(prepFotoData.length>=PREP_MAX_FOTOS){ showToast('⚠ Máximo '+PREP_MAX_FOTOS+' fotografías','error'); return; }
+      prepFotoData.push(canvas.toDataURL('image/jpeg',0.8));
+      pintarFotosPrep();
+      var av=document.getElementById('fotos-aviso-preparacion'); if(av) av.classList.remove('show');
+      input.value=''; showToast('✅ Foto '+prepFotoData.length+' añadida','success');
+    };
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+function quitarFotoPrep(e,idx){
+  e.stopPropagation();
+  prepFotoData.splice(idx,1);
+  pintarFotosPrep();
+}
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', pintarFotosPrep);
+else pintarFotosPrep();
+
 function _procesarFotoTaller(file, dataArr, slotPrefix, inputPrefix, avisoId, labelPrefix, idx, cb){
   if(!file)return;
   var reader=new FileReader();
@@ -3907,6 +4038,7 @@ function capturarEstadoParte(prefix){
     fotosData: JSON.parse(JSON.stringify(fotosData)),
     fotosExtra: JSON.parse(JSON.stringify(fotosExtra)),
     bombaFotoData: bombaFotoData.slice(),
+    prepFotoData: prepFotoData.slice(),
     tallerAntesData: tallerAntesData.slice(),
     tallerDespuesData: tallerDespuesData.slice(),
     tallerFotoData: tallerFotoData,
@@ -3987,6 +4119,10 @@ function restaurarEstadoParte(estado){
   if(estado.bombaFotoData){
     bombaFotoData = estado.bombaFotoData;
     bombaFotoData.forEach(function(d,i){ if(d) _pintarSlotSimple('bomba-foto-slot-'+i, d, 'quitarFotoBomba(event,'+i+')'); });
+  }
+  if(estado.prepFotoData){
+    prepFotoData = estado.prepFotoData.slice();
+    pintarFotosPrep();
   }
   if(estado.tallerAntesData){
     tallerAntesData = estado.tallerAntesData;
