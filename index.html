@@ -3967,6 +3967,25 @@ function iniciarTrackingGPS() {
   }, 30 * 1000);
 }
 
+// ── Copia del GPS en Cloudflare (nivel 3, fase B) ─────────────
+// Cada posición que va a Google se manda TAMBIÉN al servidor de GPS de
+// Cloudflare, para comparar los dos antes de que el panel lea de allí.
+// Va aparte y en silencio: si Cloudflare falla, no se reintenta ni se avisa,
+// y el envío a Google sigue exactamente igual que antes.
+// Para quitarlo, basta con dejar GPS_CF = ''.
+const GPS_CF = 'https://gps-marcres.intranet-marcres.workers.dev/';
+function _copiaGpsCloudflare(cuerpo) {
+  try {
+    if (!GPS_CF) return;
+    fetch(GPS_CF, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: cuerpo,
+      keepalive: true
+    }).catch(function(){});
+  } catch (e) {}
+}
+
 // Función centralizada de envío de ubicación
 function _enviarUbicacionGAS(activo) {
   if (!_gpsUltimaPos) return;
@@ -3976,10 +3995,11 @@ function _enviarUbicacionGAS(activo) {
   var cliente = document.getElementById(prefix+'-cliente')?.value || '';
   var tipo    = tipoAlbaran || 'Checklist';
   if (!tecnico) return;
+  var _cuerpoGps;
   fetch(GAS_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({
+    body: _cuerpoGps = JSON.stringify({
       accion: 'ubicacion',
       tecnico: tecnico,
       empresa: empresa || '',
@@ -3995,6 +4015,7 @@ function _enviarUbicacionGAS(activo) {
       matricula: getFurgoneta(prefix).matriculaFurgoneta || ''
     })
   }).catch(function(){});
+  _copiaGpsCloudflare(_cuerpoGps);
 }
 
 function detenerTrackingGPS(prefixFinalizado) {
@@ -4015,10 +4036,11 @@ function detenerTrackingGPS(prefixFinalizado) {
       var latFin = _gpsUltimaPos ? String(_gpsUltimaPos.lat / 1000000).replace(',','.') : '0';
       var lngFin = _gpsUltimaPos ? String(_gpsUltimaPos.lng / 1000000).replace(',','.') : '0';
       var precFin = _gpsUltimaPos ? _gpsUltimaPos.precision : 0;
+      var _cuerpoFin;
       fetch(GAS_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({
+        body: _cuerpoFin = JSON.stringify({
           accion: 'ubicacion',
           tecnico: tecnico,
           empresa: empresa || '',
@@ -4030,6 +4052,7 @@ function detenerTrackingGPS(prefixFinalizado) {
           activo: false
         })
       }).catch(function(){});
+      _copiaGpsCloudflare(_cuerpoFin);
     }
   }
   if (_gpsBannerEl) {
