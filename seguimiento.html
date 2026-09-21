@@ -36,9 +36,10 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
 .header-left { display: flex; align-items: center; gap: 12px; }
 .header-logo {
   width: 38px; height: 38px; border-radius: 8px;
-  background: rgba(255,255,255,.15);
+  background: #fff;
   display: flex; align-items: center; justify-content: center;
   color: var(--celeste); font-size: 20px; font-weight: 900;
+  cursor: pointer; flex-shrink: 0;
 }
 .header-title { color: #fff; font-size: 15px; font-weight: 700; }
 .header-sub { color: rgba(255,255,255,.6); font-size: 11px; margin-top: 1px; }
@@ -69,7 +70,12 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
   height: 420px;
   background: #e8e0d8;
   position: relative;
+  /* El mapa crea capas con mucha prioridad (400, 500...). Con z-index 0
+     quedan encerradas aquí dentro y la barra azul de arriba, al bajar la
+     página, pasa por encima del mapa en vez de por debajo. */
+  z-index: 0;
 }
+.header-logo svg { width: 24px; height: 24px; display: block; }
 #map { width: 100%; height: 100%; }
 .map-placeholder {
   position: absolute; inset: 0;
@@ -271,7 +277,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
 
 <div class="header">
   <div class="header-left">
-    <div class="header-logo">M</div>
+    <div class="header-logo" title="Configuración"><svg viewBox="-2 -2 104 104" aria-label="Grupo Marcres"><path fill="#03A0FB" d="M0 0L100 100H86L10 24V100H0ZM100 0V94L90 84V24L57 57L50 50ZM10 41L69 100H55L10 55ZM10 72L38 100H24L10 86Z"/></svg></div>
     <div>
       <div class="header-title">Grupo Marcres · Seguimiento</div>
       <div class="header-sub">Panel de técnicos en tiempo real</div>
@@ -433,7 +439,7 @@ function initMapa() {
   script.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
   script.onload = function() {
     map = L.map('map', {
-      zoomControl: true,
+      zoomControl: false,             // el + y − propios del panel están a la derecha
       maxZoom: ZOOM_MAXIMO,           // antes se quedaba en 18 por defecto
       zoomSnap: 0.5,                  // pasos de medio nivel: acercar es más fino
       zoomDelta: 0.5,
