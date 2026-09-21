@@ -2186,11 +2186,34 @@ function _guardarEmpleadosLocal(lista){
 }
 // Pide la lista a Google (como antes), la deja en memoria y en el móvil.
 // Si ya hay una petición en marcha, se espera a esa.
+// ── Lecturas desde Cloudflare (nivel 3, fase D) ───────────────
+// Un servidor de Cloudflare guarda una copia de la lista de técnicos y del
+// catálogo, que le pide a Google cada pocos minutos, y la entrega al instante
+// (Google tarda de 2 a 60 s). La copia es exactamente lo que da Google.
+// Si Cloudflare falla, no responde en 10 s o no tiene copia, se pregunta a
+// Google directamente, como siempre. Para quitarlo: DATOS_CF = ''.
+const DATOS_CF = 'https://datos-marcres.intranet-marcres.workers.dev/';
+function leerDatos(qs, opciones) {
+  function deGoogle() { return fetch(GAS_URL + qs, opciones); }
+  if (!DATOS_CF) return deGoogle();
+  var ctrl = new AbortController();
+  var t = setTimeout(function(){ ctrl.abort(); }, 10000);
+  return fetch(DATOS_CF + qs, { signal: ctrl.signal })
+    .then(function(r){ if (!r.ok) throw new Error('sin copia'); return r.text(); })
+    .then(function(txt){
+      clearTimeout(t);
+      var d = JSON.parse(txt);
+      if (!d || d.ok === false) throw new Error('copia no válida');
+      return new Response(txt, { headers: { 'Content-Type': 'application/json' } });
+    })
+    .catch(function(){ clearTimeout(t); return deGoogle(); });
+}
+
 function _descargarEmpleados(){
   if(_cargaEmpleados) return _cargaEmpleados;
   var ctrl=new AbortController();
   var timer=setTimeout(function(){ ctrl.abort(); },20000);
-  _cargaEmpleados=fetch(GAS_URL+'?action=empleados&q=',{signal:ctrl.signal})
+  _cargaEmpleados=leerDatos('?action=empleados&q=',{signal:ctrl.signal})
     .then(function(r){ clearTimeout(timer); return r.text(); })
     .then(function(t){
       var d=JSON.parse(t);
@@ -3385,8 +3408,8 @@ async function descargarCatalogoProductos(){
     var t1=setTimeout(function(){ctrl1.abort();},60000),t2=setTimeout(function(){ctrl2.abort();},60000);
     try{
       var res=await Promise.all([
-        fetch(GAS_URL+'?action=productos&empresa=marcres',{signal:ctrl1.signal}),
-        fetch(GAS_URL+'?action=productos&empresa=rivagua',{signal:ctrl2.signal})
+        leerDatos('?action=productos&empresa=marcres',{signal:ctrl1.signal}),
+        leerDatos('?action=productos&empresa=rivagua',{signal:ctrl2.signal})
       ]);
       var dataMarcres=await res[0].json();
       var dataRivagua=await res[1].json();
