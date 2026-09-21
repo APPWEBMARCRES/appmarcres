@@ -14,7 +14,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 
 .app-header{background:var(--accent);padding:13px 18px 11px;position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 12px rgba(0,0,0,.28);}
 .header-left{display:flex;align-items:center;gap:11px;}
-.logo{width:32px;height:32px;border-radius:8px;background:var(--celeste);color:#fff;font-weight:700;font-size:17px;display:flex;align-items:center;justify-content:center;}
+.logo{width:32px;height:32px;border-radius:8px;background:#fff;color:#fff;font-weight:700;font-size:17px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.logo svg{width:20px;height:20px;display:block;}
 .header-brand{color:#fff;font-size:14px;font-weight:700;}
 .header-sub{color:rgba(255,255,255,.65);font-size:11px;}
 .header-hora{color:#fff;font-family:var(--mono);font-size:13px;background:rgba(255,255,255,.13);padding:4px 10px;border-radius:20px;}
@@ -305,7 +306,7 @@ textarea.inp{resize:vertical;min-height:76px;line-height:1.5;}
 
 <div class="app-header">
   <div class="header-left">
-    <div class="logo">M</div>
+    <div class="logo"><svg viewBox="-2 -2 104 104" aria-label="Grupo Marcres"><path fill="#03A0FB" d="M0 0L100 100H86L10 24V100H0ZM100 0V94L90 84V24L57 57L50 50ZM10 41L69 100H55L10 55ZM10 72L38 100H24L10 86Z"/></svg></div>
     <div><div class="header-brand">Grupo Marcres</div><div class="header-sub">Planificación de trabajos</div></div>
   </div>
   <div class="header-hora" id="reloj">--:--</div>
