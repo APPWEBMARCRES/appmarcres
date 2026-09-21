@@ -297,7 +297,10 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
   <div class="config-bar" id="config-bar">
     <span class="config-label">🔗 URL del GAS:</span>
     <input class="config-input" id="gas-url-input" placeholder="Pega aquí la URL de tu Google Apps Script..." value="">
+    <span class="config-label">🔑 Clave del panel:</span>
+    <input class="config-input" id="gps-clave-input" type="password" autocomplete="off" placeholder="Opcional: para leer de Cloudflare (más rápido)" value="">
     <button class="btn-guardar" onclick="guardarUrl()">Guardar</button>
+    <span class="config-label" id="gps-clave-aviso" style="color:#E53935;display:none;"></span>
   </div>
 
   <!-- Barra estado -->
@@ -398,6 +401,14 @@ function guardarUrl() {
   var url = document.getElementById('gas-url-input').value.trim();
   if (!url) { alert('Pega la URL del GAS primero'); return; }
   GAS_URL = url;
+  // La clave del panel es opcional. Si se deja vacía, se conserva la que hubiera.
+  var clave = document.getElementById('gps-clave-input').value.trim();
+  if (clave) {
+    GPS_CLAVE = clave;
+    escribirGuardado('marcres_gps_clave', clave);
+    document.getElementById('gps-clave-input').value = '';
+    document.getElementById('gps-clave-aviso').style.display = 'none';
+  }
   if (!escribirGuardado('marcres_gas_url', url)) {
     alert('La URL se usará ahora, pero este navegador no permite guardarla.\n'
         + 'Tendrás que volver a pegarla cada vez que abras el panel.');
@@ -551,6 +562,68 @@ function esc(t) {
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
+// -- CLOUDFLARE (nivel 3, fase C) ------------------------------
+// Las posiciones llegan también a un servidor de Cloudflare, que responde en
+// menos de 1 segundo (Google tarda de 1 a 80 y a veces falla). Para leerlo
+// hace falta la clave del panel, que se guarda una vez en cada navegador.
+//  - Sin clave: el panel funciona exactamente como antes (solo Google).
+//  - Con clave: se piden los dos a la vez. Se pinta en cuanto responden
+//    ambos o, si Google tarda más de 6 s, con Cloudflare y lo último que
+//    dio Google. De cada técnico se queda la posición más reciente, así no
+//    se pierde a nadie aunque su móvil aún tenga la app antigua.
+//  - Si Cloudflare falla: solo Google, como siempre.
+var GPS_CF_REAL = 'https://gps-marcres.intranet-marcres.workers.dev/';
+var GPS_CF_PRUEBAS = 'https://gps-marcres-pruebas.intranet-marcres.workers.dev/';
+var GPS_CLAVE = leerGuardado('marcres_gps_clave');
+var ESPERA_GOOGLE = 6000;
+var _googleUltimo = null;    // { t, posiciones }: lo último bueno de Google
+var _cargaN = 0;
+
+// Con la URL de Google de pruebas, se usa también el Cloudflare de pruebas
+function gpsCF() {
+  return GAS_URL.indexOf('AKfycbxTHHiwE8shqtKILvGUrr') > -1 ? GPS_CF_PRUEBAS : GPS_CF_REAL;
+}
+function pedirJSONConTiempo(url, opciones, ms) {
+  var ctrl = new AbortController();
+  var t = setTimeout(function() { ctrl.abort(); }, ms);
+  opciones = opciones || {}; opciones.signal = ctrl.signal;
+  return fetch(url, opciones)
+    .then(function(r) { return r.json(); })
+    .then(function(d) { clearTimeout(t); return d; }, function(e) { clearTimeout(t); throw e; });
+}
+function pedirCloudflare() {
+  if (!GPS_CLAVE) return Promise.resolve(null);
+  return pedirJSONConTiempo(gpsCF() + '?action=posiciones', { headers: { 'X-Clave-Panel': GPS_CLAVE } }, 8000)
+    .then(function(d) {
+      if (d && d.claveMal) { claveIncorrecta(); return null; }
+      return (d && d.ok) ? (d.posiciones || []) : null;
+    })
+    .catch(function(e) { console.warn('Cloudflare no responde', e); return null; });
+}
+function claveIncorrecta() {
+  GPS_CLAVE = '';
+  escribirGuardado('marcres_gps_clave', '');
+  var av = document.getElementById('gps-clave-aviso');
+  av.textContent = 'La clave del panel no es correcta. Mientras, se lee solo de Google.';
+  av.style.display = '';
+  document.getElementById('config-bar').style.display = 'flex';
+}
+function _nomLimpio(t) {
+  return String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+}
+function _cuando(p) { var d = new Date(p.timestamp); return isNaN(d.getTime()) ? 0 : d.getTime(); }
+// De cada técnico, la posición más reciente de las dos fuentes
+function fusionarPosiciones(cf, google) {
+  if (!google) return cf;
+  var porNombre = {}, orden = [];
+  google.concat(cf).forEach(function(p) {
+    var k = _nomLimpio(p.tecnico);
+    if (!porNombre[k]) { porNombre[k] = p; orden.push(k); }
+    else if (_cuando(p) >= _cuando(porNombre[k])) porNombre[k] = p;
+  });
+  return orden.map(function(k) { return porNombre[k]; });
+}
+
 // -- CARGAR POSICIONES ----------------------------------------
 function cargarPosiciones() {
   if (!GAS_URL) return;
@@ -558,22 +631,50 @@ function cargarPosiciones() {
   var dot = document.getElementById('status-dot');
   var icon = document.getElementById('refresh-icon');
   icon.innerHTML = '<span class="spinner"></span>';
+  var yo = ++_cargaN;
 
-  fetch(GAS_URL + '?action=posiciones&t=' + Date.now())
+  var pGoogle = fetch(GAS_URL + '?action=posiciones&t=' + Date.now())
     .then(function(r) { return r.json(); })
     .then(function(data) {
-      icon.textContent = '🔄';
       if (!data.ok) throw new Error(data.error || 'Error');
-      dot.className = 'status-dot';
-      renderizarTecnicos(data.posiciones || []);
-      document.getElementById('last-update').textContent =
-        'Última actualización: ' + new Date().toLocaleTimeString('es-ES');
-    })
-    .catch(function(e) {
-      icon.textContent = '🔄';
-      dot.className = 'status-dot error';
-      console.error(e);
+      _googleUltimo = { t: Date.now(), posiciones: data.posiciones || [] };
+      return _googleUltimo.posiciones;
     });
+  // Si Google falla antes de que responda Cloudflare, que no quede como
+  // error sin atender en la consola (el fallo se trata más abajo)
+  pGoogle.catch(function() {});
+
+  function pintar(posiciones, fuente) {
+    if (yo !== _cargaN) return;   // ya hay una carga más nueva
+    icon.textContent = '🔄';
+    dot.className = 'status-dot';
+    renderizarTecnicos(posiciones);
+    document.getElementById('last-update').textContent =
+      'Última actualización: ' + new Date().toLocaleTimeString('es-ES') + (fuente ? ' · ' + fuente : '');
+  }
+  function fallo(e) {
+    if (yo !== _cargaN) return;
+    icon.textContent = '🔄';
+    dot.className = 'status-dot error';
+    console.error(e);
+  }
+  // Solo Google: exactamente como antes
+  function soloGoogle() {
+    pGoogle.then(function(pos) { pintar(pos, ''); }).catch(fallo);
+  }
+
+  if (!GPS_CLAVE) { soloGoogle(); return; }
+
+  pedirCloudflare().then(function(cf) {
+    if (cf === null) { soloGoogle(); return; }
+    var aTiempo = pGoogle.then(function(pos) { return pos; }, function() { return null; });
+    var plazo = new Promise(function(r) { setTimeout(function() { r(undefined); }, ESPERA_GOOGLE); });
+    Promise.race([aTiempo, plazo]).then(function(g) {
+      // Si Google no ha llegado a tiempo o ha fallado, lo último suyo (máx. 3 min)
+      if (!g && _googleUltimo && Date.now() - _googleUltimo.t < 180000) g = _googleUltimo.posiciones;
+      pintar(fusionarPosiciones(cf, g || null), g ? '' : 'solo Cloudflare');
+    });
+  });
 }
 
 function renderizarTecnicos(posiciones) {
