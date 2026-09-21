@@ -3346,7 +3346,13 @@ var productosCache={},_prodUidActivo=null;
 // hacerle sitio. Un parte perdido es un problema; un catálogo no guardado
 // solo significa esperar la descarga otra vez.
 var CLAVE_CATALOGO='marcres_catalogo_v1';
-var HORAS_CATALOGO=3;   // pasado este tiempo se vuelve a descargar
+// La copia no se tira al hacerse vieja: si tiene más de MIN_CATALOGO_FRESCO
+// minutos se sigue usando al instante y se pide otra por detrás; si no hay
+// cobertura, se sigue buscando con la que hay. Solo se descarta pasados
+// DIAS_CATALOGO_MAX días (precios demasiado antiguos).
+var MIN_CATALOGO_FRESCO=30;
+var DIAS_CATALOGO_MAX=7;
+var _catalogoTs=0;   // cuándo se descargó el catálogo que hay en memoria
 
 function _guardarCatalogoLocal(lista){
   try{
@@ -3372,7 +3378,8 @@ function _leerCatalogoLocal(){
     if(!raw) return null;
     var g=JSON.parse(raw);
     if(!g||!g.ts||!g.items||!g.items.length) return null;
-    if(Date.now()-g.ts > HORAS_CATALOGO*3600000) return null;   // caducado
+    if(Date.now()-g.ts > DIAS_CATALOGO_MAX*86400000) return null;   // demasiado antigua
+    _catalogoTs=g.ts;
     return g.items.map(function(o){
       return {name:o.n,sku:o.s,desc:o.d,price:o.p,hasStock:!!o.h,stock:o.e||0};
     });
@@ -3396,8 +3403,8 @@ var EMPRESA_INVENTARIO='ambas';
 // en el móvil. Devuelve la lista fusionada, o [] si no se pudo.
 // La usan dos sitios: el buscador de materiales y la precarga de más abajo.
 var _cargaCatalogoEnMarcha=null;
-async function descargarCatalogoProductos(){
-  if(productosCache[EMPRESA_INVENTARIO]) return productosCache[EMPRESA_INVENTARIO];
+async function descargarCatalogoProductos(forzar){
+  if(!forzar && productosCache[EMPRESA_INVENTARIO]) return productosCache[EMPRESA_INVENTARIO];
   // Si ya hay una descarga en marcha (por ejemplo la precarga), se espera a esa
   // en lugar de lanzar otra igual.
   if(_cargaCatalogoEnMarcha) return _cargaCatalogoEnMarcha;
@@ -3424,6 +3431,7 @@ async function descargarCatalogoProductos(){
       fusionados.sort(function(a,b){return (a.name||'').localeCompare(b.name||'');});
       if(fusionados.length){
         productosCache[EMPRESA_INVENTARIO]=fusionados;
+        _catalogoTs=Date.now();
         _guardarCatalogoLocal(fusionados);   // si no cabe, simplemente no se guarda
       }
       return fusionados;
@@ -3441,10 +3449,20 @@ async function descargarCatalogoProductos(){
 // el buscador lo volverá a intentar cuando haga falta, igual que antes.
 function precargarCatalogoProductos(){
   try{
-    if(productosCache[EMPRESA_INVENTARIO]) return;
+    if(productosCache[EMPRESA_INVENTARIO]){ renovarCatalogoSiViejo(); return; }
     var guardado=_leerCatalogoLocal();
-    if(guardado){ productosCache[EMPRESA_INVENTARIO]=guardado; return; }
+    if(guardado){ productosCache[EMPRESA_INVENTARIO]=guardado; renovarCatalogoSiViejo(); return; }
     descargarCatalogoProductos().catch(function(){});
+  }catch(e){}
+}
+// Si el catálogo que se está usando tiene más de 30 minutos, se baja otro sin
+// que el técnico lo note. Si falla (sin cobertura), se sigue con el que hay.
+function renovarCatalogoSiViejo(){
+  try{
+    if(_cargaCatalogoEnMarcha) return;
+    if(!productosCache[EMPRESA_INVENTARIO]) return;
+    if(Date.now()-_catalogoTs < MIN_CATALOGO_FRESCO*60000) return;
+    descargarCatalogoProductos(true).catch(function(){});
   }catch(e){}
 }
 setTimeout(precargarCatalogoProductos,4000);
@@ -3467,6 +3485,7 @@ async function buscarProductosHolded(q,uid){
       var guardado=_leerCatalogoLocal();
       if(guardado) productosCache[EMPRESA_INVENTARIO]=guardado;
     }
+    renovarCatalogoSiViejo();
     if(!productosCache[EMPRESA_INVENTARIO]){
       var fusionados=await descargarCatalogoProductos();
       if(!fusionados.length){
