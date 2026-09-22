@@ -4133,6 +4133,32 @@ _arrancarParte = function(prefix) {
   guardarEstadoParte(prefix);
 };
 
+// Con la pantalla bloqueada o la app en segundo plano, el navegador para la
+// app y no se manda la posición. Al volver (desbloquear el móvil, volver de
+// otra app), se pide una posición nueva y se manda al momento, sin esperar al
+// siguiente envío de 30 s. Si el seguimiento se había parado con el parte en
+// curso, se vuelve a poner en marcha. Como mucho una vez cada 20 s.
+var _gpsUltimoRetorno = 0;
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState !== 'visible' || !parteEnCurso) return;
+  if (Date.now() - _gpsUltimoRetorno < 20000) return;
+  _gpsUltimoRetorno = Date.now();
+  try {
+    if (!navigator.geolocation) return;
+    if (_gpsWatchId === null) { iniciarTrackingGPS(); return; }
+    navigator.geolocation.getCurrentPosition(function(pos) {
+      if (!parteEnCurso) return;
+      var latInt = Math.round(pos.coords.latitude  * 1000000);
+      var lngInt = Math.round(pos.coords.longitude * 1000000);
+      _gpsUltimaPos = { lat: latInt, lng: lngInt,
+        latDec: (latInt / 1000000).toFixed(6), lngDec: (lngInt / 1000000).toFixed(6),
+        precision: Math.round(pos.coords.accuracy) };
+      _enviarUbicacionGAS(true);
+    }, function() { /* sin posición nueva: el seguimiento normal sigue igual */ },
+    { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 });
+  } catch (eVis) {}
+});
+
 var _orig_detenerTimer = detenerTimer;
 detenerTimer = function() {
   var _prefixFinalizado = timerPrefix; // capturar ANTES de que _orig_detenerTimer lo ponga a null
@@ -4477,6 +4503,11 @@ function restaurarEstadoParte(estado){
   }, 1000);
 
   iniciarAutoguardado();
+  // El seguimiento GPS también vuelve a arrancar. Antes no lo hacía: si el
+  // móvil cerraba la app en segundo plano y el técnico recuperaba el parte, el
+  // cronómetro seguía pero no se volvía a mandar ninguna posición hasta
+  // terminar (en el panel salían técnicos "en curso" de hace 2 y 3 horas).
+  try { if (_gpsWatchId === null) iniciarTrackingGPS(); } catch (eGps) {}
   showToast('✅ Parte recuperado correctamente', 'success');
 }
 
