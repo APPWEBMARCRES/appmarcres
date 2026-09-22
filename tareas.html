@@ -664,8 +664,9 @@ function cargarTecnicos(){
     if(TECNICOS.length){ marcarFuente('Holded'); pintarFilas(); }
   }
 
-  fetch(GAS_PARTES+'?action=empleados&q=')
-    .then(function(r){ return r.json(); })
+  // De Cloudflare (al instante); si no responde, de Google como antes
+  pedirCF('?action=empleados&q=')
+    .then(function(d){ return d || fetch(GAS_PARTES+'?action=empleados&q=').then(function(r){ return r.json(); }); })
     .then(function(d){
       var l=(d && d.empleados) || [];
       var crudos=[];
@@ -1023,6 +1024,7 @@ function post(payload, ok, err){
         if(n<=esperas.length){ setTimeout(function(){ intentar(n+1); }, esperas[n-1]); return; }
         err('Respuesta inválida del servidor'); return;
       }
+      _ultimoCambio = Date.now();   // la copia de Cloudflare aún no lo tiene
       ok(d);
     };
     xhr.onerror=function(){ err('Sin conexión'); };
@@ -1065,6 +1067,7 @@ function haceCuanto(ms){
   return h<24 ? ('hace '+h+' h') : 'de ayer o antes';
 }
 
+var _cargaSemanaN=0;
 function cargarSemana(){
   if(!lunesActual) lunesActual=lunesDe(new Date());
   var viernes=sumar(lunesActual,4);
@@ -1087,17 +1090,35 @@ function cargarSemana(){
   // Se pide hasta el DOMINGO aunque el tablero solo pinte de lunes a viernes:
   // un parte enviado el sábado tiene que salir en Terminadas. Las tarjetas de
   // fin de semana no se pintan porque el tablero solo tiene cinco columnas.
-  var url=GAS_URL+'?action=panel&desde='+encodeURIComponent(clave)+
+  var qsPanel='?action=panel&desde='+encodeURIComponent(clave)+
           '&hasta='+encodeURIComponent(aTxt(sumar(lunesActual,6)));
+  var url=GAS_URL+qsPanel;
+  var yoSem=++_cargaSemanaN, googleLlego=false, cfPinto=false;
+  // La copia de Cloudflare (de hace unos minutos) llega en menos de 1 s y se
+  // pinta mientras Google responde. Justo después de crear o mover algo no se
+  // usa: todavía no lo tendría.
+  if(Date.now()-_ultimoCambio > 5*60000){
+    pedirCF(qsPanel).then(function(d){
+      if(!d || googleLlego || yoSem!==_cargaSemanaN) return;
+      pintarTablero(d.tareas||[]);
+      pintarTerminadas(d.terminadas||[]);
+      marcarFrescura('actualizando…');
+      cfPinto=true;
+    });
+  }
   // pedirJSON repite si Google devuelve su página de error
   pedirJSON(url).then(function(d){
+    if(yoSem!==_cargaSemanaN) return;   // ya se pidió otra semana
     if(!d || !d.ok) throw new Error('respuesta no válida');
+    googleLlego=true;
     pintarTablero(d.tareas||[]);
     guardarPanelLocal(clave, d);
     marcarFrescura('');
     pintarTerminadas(d.terminadas||[]);   // ya vienen en el mismo paquete
   }).catch(function(){
-    if(cache) marcarFrescura('sin conexión · mostrando lo de '+haceCuanto(cache.t));
+    if(yoSem!==_cargaSemanaN) return;
+    if(cfPinto) marcarFrescura('Google no ha respondido · mostrando la copia de hace unos minutos');
+    else if(cache) marcarFrescura('sin conexión · mostrando lo de '+haceCuanto(cache.t));
     else { pintarTablero([]); showToast('❌ No he podido cargar la semana','error'); }
   });
 }
@@ -1419,6 +1440,31 @@ var AUS_AVISOS=[];
 // Google a veces devuelve su propia página de error en lugar de la respuesta,
 // sobre todo en las peticiones que tardan (leer Holded puede llevar 30 s).
 // Se reintenta dos veces antes de darla por perdida. Devuelve el JSON, o null.
+// ── Lecturas desde Cloudflare (nivel 3, fase D3) ──────────────
+// Un servidor de Cloudflare guarda una copia de la lista de técnicos, de
+// La semana (renovada cada 10-20 min en horario de trabajo) y de las
+// vacaciones (una vez al día, a las 6:00, para no gastar llamadas a Holded),
+// y la entrega al instante. Google tarda de 2 a 60 s y a veces falla.
+// Si Cloudflare falla o no tiene copia, se pregunta a Google como siempre.
+// Para quitarlo: DATOS_CF = ''.
+var DATOS_CF = 'https://datos-marcres.intranet-marcres.workers.dev/';
+var _ultimoCambio = 0;   // cuándo se creó/movió algo: justo después, a Google directo
+function pedirCF(qs){
+  if(!DATOS_CF) return Promise.resolve(null);
+  var ctrl = new AbortController();
+  var t = setTimeout(function(){ ctrl.abort(); }, 8000);
+  return fetch(DATOS_CF + qs, { signal: ctrl.signal })
+    .then(function(r){ return r.ok ? r.text() : null; })
+    .then(function(txt){ clearTimeout(t); if(!txt) return null; var d = JSON.parse(txt); return (d && d.ok) ? d : null; })
+    .catch(function(){ clearTimeout(t); return null; });
+}
+// Vacaciones: de Cloudflare; si no hay copia, de Google (como antes)
+function pedirAusencias(qs){
+  return pedirCF('?action=ausencias' + qs).then(function(d){
+    return d || pedirJSON(GAS_URL + '?action=ausencias' + qs);
+  });
+}
+
 function pedirJSON(url){
   var esperas=[4000, 10000];
   return new Promise(function(resolve){
@@ -1449,7 +1495,7 @@ function cargarAusenciasAvisos(){
   // más a Holded alarga la petición hasta que Google la corta (medido: seis
   // meses tardaban unos 32 s y a veces fallaban; tres, pocos segundos).
   var qs='&desde='+encodeURIComponent(aTxt(sumar(h,-7)))+'&hasta='+encodeURIComponent(aTxt(sumar(h,90)));
-  pedirJSON(GAS_URL+'?action=ausencias'+qs).then(function(d){
+  pedirAusencias(qs).then(function(d){
     if(d && d.ok && d.conectado){
       AUS_AVISOS=soloTecnicosAus(d.ausencias);
       revisarAusenciasFormulario(false);
@@ -1627,7 +1673,8 @@ function cargarCalendario(fresco){
   // anio = el del mes que se mira. Sin esto, en enero el rango empieza en
   // diciembre y el backend leería la hoja del año anterior.
   var pTareas=pedirJSON(GAS_URL+'?action=tareas'+qs+'&anio='+mesCal.getFullYear());
-  var pAus=pedirJSON(GAS_URL+'?action=ausencias'+qs+(fresco?'&fresco=si':''));
+  // Con el botón de refrescar (fresco) se va a Google; si no, la copia del día
+  var pAus=fresco ? pedirJSON(GAS_URL+'?action=ausencias'+qs+'&fresco=si') : pedirAusencias(qs);
 
   Promise.all([pTareas, pAus]).then(function(res){
     if(yo!==_calPeticion) return;
