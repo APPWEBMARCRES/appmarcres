@@ -1158,6 +1158,26 @@ function avisoOtraEmpresa(todas, visibles, empresa){
          "Cambia de empresa ahi arriba para verlas.</div>";
 }
 
+// Solo las tareas de HOY. El panel de la oficina manda las de hoy y mañana, y
+// Holded todas las abiertas: ver las de otros días confundía a los técnicos
+// (petición de Cristhian, 22/09/2026). Las que no traen fecha (algunas de
+// Holded) se dejan: no son de otro día, y así no se pierde ninguna.
+function soloDeHoy(tareas){
+  if (!tareas || !tareas.length) return tareas || [];
+  var h = new Date();
+  return tareas.filter(function(t){
+    var f = String(t && t.fecha || '').trim();
+    if (!f) return true;
+    var m = f.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);            // 22/09/2026 o 22/9/2026
+    if (!m) {
+      var iso = f.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);           // 2026-09-22
+      if (iso) m = [iso[0], iso[3], iso[2], iso[1]];
+    }
+    if (!m) return true;   // fecha en un formato desconocido: mejor enseñarla
+    return +m[1] === h.getDate() && +m[2] === h.getMonth() + 1 && +m[3] === h.getFullYear();
+  });
+}
+
 function soloDeLaEmpresa(tareas, empresa){
   var e = String(empresa || '').trim().toLowerCase();
   if (!e || !tareas || !tareas.length) return tareas || [];
@@ -2898,6 +2918,7 @@ async function cargarTareasAlbaran(id, nomFinal) {
 // Pinta la lista de tareas del albarán. Es el mismo código de antes, sacado a
 // una función para poder usarlo dos veces: con la copia y con lo nuevo.
 function pintarTareasAlbaran(todasSinFiltrar, avisoExtra, sinDatos) {
+  todasSinFiltrar = soloDeHoy(todasSinFiltrar);   // solo las de hoy
   const lista = document.getElementById('a-tareas-lista');
   const tareas = soloDeLaEmpresa(todasSinFiltrar, empresaAlbaran);
   const avisoA = (avisoExtra || '') + avisoOtraEmpresa(todasSinFiltrar, tareas, empresaAlbaran);
@@ -3188,6 +3209,7 @@ async function cargarTareasChecklist(empleadoId, nombreTecnico) {
 // Pinta la lista de tareas del checklist. Es el mismo código de antes, sacado
 // a una función para poder usarlo dos veces: con la copia y con lo nuevo.
 function pintarTareasChecklist(todasSinFiltrarC, avisoExtra, sinDatos) {
+  todasSinFiltrarC = soloDeHoy(todasSinFiltrarC);   // solo las de hoy
   var lista = document.getElementById('c-tareas-lista');
   var count = document.getElementById('c-tareas-count');
   var tareas = soloDeLaEmpresa(todasSinFiltrarC, empresaChecklist);
