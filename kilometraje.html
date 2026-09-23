@@ -168,8 +168,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 
     <div class="field-group">
       <label class="field-label">Matrícula de la furgoneta <span style="color:var(--bad)">*</span></label>
-      <input type="text" class="field-input" id="matricula" placeholder="Ej: 1234 ABC" maxlength="20"
-             autocomplete="off" style="text-transform:uppercase;" oninput="guardarBorrador()">
+      <input type="text" class="field-input" id="matricula" placeholder="Ej: 1234 ABC" maxlength="9"
+             autocomplete="off" style="text-transform:uppercase;" oninput="this.style.borderColor='';guardarBorrador()">
     </div>
     <div class="field-group">
       <label class="field-label">⛽ Repostaje <span style="color:var(--bad)">*</span></label>
@@ -355,6 +355,7 @@ function elegirTecnico(nombre){
     if (mapa[nombre] && !mat.value.trim()) mat.value = mapa[nombre];
   }catch(e){}
   guardarBorrador();
+  comprobarIncidencias(nombre);
 }
 function resetTecnico(){
   var inp = document.getElementById('tecnico');
@@ -429,6 +430,85 @@ function cargarTecnicos(){
 // ══════════════════════════════════════════════════════════════
 // KILÓMETROS
 // ══════════════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════
+// AVISOS POR PARTES SIN ENVIAR
+// ─────────────────────────────────────────────────
+// Si un técnico usó furgoneta y no mandó su parte de kilómetros, queda una
+// incidencia a su nombre. Al elegirse en la app le sale este aviso, que tiene
+// que aceptar para poder seguir. A la tercera del mes, el backend avisa por
+// correo a administración.
+// El ACOMPAÑANTE no manda parte propio, así que nunca le salen avisos: sus
+// kilómetros van dentro del parte del que conduce.
+// ═════════════════════════════════════════════════
+var _incidenciaTecnico = '';
+function comprobarIncidencias(nombre){
+  if (!nombre) return;
+  if (GAS_URL.indexOf('PEGA_AQUI') === 0) return;
+  var ctrl = new AbortController();
+  var t = setTimeout(function(){ ctrl.abort(); }, 25000);
+  fetch(GAS_URL + '?action=incidencias&tecnico=' + encodeURIComponent(nombre), { signal: ctrl.signal })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      clearTimeout(t);
+      if (!d || !d.ok || !d.pendientes || !d.pendientes.length) return;
+      // Si mientras tanto se ha cambiado de técnico, no se enseña nada
+      var actual = (document.getElementById('tecnico').value || '').trim();
+      if (actual !== nombre) return;
+      mostrarAvisoIncidencias(nombre, d);
+    })
+    .catch(function(){ clearTimeout(t); /* sin conexión: no se molesta al técnico */ });
+}
+
+function mostrarAvisoIncidencias(nombre, d){
+  _incidenciaTecnico = nombre;
+  var dias = d.pendientes.map(function(p){ return p.fecha; });
+  var n = d.acumuladas || dias.length, lim = d.limite || 3;   // acumuladas sin avisar
+  var ultimo = n >= lim;
+
+  var fondo = document.createElement('div');
+  fondo.id = 'aviso-incidencias';
+  fondo.style.cssText = 'position:fixed;inset:0;background:rgba(16,26,44,.75);z-index:99999;display:flex;align-items:center;justify-content:center;padding:18px;';
+  fondo.innerHTML =
+      '<div style="background:#fff;border-radius:14px;max-width:420px;width:100%;overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.4);">'
+    +   '<div style="background:' + (ultimo ? '#B3261E' : '#8A5A00') + ';padding:16px 20px;color:#fff;">'
+    +     '<div style="font-size:17px;font-weight:800;">' + (ultimo ? '⚠ Aviso importante' : '⚠ Parte de kilómetros sin enviar') + '</div>'
+    +     '<div style="font-size:12px;opacity:.85;margin-top:3px;">Incidencia ' + n + ' de ' + lim + '</div>'
+    +   '</div>'
+    +   '<div style="padding:18px 20px;font-size:14px;line-height:1.55;color:#101A2C;">'
+    +     '<div>' + nombre + ', usaste furgoneta y no llegó tu parte de kilómetros ' + (dias.length === 1 ? 'del día:' : 'de estos días:') + '</div>'
+    +     '<div style="background:#F4F6FA;border-radius:8px;padding:10px 12px;margin:10px 0;font-weight:700;">' + dias.join(' · ') + '</div>'
+    +     (ultimo
+          ? '<div style="color:#B3261E;font-weight:600;">Van ' + n + ' veces. Se avisa a administración, que decidirá la medida que corresponda.</div>'
+          : '<div>Si se juntan ' + lim + ' veces, se avisará a administración.</div>')
+    +     '<div style="color:#5A6478;font-size:12.5px;margin-top:10px;">Si ese día ibas de acompañante, no tienes que mandar parte: avisa a la oficina para que lo corrija.</div>'
+    +   '</div>'
+    +   '<div style="padding:0 20px 18px;">'
+    +     '<button id="btn-acepto-incidencia" style="width:100%;padding:14px;border:none;border-radius:10px;background:' + (ultimo ? '#B3261E' : '#184595') + ';color:#fff;font-size:15px;font-weight:700;cursor:pointer;">He leído y lo acepto</button>'
+    +   '</div>'
+    + '</div>';
+  document.body.appendChild(fondo);
+  document.body.style.overflow = 'hidden';
+
+  document.getElementById('btn-acepto-incidencia').onclick = function(){
+    var btn = this;
+    btn.disabled = true; btn.textContent = 'Guardando…';
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', GAS_URL, true);
+    xhr.setRequestHeader('Content-Type','text/plain;charset=utf-8');
+    xhr.timeout = 30000;
+    // Se cierre bien o mal, el técnico puede seguir trabajando: lo que no se
+    // haya podido anotar se vuelve a intentar la próxima vez que entre.
+    function cerrar(){
+      fondo.remove();
+      document.body.style.overflow = '';
+    }
+    xhr.onload = cerrar;
+    xhr.onerror = cerrar;
+    xhr.ontimeout = cerrar;
+    xhr.send(JSON.stringify({ accion: 'aceptarIncidencias', tecnico: _incidenciaTecnico }));
+  };
+}
+
 function soloDigitos(el){ el.value = el.value.replace(/\D/g,''); }
 
 // ══════════════════════════════════════════════════════════════
@@ -686,6 +766,15 @@ function quitarFoto(cual){
 // ══════════════════════════════════════════════════════════════
 // BORRADOR (si se recarga la app no se pierde nada)
 // ══════════════════════════════════════════════════════════════
+// ── Matrícula de furgoneta ────────────────────────────────────
+// Tiene que estar completa: 4 números y 3 letras. Se admite escribirla de
+// cualquier forma ("1234ABC", "1234-abc", "1234 abc") y se deja siempre igual:
+// "1234 ABC". Si no está completa, devuelve '' y el envío se para.
+function normalizarMatricula(txt){
+  var limpio = String(txt||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  var m = limpio.match(/^([0-9]{4})([A-Z]{3})$/);
+  return m ? (m[1]+' '+m[2]) : '';
+}
 function guardarBorrador(){
   try{
     localStorage.setItem(CLAVE_BORRADOR, JSON.stringify({
@@ -768,13 +857,23 @@ function enviarKilometraje(){
   }
 
   var tecnico   = document.getElementById('tecnico').value.trim();
-  var matricula = document.getElementById('matricula').value.trim().toUpperCase();
+  var matriculaEscrita = document.getElementById('matricula').value.trim();
+  var matricula = normalizarMatricula(matriculaEscrita);
   var kmIniStr  = document.getElementById('km-inicio').value.trim();
   var kmFinStr  = document.getElementById('km-fin').value.trim();
 
   // ── Validación: todos los campos son obligatorios ──
   if (!tecnico){ showToast('⚠ Selecciona el técnico','error'); return; }
-  if (!matricula){ showToast('⚠ La matrícula es obligatoria','error'); return; }
+  if (!matricula){
+    showToast(matriculaEscrita
+      ? '⚠ La matrícula no está completa: 4 números y 3 letras (ej: 1234 ABC)'
+      : '⚠ La matrícula es obligatoria','error');
+    var mi = document.getElementById('matricula');
+    if (mi){ mi.style.borderColor='var(--bad)'; try{ mi.scrollIntoView({block:'center',behavior:'smooth'}); mi.focus(); }catch(e){} }
+    return;
+  }
+  document.getElementById('matricula').value = matricula;   // se deja bien escrita
+  document.getElementById('matricula').style.borderColor='';
   if (!kmIniStr){ showToast('⚠ Faltan los KM de inicio de jornada','error'); return; }
   if (!kmFinStr){ showToast('⚠ Faltan los KM de fin de jornada','error'); return; }
 
@@ -926,6 +1025,14 @@ function mandar(payload, tecnico, matricula){
 tickFechaHora();   setInterval(tickFechaHora, 1000);
 restaurarBorrador();
 cargarTecnicos();
+// Si el borrador traía técnico, se comprueban sus avisos al abrir
+setTimeout(function(){
+  var t = (document.getElementById('tecnico').value || '').trim();
+  if (t) comprobarIncidencias(t);
+}, 1200);
 </script>
+
+<!-- Aviso legal de autoría. Fijo abajo y sin capturar el ratón, para no estorbar. -->
+<div style="position:fixed;bottom:0;left:0;right:0;text-align:center;font-size:9px;color:#9aa5b8;background:rgba(255,255,255,.85);padding:2px 0;pointer-events:none;z-index:1;">Desarrollado por Cristhian Andrés Serna Salazar © | 2026. Todos los derechos reservados. Prohibida su reproducción total o parcial sin autorización.</div>
 </body>
 </html>
