@@ -419,7 +419,7 @@ table.hid-table{width:100%;border-collapse:collapse;font-size:12px;}
         <span class="pill" onclick="selectFurgo(this,'c','No')">No</span>
       </div>
       <div class="furgo-box" id="c-furgo-box">
-        <input type="text" placeholder="Matrícula de la furgoneta (ej: 1234 ABC)" id="c-furgo-val" maxlength="20" autocomplete="off" oninput="this.style.borderColor=''">
+        <input type="text" placeholder="Matrícula de la furgoneta (ej: 1234 ABC)" id="c-furgo-val" maxlength="9" autocomplete="off" style="text-transform:uppercase;" oninput="this.style.borderColor=''">
         <div class="furgo-hint">Debes indicar la matrícula de la furgoneta utilizada en este trabajo.</div>
       </div>
     </div>
@@ -661,7 +661,7 @@ table.hid-table{width:100%;border-collapse:collapse;font-size:12px;}
         <span class="pill" onclick="selectFurgo(this,'a','No')">No</span>
       </div>
       <div class="furgo-box" id="a-furgo-box">
-        <input type="text" placeholder="Matrícula de la furgoneta (ej: 1234 ABC)" id="a-furgo-val" maxlength="20" autocomplete="off" oninput="this.style.borderColor=''">
+        <input type="text" placeholder="Matrícula de la furgoneta (ej: 1234 ABC)" id="a-furgo-val" maxlength="9" autocomplete="off" style="text-transform:uppercase;" oninput="this.style.borderColor=''">
         <div class="furgo-hint">Debes indicar la matrícula de la furgoneta utilizada en este trabajo.</div>
       </div>
     </div>
@@ -825,9 +825,9 @@ table.hid-table{width:100%;border-collapse:collapse;font-size:12px;}
     <div class="card" id="sec-foto-preparacion">
       <div class="section-header section-open" onclick="toggleSec('sec-foto-preparacion')"><span class="sec-title">📷 Fotografías <span style="font-size:11px;color:var(--bad);">*mínimo 1</span></span><span class="chevron">⌄</span></div>
       <div class="section-body" style="display:block;">
-        <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Haz al menos una fotografía del material o de lo que hay que presupuestar. Puedes añadir más si hace falta.</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Haz al menos una fotografía del material o de lo que hay que presupuestar. Puedes añadir más si hace falta. Si el móvil avisa de que no hay espacio para hacer la foto, elige una de la galería.</div>
         <div class="taller-grid" id="prep-foto-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"></div>
-        <input type="file" accept="image/*" capture="environment" id="prep-foto-input" style="display:none;" onchange="onPrepFoto(this)">
+        <input type="file" accept="image/*" multiple id="prep-foto-input" style="display:none;" onchange="onPrepFoto(this)">
         <div class="fotos-aviso" id="fotos-aviso-preparacion">⚠ Hace falta al menos una fotografía para enviar</div>
       </div>
     </div>
@@ -1506,9 +1506,18 @@ function selectCorte(el,prefix,val){const yaActivo=el.classList.contains('p-ok')
 // Furgoneta: mismo patrón que el corte de agua — al marcar "Sí" se despliega la matrícula.
 function selectFurgo(el,prefix,val){const yaActivo=el.classList.contains('p-ok')||el.classList.contains('p-warn');el.parentElement.querySelectorAll('.pill').forEach(p=>p.className='pill');const caja=document.getElementById(prefix+'-furgo-box');if(yaActivo){if(caja)caja.classList.remove('show');return;}if(val==='Si')el.classList.add('p-ok');else el.classList.add('p-warn');el.dataset.group=prefix+'-furgo';if(caja)caja.classList.toggle('show',val==='Si');}
 // Devuelve {furgoneta, matricula} para el payload; matrícula solo si se marcó "Sí".
-function getFurgoneta(prefix){var v=getPill(prefix+'-furgo');var m=(document.getElementById(prefix+'-furgo-val')?.value||'').trim().toUpperCase();return {furgoneta:v,matriculaFurgoneta:(v==='Sí'||v==='Si')?m:''};}
+function getFurgoneta(prefix){var v=getPill(prefix+'-furgo');var m=normalizarMatricula(document.getElementById(prefix+'-furgo-val')?.value||'')||(document.getElementById(prefix+'-furgo-val')?.value||'').trim().toUpperCase();return {furgoneta:v,matriculaFurgoneta:(v==='Sí'||v==='Si')?m:''};}
 // El apartado Furgoneta es obligatorio: hay que responder Sí o No.
 // Si es "Sí", además hay que escribir la matrícula. Si es "No", no se pide nada más.
+// ── Matrícula de furgoneta ────────────────────────────────────
+// Tiene que estar completa: 4 números y 3 letras. Se admite escribirla de
+// cualquier forma ("1234ABC", "1234-abc", "1234 abc") y se deja siempre igual:
+// "1234 ABC". Si no está completa, devuelve '' y el envío se para.
+function normalizarMatricula(txt){
+  var limpio = String(txt||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  var m = limpio.match(/^([0-9]{4})([A-Z]{3})$/);
+  return m ? (m[1]+' '+m[2]) : '';
+}
 function validarFurgoneta(prefix){
   var v=getPill(prefix+'-furgo');
   var inp=document.getElementById(prefix+'-furgo-val');
@@ -1530,12 +1539,16 @@ function validarFurgoneta(prefix){
   }
   // 2) "No": no lleva furgoneta, no hace falta nada más
   if(v==='No'){ if(inp) inp.style.borderColor=''; return true; }
-  // 3) "Sí": la matrícula es obligatoria
+  // 3) "Sí": la matrícula es obligatoria y COMPLETA (4 números + 3 letras)
   if(!inp) return true;
-  if(inp.value.trim()){ inp.style.borderColor=''; return true; }
+  var escrito = inp.value.trim();
+  var mat = normalizarMatricula(escrito);
+  if(mat){ inp.value = mat; inp.style.borderColor=''; return true; }
   if(caja) caja.classList.add('show');
   inp.style.borderColor='var(--bad)';
-  showToast('⚠ Has marcado que llevas furgoneta: indica la matrícula','error');
+  showToast(escrito
+    ? '⚠ La matrícula no está completa: 4 números y 3 letras (ej: 1234 ABC)'
+    : '⚠ Has marcado que llevas furgoneta: indica la matrícula','error');
   try{inp.scrollIntoView({block:'center',behavior:'smooth'});inp.focus();}catch(e){}
   return false;
 }
@@ -3651,25 +3664,47 @@ function abrirFotoPrep(){
   var inp=document.getElementById('prep-foto-input');
   if(inp){ inp.value=''; inp.click(); }
 }
+// Admite varias fotos de golpe, de la cámara o de la galería, y avisa si
+// alguna falla. Antes solo cogía la primera y, si el móvil daba error al hacer
+// la foto (por ejemplo "no hay espacio"), no se enteraba nadie: parecía que la
+// app no hacía nada y no se podían añadir más.
 function onPrepFoto(input){
-  var file=input.files[0]; if(!file) return;
-  var reader=new FileReader();
-  reader.onload=function(e){
-    var img=new Image();
-    img.onload=function(){
-      var canvas=document.createElement('canvas'),MAX=1200;
-      var w=img.width,h=img.height;
-      if(w>MAX){h=Math.round(h*MAX/w);w=MAX;} if(h>MAX){w=Math.round(w*MAX/h);h=MAX;}
-      canvas.width=w;canvas.height=h;canvas.getContext('2d').drawImage(img,0,0,w,h);
-      if(prepFotoData.length>=PREP_MAX_FOTOS){ showToast('⚠ Máximo '+PREP_MAX_FOTOS+' fotografías','error'); return; }
-      prepFotoData.push(canvas.toDataURL('image/jpeg',0.8));
-      pintarFotosPrep();
+  var files=Array.prototype.slice.call(input.files||[]);
+  input.value='';
+  if(!files.length) return;
+  var anadidas=0, fallos=0, pendientes=files.length;
+  function terminar(){
+    if(--pendientes>0) return;
+    pintarFotosPrep();
+    if(anadidas){
       var av=document.getElementById('fotos-aviso-preparacion'); if(av) av.classList.remove('show');
-      input.value=''; showToast('✅ Foto '+prepFotoData.length+' añadida','success');
+      showToast('✅ '+(anadidas===1?'Foto añadida':anadidas+' fotos añadidas')+' ('+prepFotoData.length+' en total)','success');
+    }
+    if(fallos) showToast('⚠ No se pudo leer '+(fallos===1?'una foto':fallos+' fotos')+'. Inténtalo otra vez o elígela de la galería.','error');
+  }
+  files.forEach(function(file){
+    if(prepFotoData.length>=PREP_MAX_FOTOS){ showToast('⚠ Máximo '+PREP_MAX_FOTOS+' fotografías','error'); terminar(); return; }
+    var reader=new FileReader();
+    reader.onerror=function(){ fallos++; terminar(); };
+    reader.onload=function(e){
+      var img=new Image();
+      img.onerror=function(){ fallos++; terminar(); };
+      img.onload=function(){
+        try{
+          if(prepFotoData.length>=PREP_MAX_FOTOS){ terminar(); return; }
+          var canvas=document.createElement('canvas'),MAX=1200;
+          var w=img.width,h=img.height;
+          if(w>MAX){h=Math.round(h*MAX/w);w=MAX;} if(h>MAX){w=Math.round(w*MAX/h);h=MAX;}
+          canvas.width=w;canvas.height=h;canvas.getContext('2d').drawImage(img,0,0,w,h);
+          prepFotoData.push(canvas.toDataURL('image/jpeg',0.8));
+          anadidas++;
+        }catch(err){ fallos++; }
+        terminar();
+      };
+      img.src=e.target.result;
     };
-    img.src=e.target.result;
-  };
-  reader.readAsDataURL(file);
+    reader.readAsDataURL(file);
+  });
 }
 function quitarFotoPrep(e,idx){
   e.stopPropagation();
