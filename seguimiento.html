@@ -869,12 +869,23 @@ function borrarTecnicoBtn(btn) {
 function borrarTecnico(tecnico) {
   if (!GAS_URL) { alert('Falta configurar la URL del GAS.'); return; }
   if (!confirm('¿Eliminar a ' + tecnico + ' del panel? Volverá a aparecer cuando pulse INICIO.')) return;
-  fetch(GAS_URL, {
+  var cuerpo = JSON.stringify({ accion: 'offline', tecnico: tecnico });
+  var aGoogle = fetch(GAS_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ accion: 'offline', tecnico: tecnico })
-  })
-  .then(function() {
+    body: cuerpo
+  }).catch(function(e) { console.error(e); });
+
+  // Hay que borrarlo TAMBIÉN en Cloudflare. Desde que el panel lee de los dos
+  // sitios (fase C), borrarlo solo en Google no servía de nada: el técnico
+  // volvía a salir en la siguiente actualización, con la copia de Cloudflare.
+  var aCloudflare = fetch(gpsCF(), {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: cuerpo
+  }).catch(function(e) { console.error(e); });
+
+  Promise.all([aGoogle, aCloudflare]).then(function() {
     // Quitar marcador del mapa
     if (markers[tecnico]) {
       map.removeLayer(markers[tecnico]);
@@ -882,8 +893,7 @@ function borrarTecnico(tecnico) {
     }
     // Recargar panel
     cargarPosiciones();
-  })
-  .catch(function(e) { console.error(e); });
+  });
 }
 
 // -- ARRANCAR -------------------------------------------------
