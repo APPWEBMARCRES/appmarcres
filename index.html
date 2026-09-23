@@ -827,7 +827,7 @@ table.hid-table{width:100%;border-collapse:collapse;font-size:12px;}
       <div class="section-body" style="display:block;">
         <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Haz al menos una fotografía del material o de lo que hay que presupuestar. Puedes añadir más si hace falta. Si el móvil avisa de que no hay espacio para hacer la foto, elige una de la galería.</div>
         <div class="taller-grid" id="prep-foto-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"></div>
-        <input type="file" accept="image/*" multiple id="prep-foto-input" style="display:none;" onchange="onPrepFoto(this)">
+        <input type="file" accept="image/*" capture="environment" id="prep-foto-input" style="display:none;" onchange="onPrepFoto(this)">
         <div class="fotos-aviso" id="fotos-aviso-preparacion">⚠ Hace falta al menos una fotografía para enviar</div>
       </div>
     </div>
@@ -3664,10 +3664,10 @@ function abrirFotoPrep(){
   var inp=document.getElementById('prep-foto-input');
   if(inp){ inp.value=''; inp.click(); }
 }
-// Admite varias fotos de golpe, de la cámara o de la galería, y avisa si
-// alguna falla. Antes solo cogía la primera y, si el móvil daba error al hacer
-// la foto (por ejemplo "no hay espacio"), no se enteraba nadie: parecía que la
-// app no hacía nada y no se podían añadir más.
+// La foto se hace con la cámara en el momento, igual que en los demás partes.
+// Se añaden de una en una con "Añadir otra". Si el móvil falla al hacer la foto
+// (por ejemplo "no hay espacio"), ahora avisa: antes no se enteraba nadie,
+// parecía que la app no hacía nada y no se podían añadir más.
 function onPrepFoto(input){
   var files=Array.prototype.slice.call(input.files||[]);
   input.value='';
@@ -3680,7 +3680,7 @@ function onPrepFoto(input){
       var av=document.getElementById('fotos-aviso-preparacion'); if(av) av.classList.remove('show');
       showToast('✅ '+(anadidas===1?'Foto añadida':anadidas+' fotos añadidas')+' ('+prepFotoData.length+' en total)','success');
     }
-    if(fallos) showToast('⚠ No se pudo leer '+(fallos===1?'una foto':fallos+' fotos')+'. Inténtalo otra vez o elígela de la galería.','error');
+    if(fallos) showToast('⚠ No se pudo leer '+(fallos===1?'una foto':fallos+' fotos')+'. Haz sitio en el móvil e inténtalo otra vez.','error');
   }
   files.forEach(function(file){
     if(prepFotoData.length>=PREP_MAX_FOTOS){ showToast('⚠ Máximo '+PREP_MAX_FOTOS+' fotografías','error'); terminar(); return; }
