@@ -72,6 +72,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
    fuerte para que se vean de un golpe aunque el movil este al sol. */
 .tarea-badge.urgencia{background:#8B1A1A;color:#fff;}
 .tarea-badge.cita{background:#2D6A4F;color:#fff;}
+.tarea-badge.agua{background:#4FC3F7;color:#0B3954;}
 .tarea-badges-col{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;}
 .tarea-detalle{display:none;padding:0 14px 12px;border-top:1px solid var(--border);margin-top:0;}
 .tarea-detalle.open{display:block;}
@@ -1247,6 +1248,7 @@ async function traerTareasPlanificadas(nombreTecnico) {
         telefono: t.telefono || '',
         encargado: t.encargado || '',
         urgente: !!t.urgente,
+        corteAgua: !!t.corteAgua,
         cliente: t.cliente || '',
         direccion: t.direccion || '',
         poblacion: t.poblacion || '',
@@ -2987,6 +2989,7 @@ function pintarTareasAlbaran(todasSinFiltrar, avisoExtra, sinDatos) {
     var extras = '';
     if (t.urgente) extras += '<span class="tarea-albaran-badge tarea-badge urgencia">🔔 URGENCIA</span>';
     if (t.hora)    extras += '<span class="tarea-albaran-badge tarea-badge cita">📌 CITA ' + t.hora + '</span>';
+    if (t.corteAgua) extras += '<span class="tarea-albaran-badge tarea-badge agua">💧 CORTE DE AGUA</span>';
     if (tipo || extras) html += '<div class="tarea-badges-col">'
       + (tipo ? '<span class="tarea-albaran-badge tarea-badge ' + badgeCls + '">' + tipo + '</span>' : '')
       + extras + '</div>';
@@ -3045,7 +3048,7 @@ function seleccionarTareaAlbaran(idx) {
   // Descripción del trabajo. Solo guía en pantalla: no se envía a ningún sitio
   // ni aparece en el PDF. Si la tarea no trae ninguna, la sección queda oculta.
   mostrarDescripcionTarea(t.trabajo, t.maps, {
-    hora: t.hora, dirTrabajo: t.dirTrabajo, contacto: t.contacto, telefono: t.telefono, encargado: t.encargado, urgente: t.urgente
+    hora: t.hora, dirTrabajo: t.dirTrabajo, contacto: t.contacto, telefono: t.telefono, encargado: t.encargado, urgente: t.urgente, corteAgua: t.corteAgua
   });
 
   // Cerrar el desplegable tras elegir
@@ -3275,6 +3278,7 @@ function pintarTareasChecklist(todasSinFiltrarC, avisoExtra, sinDatos) {
     var extras = '';
     if (t.urgente) extras += '<span class="tarea-albaran-badge tarea-badge urgencia">🔔 URGENCIA</span>';
     if (t.hora)    extras += '<span class="tarea-albaran-badge tarea-badge cita">📌 CITA ' + t.hora + '</span>';
+    if (t.corteAgua) extras += '<span class="tarea-albaran-badge tarea-badge agua">💧 CORTE DE AGUA</span>';
     if (tipo || extras) html += '<div class="tarea-badges-col">'
       + (tipo ? '<span class="tarea-albaran-badge tarea-badge ' + badgeCls + '">' + tipo + '</span>' : '')
       + extras + '</div>';
