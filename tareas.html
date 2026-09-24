@@ -36,6 +36,11 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .lbl{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;display:block;}
 .inp{width:100%;border:1.5px solid var(--border);background:var(--surface);border-radius:var(--radius-sm);font-family:var(--font);font-size:15px;color:var(--text);outline:none;padding:9px 11px;}
 .inp:focus{border-color:var(--accent);}
+/* Lo que se escribe a mano se ve y se guarda en MAYUSCULAS, para que todas las
+   tareas le lleguen al tecnico con el mismo aspecto. Solo es como se ve: el
+   texto de ayuda gris se deja en minusculas para que siga leyendose bien. */
+.mayus{text-transform:uppercase;}
+.mayus::placeholder{text-transform:none;}
 textarea.inp{resize:vertical;min-height:76px;line-height:1.5;}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
 .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
@@ -377,27 +382,27 @@ textarea.inp{resize:vertical;min-height:76px;line-height:1.5;}
     </div>
     <div class="fg" style="position:relative;">
       <label class="lbl">Cliente</label>
-      <input class="inp" id="f-cliente" autocomplete="off" placeholder="Escribe para buscar…" oninput="buscarCliente()">
+      <input class="inp mayus" id="f-cliente" autocomplete="off" placeholder="Escribe para buscar…" oninput="buscarCliente()">
       <div id="cli-drop"></div>
     </div>
     <div class="fg"><div class="row2">
-      <div><label class="lbl">Dirección</label><input class="inp" id="f-direccion" autocomplete="off"></div>
-      <div><label class="lbl">Población</label><input class="inp" id="f-poblacion" autocomplete="off"></div>
+      <div><label class="lbl">Dirección</label><input class="inp mayus" id="f-direccion" autocomplete="off"></div>
+      <div><label class="lbl">Población</label><input class="inp mayus" id="f-poblacion" autocomplete="off"></div>
     </div></div>
     <!-- La dirección de arriba viene de Holded y suele ser la de facturación.
          Esta es donde se hace el trabajo de verdad, que muchas veces no es la
          misma. Solo se rellena cuando difieren. -->
     <div class="fg">
       <label class="lbl">Dirección del trabajo <span style="font-weight:400;text-transform:none;">(si es distinta de la de facturación)</span></label>
-      <input class="inp" id="f-dirtrabajo" autocomplete="off" placeholder="Ej: Cuarto de bombas, sótano -2">
+      <input class="inp mayus" id="f-dirtrabajo" autocomplete="off" placeholder="Ej: Cuarto de bombas, sótano -2">
     </div>
     <div class="fg"><div class="row2">
-      <div><label class="lbl">Persona de contacto</label><input class="inp" id="f-contacto" autocomplete="off" placeholder="Ej: Juan, el conserje"></div>
+      <div><label class="lbl">Persona de contacto</label><input class="inp mayus" id="f-contacto" autocomplete="off" placeholder="Ej: Juan, el conserje"></div>
       <div><label class="lbl">Teléfono</label><input class="inp" id="f-telefono" autocomplete="off" inputmode="tel" placeholder="Ej: 600 123 456"></div>
     </div></div>
     <div class="fg">
       <label class="lbl">Qué hay que hacer</label>
-      <textarea class="inp" id="f-trabajo" placeholder="Ej: Sustituir bobinas. Llevar flotador por si hay que cambiarlo."></textarea>
+      <textarea class="inp mayus" id="f-trabajo" placeholder="Ej: Sustituir bobinas. Llevar flotador por si hay que cambiarlo."></textarea>
     </div>
     <div class="fg">
       <label class="lbl">Ubicación en Google Maps <span style="font-weight:400;color:#7A869E;">(opcional)</span></label>
@@ -640,6 +645,14 @@ function selUrgente(el){
   el.classList.add("sel");
   urgenteElegido   = el.dataset.v === "si";
   corteAguaElegido = el.dataset.v === "agua";
+}
+
+// Lo escrito a mano se guarda en MAYUSCULAS. El enlace de Maps y el telefono
+// NO pasan por aqui a proposito: cambiarle las mayusculas a un enlace lo
+// rompe, y un telefono no tiene letras que cambiar.
+function mayus(id){
+  var el = document.getElementById(id);
+  return el ? (el.value || '').trim().toUpperCase() : '';
 }
 
 function selEmpresa(el){
@@ -928,8 +941,8 @@ function crearTarea(){
     return;
   }
 
-  var cliente=document.getElementById('f-cliente').value.trim();
-  var trabajo=document.getElementById('f-trabajo').value.trim();
+  var cliente=mayus('f-cliente');
+  var trabajo=mayus('f-trabajo');
   if(!cliente && !trabajo){ showToast('⚠ Pon el cliente o el trabajo','error'); return; }
 
   var iso=document.getElementById('f-fecha').value;
@@ -946,12 +959,12 @@ function crearTarea(){
     empresa:empresaSel,
     tecnicos:tecs,
     cliente:cliente,
-    direccion:document.getElementById('f-direccion').value.trim(),
-    poblacion:document.getElementById('f-poblacion').value.trim(),
+    direccion:mayus('f-direccion'),
+    poblacion:mayus('f-poblacion'),
     trabajo:trabajo,
     maps:document.getElementById('f-maps').value.trim(),
-    dirTrabajo:document.getElementById('f-dirtrabajo').value.trim(),
-    contacto:document.getElementById('f-contacto').value.trim(),
+    dirTrabajo:mayus('f-dirtrabajo'),
+    contacto:mayus('f-contacto'),
     telefono:document.getElementById('f-telefono').value.trim(),
     encargado:encargadoElegido,
     urgente: urgenteElegido ? 'si' : 'no',
