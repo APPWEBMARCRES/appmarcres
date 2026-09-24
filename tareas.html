@@ -57,6 +57,12 @@ textarea.inp{resize:vertical;min-height:76px;line-height:1.5;}
 .tarj.cita:not(.urgente){border-left-color:var(--ok);border-left-width:5px;}
 .tarj-cita{display:inline-block;background:var(--ok);color:#fff;font-size:9px;font-weight:800;
            letter-spacing:.5px;padding:2px 7px;border-radius:99px;margin-bottom:4px;}
+/* Corte de agua: azul claro, para que no se confunda con el rojo del urgente
+   ni con el verde de la cita. El tecnico tiene que saberlo antes de salir. */
+.pill.agua.sel{background:#4FC3F7;border-color:#4FC3F7;color:#0B3954;}
+.tarj.agua:not(.urgente):not(.cita){border-left-color:#4FC3F7;border-left-width:5px;}
+.tarj-agua{display:inline-block;background:#4FC3F7;color:#0B3954;font-size:9px;font-weight:800;
+           letter-spacing:.5px;padding:2px 7px;border-radius:99px;margin-bottom:4px;}
 /* ── Técnico 1, Técnico 2… como en la app de partes ── */
 .tec-fila{position:relative;display:flex;align-items:center;gap:8px;}
 .tec-fila .inp{flex:1;}
@@ -366,6 +372,7 @@ textarea.inp{resize:vertical;min-height:76px;line-height:1.5;}
       <div class="pill-group" id="urgente-pills">
         <div class="pill sel" data-v="no" onclick="selUrgente(this)">Normal</div>
         <div class="pill urg" data-v="si" onclick="selUrgente(this)">🔔 AVISO URGENTE</div>
+        <div class="pill agua" data-v="agua" onclick="selUrgente(this)">💧 CORTE DE AGUA</div>
       </div>
     </div>
     <div class="fg" style="position:relative;">
@@ -623,12 +630,16 @@ function verPane(p){
   if(p==='cal') cargarCalendario();
 }
 
-// Prioridad del trabajo. Solo dos opciones: normal o aviso urgente.
+// Prioridad del trabajo: normal, aviso urgente o corte de agua. Se elige una
+// sola, igual que antes. El corte de agua se guarda en su propio campo para
+// que el aviso urgente siga siendo si/no como siempre.
 var urgenteElegido = false;
+var corteAguaElegido = false;
 function selUrgente(el){
   document.querySelectorAll("#urgente-pills .pill").forEach(function(p){ p.classList.remove("sel"); });
   el.classList.add("sel");
-  urgenteElegido = el.dataset.v === "si";
+  urgenteElegido   = el.dataset.v === "si";
+  corteAguaElegido = el.dataset.v === "agua";
 }
 
 function selEmpresa(el){
@@ -943,7 +954,8 @@ function crearTarea(){
     contacto:document.getElementById('f-contacto').value.trim(),
     telefono:document.getElementById('f-telefono').value.trim(),
     encargado:encargadoElegido,
-    urgente: urgenteElegido ? 'si' : 'no'
+    urgente: urgenteElegido ? 'si' : 'no',
+    corteAgua: corteAguaElegido ? 'si' : 'no'
   };
 
   enviando=true;
@@ -1216,6 +1228,9 @@ function abrirDetalle(id){
   if(t.urgente){
     h+='<div class="det-aviso" style="background:var(--bad);color:#fff;font-size:14px;">🔔 AVISO URGENTE</div>';
   }
+  if(t.corteAgua){
+    h+='<div class="det-aviso" style="background:#4FC3F7;color:#0B3954;font-size:14px;">💧 CORTE DE AGUA</div>';
+  }
 
   if(t.estado==='Hecha'){
     h+='<div class="det-aviso" style="background:var(--ok-bg);color:var(--ok);">✓ Hecha'
@@ -1280,12 +1295,15 @@ function tarjeta(t){
   // Con hora fija hay cita con el cliente: se avisa en verde.
   if(t.hora) cls += ' cita';
   var etiquetaCita = t.hora ? '<span class="tarj-cita">📌 CITA '+esc(t.hora)+'</span>' : '';
+  // Corte de agua: aviso en azul claro, se marque o no como urgente.
+  if(t.corteAgua) cls += ' agua';
+  var etiquetaAgua = t.corteAgua ? '<span class="tarj-agua">💧 CORTE DE AGUA</span>' : '';
   var tecs = t.tecnicos.map(nombreCorto).join(' / ');
   var puedeMover = t.estado==='Pendiente';
   return '<div class="tarj'+cls+'"'+(puedeMover?' draggable="true" ondragstart="arrastrar(event)"':'')+
     ' onclick="abrirDetalle(\''+esc(t.id)+'\')" style="cursor:pointer"'+
     ' data-id="'+esc(t.id)+'">'+
-    etiquetaUrg+etiquetaCita+
+    etiquetaUrg+etiquetaCita+etiquetaAgua+
     '<div class="tarj-top"><div class="tarj-tec">'+esc(tecs)+'</div>'+
     (t.hora?'<div class="tarj-hora">'+esc(t.hora)+'</div>':'')+'</div>'+
     (t.cliente?'<div class="tarj-cli">'+esc(t.cliente)+'</div>':'')+
@@ -1655,7 +1673,7 @@ function _guardarCal(parte){
 }
 function _tareaCal(t){
   return { id:t.id, fecha:t.fecha, hora:t.hora, cliente:t.cliente, trabajo:t.trabajo,
-           tecnicos:t.tecnicos, empresa:t.empresa, estado:t.estado, urgente:!!t.urgente };
+           tecnicos:t.tecnicos, empresa:t.empresa, estado:t.estado, urgente:!!t.urgente, corteAgua:!!t.corteAgua };
 }
 
 function cargarCalendario(fresco){
