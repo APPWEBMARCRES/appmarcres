@@ -68,6 +68,11 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .tarea-badge.inst{background:#E3E8F5;color:#184595;}
 .tarea-badge.urg{background:#FFE0E0;color:#8B1A1A;}
 .tarea-badge.guardia{background:#EDE0FF;color:#5C3D9C;}
+/* Avisos que van DEBAJO de la etiqueta amarilla de la tarea: en color
+   fuerte para que se vean de un golpe aunque el movil este al sol. */
+.tarea-badge.urgencia{background:#8B1A1A;color:#fff;}
+.tarea-badge.cita{background:#2D6A4F;color:#fff;}
+.tarea-badges-col{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;}
 .tarea-detalle{display:none;padding:0 14px 12px;border-top:1px solid var(--border);margin-top:0;}
 .tarea-detalle.open{display:block;}
 .tarea-detalle-row{display:flex;gap:6px;font-size:12px;color:var(--muted);margin-top:8px;align-items:flex-start;}
@@ -816,6 +821,10 @@ table.hid-table{width:100%;border-collapse:collapse;font-size:12px;}
     <div class="card" id="sec-mat-preparacion">
       <div class="section-header section-open" onclick="toggleSec('sec-mat-preparacion')"><span class="sec-title">Presupuesto Materiales</span><span class="chevron">⌄</span></div>
       <div class="section-body" style="display:block;">
+        <div class="field-group" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+          <div style="flex:1;min-width:120px;"><label class="field-label">⏱ Horas presupuestadas</label><input type="text" class="field-input" id="horas-pres-preparacion" oninput="recalcTotal('preparacion')" placeholder="Ej: 2h, 1h 30min..."></div>
+          <div style="flex:1;min-width:100px;"><label class="field-label">👷 Nº Técnicos</label><input type="text" class="field-input" id="num-tec-preparacion" oninput="recalcTotal('preparacion')" placeholder="Ej: 2..."></div>
+        </div>
         <div style="overflow-x:auto;"><table class="mat-table"><thead><tr><th style="min-width:130px;">Descripción</th><th style="width:55px;">Cant.</th><th style="width:80px;">P. unit.</th><th style="width:80px;">Total</th><th style="width:30px;"></th></tr></thead><tbody id="mat-tbody-preparacion"></tbody></table></div>
         <div id="mat-total-display-preparacion" style="padding:8px 14px;font-size:13px;font-weight:700;color:var(--accent);text-align:right;display:none;">Total sin IVA: <span id="mat-total-sum-preparacion">0.00 €</span></div>
         <button class="add-row-btn" onclick="addMatRowFor('preparacion')">+ Añadir material</button>
@@ -825,7 +834,7 @@ table.hid-table{width:100%;border-collapse:collapse;font-size:12px;}
     <div class="card" id="sec-foto-preparacion">
       <div class="section-header section-open" onclick="toggleSec('sec-foto-preparacion')"><span class="sec-title">📷 Fotografías <span style="font-size:11px;color:var(--bad);">*mínimo 1</span></span><span class="chevron">⌄</span></div>
       <div class="section-body" style="display:block;">
-        <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Haz al menos una fotografía del material o de lo que hay que presupuestar. Puedes añadir más si hace falta. Si el móvil avisa de que no hay espacio para hacer la foto, elige una de la galería.</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Haz al menos una fotografía del material o de lo que hay que presupuestar. Puedes añadir más si hace falta, de una en una. Si el móvil avisa de que no hay espacio, haz sitio y vuelve a intentarlo.</div>
         <div class="taller-grid" id="prep-foto-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"></div>
         <input type="file" accept="image/*" capture="environment" id="prep-foto-input" style="display:none;" onchange="onPrepFoto(this)">
         <div class="fotos-aviso" id="fotos-aviso-preparacion">⚠ Hace falta al menos una fotografía para enviar</div>
@@ -2131,7 +2140,7 @@ async function enviarAlbaran(panel){
     const ubicacion=await obtenerUbicacionFinal();
     if(!ubicacion.ok){if(ubicacion.motivo==='senal'){showToast('📡 Sin señal de ubicación — busca un sitio con mejor cobertura e inténtalo de nuevo.','error');}else{registrarIncidenciaUbicacion('Ubicación desactivada al intentar enviar el parte');mostrarAvisoUbicacionManual('No se puede enviar el parte porque el permiso de ubicación está desactivado o denegado en este dispositivo.');}btn.disabled=false;btn.textContent='📤 Enviar Prep. Material / Presupuesto';return;}
     btn.textContent='⏳ Generando PDF...';
-    const payload={empresa:empresaAlbaran,tipo:'Preparación Materiales',fecha:fechaTexto,horaInicio:document.getElementById('a-hora-inicio').value,horaFin:calcHoraFin(),totalHoras:calcDuracion(),tiempoTranscurrido:getTiempoTranscurrido(),cliente,direccion:document.getElementById('a-direccion').value.trim(),poblacion:document.getElementById('a-poblacion').value.trim(),cp:document.getElementById('a-cp').value.trim(),tecnico,tecnicosExtra:getTecnicosExtra('a'),...getFurgoneta('a'),bloque:document.getElementById('a-bloque')?.value.trim()||'',observaciones:document.getElementById('preparacion-obs').value.trim(),incidencia:document.getElementById('preparacion-incidencia')?.value.trim()||'',materiales:getMaterilesFor('preparacion'),fotos:prepFotoData.slice(),firmaTecnico:getFirmasTecnicosArray('preparacion')[0]?.firma||null,firmasTecnicos:getFirmasTecnicosArray('preparacion'),firmaCliente:null,clienteAusente:true,motivoAusencia:'No requerida',numDoc:genNumDoc(),idParte:_idParteActual.a,ubicacion,ubicacionInicio:getUbicacionInicio(),incidenciasUbicacion:_incidenciasUbicacion,horaEnvio:calcHoraFin()};
+    const payload={empresa:empresaAlbaran,tipo:'Preparación Materiales',fecha:fechaTexto,horaInicio:document.getElementById('a-hora-inicio').value,horaFin:calcHoraFin(),totalHoras:calcDuracion(),tiempoTranscurrido:getTiempoTranscurrido(),cliente,direccion:document.getElementById('a-direccion').value.trim(),poblacion:document.getElementById('a-poblacion').value.trim(),cp:document.getElementById('a-cp').value.trim(),tecnico,tecnicosExtra:getTecnicosExtra('a'),...getFurgoneta('a'),bloque:document.getElementById('a-bloque')?.value.trim()||'',observaciones:document.getElementById('preparacion-obs').value.trim(),incidencia:document.getElementById('preparacion-incidencia')?.value.trim()||'',materiales:getMaterilesFor('preparacion'),horasPresupuestadas:document.getElementById('horas-pres-preparacion')?.value.trim()||'',numTecnicos:document.getElementById('num-tec-preparacion')?.value.trim()||'',fotos:prepFotoData.slice(),firmaTecnico:getFirmasTecnicosArray('preparacion')[0]?.firma||null,firmasTecnicos:getFirmasTecnicosArray('preparacion'),firmaCliente:null,clienteAusente:true,motivoAusencia:'No requerida',numDoc:genNumDoc(),idParte:_idParteActual.a,ubicacion,ubicacionInicio:getUbicacionInicio(),incidenciasUbicacion:_incidenciasUbicacion,horaEnvio:calcHoraFin()};
     try{const data=await enviarConProgreso(payload,btn,'Prep. Material / Presupuesto');mostrarPantallaFinal(data.url||null);}
     catch(err){showToast('❌ Error: '+(err.message||'sin conexión')+' — Espera 30s','error');btn.textContent='⏳ Espera 30s...';setTimeout(function(){btn.disabled=false;btn.textContent='📤 Enviar Prep. Material / Presupuesto';},30000);}
     return;
@@ -2973,7 +2982,14 @@ function pintarTareasAlbaran(todasSinFiltrar, avisoExtra, sinDatos) {
     html += '<div class="tarea-albaran-titulo">' + (t.titulo || t.nombre || 'Sin título') + '</div>';
     if (sub) html += '<div class="tarea-albaran-sub">' + sub + '</div>';
     html += '</div>';
-    if (tipo) html += '<span class="tarea-albaran-badge tarea-badge ' + badgeCls + '">' + tipo + '</span>';
+    // Debajo de la etiqueta amarilla va el aviso que cambia como hay que
+    // atender la tarea: rojo si es urgencia, verde si hay cita con el cliente.
+    var extras = '';
+    if (t.urgente) extras += '<span class="tarea-albaran-badge tarea-badge urgencia">🔔 URGENCIA</span>';
+    if (t.hora)    extras += '<span class="tarea-albaran-badge tarea-badge cita">📌 CITA ' + t.hora + '</span>';
+    if (tipo || extras) html += '<div class="tarea-badges-col">'
+      + (tipo ? '<span class="tarea-albaran-badge tarea-badge ' + badgeCls + '">' + tipo + '</span>' : '')
+      + extras + '</div>';
     html += '</div>';
     return html;
   }).join('');
@@ -3254,7 +3270,14 @@ function pintarTareasChecklist(todasSinFiltrarC, avisoExtra, sinDatos) {
     html += '<div class="tarea-albaran-titulo">' + (t.titulo || t.nombre || 'Sin título') + '</div>';
     if (sub) html += '<div class="tarea-albaran-sub">' + sub + '</div>';
     html += '</div>';
-    if (tipo) html += '<span class="tarea-albaran-badge tarea-badge ' + badgeCls + '">' + tipo + '</span>';
+    // Debajo de la etiqueta amarilla va el aviso que cambia como hay que
+    // atender la tarea: rojo si es urgencia, verde si hay cita con el cliente.
+    var extras = '';
+    if (t.urgente) extras += '<span class="tarea-albaran-badge tarea-badge urgencia">🔔 URGENCIA</span>';
+    if (t.hora)    extras += '<span class="tarea-albaran-badge tarea-badge cita">📌 CITA ' + t.hora + '</span>';
+    if (tipo || extras) html += '<div class="tarea-badges-col">'
+      + (tipo ? '<span class="tarea-albaran-badge tarea-badge ' + badgeCls + '">' + tipo + '</span>' : '')
+      + extras + '</div>';
     html += '</div>';
     return html;
   }).join('');
