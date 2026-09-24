@@ -51,6 +51,12 @@ textarea.inp{resize:vertical;min-height:76px;line-height:1.5;}
 .tarj.urgente{border-left-color:var(--bad);border-left-width:5px;box-shadow:0 0 0 1.5px var(--bad) inset;}
 .tarj-urg{display:inline-block;background:var(--bad);color:#fff;font-size:9px;font-weight:800;
           letter-spacing:.5px;padding:2px 7px;border-radius:99px;margin-bottom:4px;}
+/* Tarea con hora fija: es una cita cerrada con el cliente. Se marca en verde,
+   igual que el aviso urgente se marca en rojo. Si ademas es urgente, manda el
+   rojo: eso es lo que cambia la prioridad del dia. */
+.tarj.cita:not(.urgente){border-left-color:var(--ok);border-left-width:5px;}
+.tarj-cita{display:inline-block;background:var(--ok);color:#fff;font-size:9px;font-weight:800;
+           letter-spacing:.5px;padding:2px 7px;border-radius:99px;margin-bottom:4px;}
 /* ── Técnico 1, Técnico 2… como en la app de partes ── */
 .tec-fila{position:relative;display:flex;align-items:center;gap:8px;}
 .tec-fila .inp{flex:1;}
@@ -1271,12 +1277,15 @@ function tarjeta(t){
   // sigue siendo informacion util al mirar la semana.
   if(t.urgente) cls += ' urgente';
   var etiquetaUrg = t.urgente ? '<span class="tarj-urg">🔔 URGENTE</span>' : '';
+  // Con hora fija hay cita con el cliente: se avisa en verde.
+  if(t.hora) cls += ' cita';
+  var etiquetaCita = t.hora ? '<span class="tarj-cita">📌 CITA '+esc(t.hora)+'</span>' : '';
   var tecs = t.tecnicos.map(nombreCorto).join(' / ');
   var puedeMover = t.estado==='Pendiente';
   return '<div class="tarj'+cls+'"'+(puedeMover?' draggable="true" ondragstart="arrastrar(event)"':'')+
     ' onclick="abrirDetalle(\''+esc(t.id)+'\')" style="cursor:pointer"'+
     ' data-id="'+esc(t.id)+'">'+
-    etiquetaUrg+
+    etiquetaUrg+etiquetaCita+
     '<div class="tarj-top"><div class="tarj-tec">'+esc(tecs)+'</div>'+
     (t.hora?'<div class="tarj-hora">'+esc(t.hora)+'</div>':'')+'</div>'+
     (t.cliente?'<div class="tarj-cli">'+esc(t.cliente)+'</div>':'')+
