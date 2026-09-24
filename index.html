@@ -2988,8 +2988,10 @@ function pintarTareasAlbaran(todasSinFiltrar, avisoExtra, sinDatos) {
     // atender la tarea: rojo si es urgencia, verde si hay cita con el cliente.
     var extras = '';
     if (t.urgente) extras += '<span class="tarea-albaran-badge tarea-badge urgencia">🔔 URGENCIA</span>';
-    if (t.hora)    extras += '<span class="tarea-albaran-badge tarea-badge cita">📌 CITA ' + t.hora + '</span>';
-    if (t.corteAgua) extras += '<span class="tarea-albaran-badge tarea-badge agua">💧 CORTE DE AGUA</span>';
+    // El corte de agua ocupa el sitio de la cita: se avisa en azul y con la
+    // hora, que es lo que el tecnico mira antes de salir.
+    if (t.corteAgua) extras += '<span class="tarea-albaran-badge tarea-badge agua">💧 CORTE' + (t.hora ? ' ' + t.hora : '') + '</span>';
+    else if (t.hora) extras += '<span class="tarea-albaran-badge tarea-badge cita">📌 CITA ' + t.hora + '</span>';
     if (tipo || extras) html += '<div class="tarea-badges-col">'
       + (tipo ? '<span class="tarea-albaran-badge tarea-badge ' + badgeCls + '">' + tipo + '</span>' : '')
       + extras + '</div>';
@@ -3277,8 +3279,10 @@ function pintarTareasChecklist(todasSinFiltrarC, avisoExtra, sinDatos) {
     // atender la tarea: rojo si es urgencia, verde si hay cita con el cliente.
     var extras = '';
     if (t.urgente) extras += '<span class="tarea-albaran-badge tarea-badge urgencia">🔔 URGENCIA</span>';
-    if (t.hora)    extras += '<span class="tarea-albaran-badge tarea-badge cita">📌 CITA ' + t.hora + '</span>';
-    if (t.corteAgua) extras += '<span class="tarea-albaran-badge tarea-badge agua">💧 CORTE DE AGUA</span>';
+    // El corte de agua ocupa el sitio de la cita: se avisa en azul y con la
+    // hora, que es lo que el tecnico mira antes de salir.
+    if (t.corteAgua) extras += '<span class="tarea-albaran-badge tarea-badge agua">💧 CORTE' + (t.hora ? ' ' + t.hora : '') + '</span>';
+    else if (t.hora) extras += '<span class="tarea-albaran-badge tarea-badge cita">📌 CITA ' + t.hora + '</span>';
     if (tipo || extras) html += '<div class="tarea-badges-col">'
       + (tipo ? '<span class="tarea-albaran-badge tarea-badge ' + badgeCls + '">' + tipo + '</span>' : '')
       + extras + '</div>';
