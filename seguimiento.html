@@ -583,6 +583,13 @@ var GPS_CF_PRUEBAS = 'https://gps-marcres-pruebas.intranet-marcres.workers.dev/'
 var GPS_CLAVE = leerGuardado('marcres_gps_clave');
 var ESPERA_GOOGLE = 6000;
 var _googleUltimo = null;    // { t, posiciones }: lo último bueno de Google
+// Técnicos que se han borrado a mano hace poco. Hace falta recordarlos:
+// Google tarda en enterarse del borrado y, si no contesta a tiempo, el panel
+// reutiliza su última respuesta (hasta 3 minutos). Sin esto el técnico volvía
+// a aparecer al instante y parecía que la papelera no hacía nada.
+// Vuelve a salir en cuanto manda una posición NUEVA (pulsa INICIO otra vez).
+var _borrados = {};
+var OLVIDO_BORRADO = 30 * 60 * 1000;   // media hora
 var _cargaN = 0;
 
 // Con la URL de Google de pruebas, se usa también el Cloudflare de pruebas
@@ -630,6 +637,21 @@ function fusionarPosiciones(cf, google) {
   return orden.map(function(k) { return porNombre[k]; });
 }
 
+function _claveBorrado(n) { return String(n || '').trim().toUpperCase(); }
+
+function quitarBorrados(lista) {
+  var ahora = Date.now();
+  Object.keys(_borrados).forEach(function (k) {
+    if (ahora - _borrados[k] > OLVIDO_BORRADO) delete _borrados[k];
+  });
+  return (lista || []).filter(function (p) {
+    var cuandoSeBorro = _borrados[_claveBorrado(p.tecnico)];
+    if (!cuandoSeBorro) return true;
+    var cuandoMando = Date.parse(p.timestamp || '') || 0;
+    return cuandoMando > cuandoSeBorro;   // solo vuelve con una posición nueva
+  });
+}
+
 // -- CARGAR POSICIONES ----------------------------------------
 function cargarPosiciones() {
   if (!GAS_URL) return;
@@ -654,7 +676,7 @@ function cargarPosiciones() {
     if (yo !== _cargaN) return;   // ya hay una carga más nueva
     icon.textContent = '🔄';
     dot.className = 'status-dot';
-    renderizarTecnicos(posiciones);
+    renderizarTecnicos(quitarBorrados(posiciones));
     document.getElementById('last-update').textContent =
       'Última actualización: ' + new Date().toLocaleTimeString('es-ES') + (fuente ? ' · ' + fuente : '');
   }
@@ -866,6 +888,13 @@ function borrarTecnicoBtn(btn) {
   borrarTecnico(tecnico);
 }
 
+function quitarDelMapa(tecnico) {
+  if (markers[tecnico]) {
+    map.removeLayer(markers[tecnico]);
+    delete markers[tecnico];
+  }
+}
+
 function borrarTecnico(tecnico) {
   if (!GAS_URL) { alert('Falta configurar la URL del GAS.'); return; }
   if (!confirm('¿Eliminar a ' + tecnico + ' del panel? Volverá a aparecer cuando pulse INICIO.')) return;
@@ -885,13 +914,19 @@ function borrarTecnico(tecnico) {
     body: cuerpo
   }).catch(function(e) { console.error(e); });
 
+  // Se apunta aquí mismo, antes de que contesten: aunque Google tarde o
+  // falle, el técnico desaparece del panel y no reaparece con una copia vieja.
+  _borrados[_claveBorrado(tecnico)] = Date.now();
+  _googleUltimo = null;
+
+  // Quitar marcador del mapa y refrescar YA, sin esperar a que contesten los
+  // dos servidores: Google puede tardar un minuto y el botón parecería muerto.
+  quitarDelMapa(tecnico);
+  cargarPosiciones();
+
+  // Y otra vez cuando terminen, para que quede el panel con lo definitivo.
   Promise.all([aGoogle, aCloudflare]).then(function() {
-    // Quitar marcador del mapa
-    if (markers[tecnico]) {
-      map.removeLayer(markers[tecnico]);
-      delete markers[tecnico];
-    }
-    // Recargar panel
+    quitarDelMapa(tecnico);
     cargarPosiciones();
   });
 }
