@@ -1293,11 +1293,12 @@ function tarjeta(t){
   if(t.urgente) cls += ' urgente';
   var etiquetaUrg = t.urgente ? '<span class="tarj-urg">🔔 URGENTE</span>' : '';
   // Con hora fija hay cita con el cliente: se avisa en verde.
-  if(t.hora) cls += ' cita';
-  var etiquetaCita = t.hora ? '<span class="tarj-cita">📌 CITA '+esc(t.hora)+'</span>' : '';
-  // Corte de agua: aviso en azul claro, se marque o no como urgente.
+  // El corte de agua ocupa el sitio de la cita: mismo aviso con la hora, pero
+  // en azul, porque lo que hay que saber antes de ir es que se corta el agua.
+  if(t.hora && !t.corteAgua) cls += ' cita';
+  var etiquetaCita = (t.hora && !t.corteAgua) ? '<span class="tarj-cita">📌 CITA '+esc(t.hora)+'</span>' : '';
   if(t.corteAgua) cls += ' agua';
-  var etiquetaAgua = t.corteAgua ? '<span class="tarj-agua">💧 CORTE DE AGUA</span>' : '';
+  var etiquetaAgua = t.corteAgua ? '<span class="tarj-agua">💧 CORTE'+(t.hora?' '+esc(t.hora):'')+'</span>' : '';
   var tecs = t.tecnicos.map(nombreCorto).join(' / ');
   var puedeMover = t.estado==='Pendiente';
   return '<div class="tarj'+cls+'"'+(puedeMover?' draggable="true" ondragstart="arrastrar(event)"':'')+
