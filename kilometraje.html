@@ -113,6 +113,21 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .pf-marca{color:var(--celeste);font-size:13px;font-weight:600;letter-spacing:1px;text-transform:uppercase;}
 
 .pie{text-align:center;font-size:10px;color:var(--muted);padding:18px 14px 0;line-height:1.5;}
+
+/* ── Comprobante del parte ──
+   El comprobante vive escondido dentro de la propia pagina. Al imprimir se
+   esconde todo lo demas y solo sale el, asi el movil ofrece "Guardar como
+   PDF" sin abrir ventanas nuevas (que el navegador suele bloquear). */
+.pf-btns{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-bottom:22px;}
+.pf-btn{background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.55);color:#fff;
+        font-family:inherit;font-size:15px;font-weight:700;padding:11px 20px;border-radius:10px;cursor:pointer;}
+.pf-btn:active{background:rgba(255,255,255,.32);}
+#comprobante{display:none;}
+@media print{
+  body > *{display:none !important;}
+  #comprobante{display:block !important;}
+  @page{margin:14mm;}
+}
 </style>
 </head>
 <body>
@@ -120,8 +135,12 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 <!-- PANTALLA FINAL -->
 <div class="pantalla-final" id="pantalla-final">
   <div class="pf-check">✅</div>
-  <div class="pf-titulo">Kilometraje enviado</div>
-  <div class="pf-sub" id="pf-sub">Registro guardado correctamente.</div>
+  <div class="pf-titulo">¡Gracias por su ayuda!</div>
+  <div class="pf-sub" id="pf-sub">Parte de kilometraje enviado.</div>
+  <div class="pf-btns">
+    <button class="pf-btn" onclick="guardarComprobante()">📄 Guardar comprobante</button>
+    <button class="pf-btn" onclick="cerrarFinal()">Hecho</button>
+  </div>
   <div class="pf-marca">Somos Grupo Marcres</div>
 </div>
 
@@ -262,6 +281,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 </div>
 
 <div class="toast" id="toast"></div>
+<div id="comprobante"></div>
 
 <script>
 // ══════════════════════════════════════════════════════════════
@@ -269,7 +289,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 // Pega aquí la URL /exec del despliegue de GAS_KILOMETRAJE.gs
 // (Apps Script → Implementar → Nueva implementación → Aplicación web)
 // ══════════════════════════════════════════════════════════════
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbxzlyGIYI4GbX3FF68ijyDvHtjeywBoW2xZtvYvEYejmOrLJcZ6JoK8SazAC-7JEIaNrQ/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzj4vB5OD1yYqSew-EWhZ0bAiC9ZvUCUHiOFIuNvH4A6SUvI2O-QJPrLhTXUjdCzw7q0Q/exec';
 
 // Lista de respaldo: se usa solo si el backend no responde (sin cobertura,
 // backend aún no desplegado...). La lista buena vive en el .gs, y esta se
@@ -935,6 +955,64 @@ function enviarKilometraje(){
   mandar(payload, tecnico, matricula);
 }
 
+// ── Comprobante del parte ─────────────────────────────────────────
+// Se arma con lo que se envio y con lo que contesta el servidor. El numero
+// de justificante y la hora de guardado los pone el servidor: son la prueba.
+var _recargaFinal = null;
+
+function _escC(s){
+  return String(s == null ? '' : s)
+    .split('&').join('&amp;').split('<').join('&lt;').split('>').join('&gt;');
+}
+
+function _filaComp(etiqueta, valor){
+  if (valor === '' || valor === null || valor === undefined) return '';
+  return '<tr><td style="padding:5px 14px 5px 0;color:#5A6478;white-space:nowrap;vertical-align:top;">'
+       + _escC(etiqueta) + '</td>'
+       + '<td style="padding:5px 0;color:#101A2C;font-weight:700;">' + _escC(valor) + '</td></tr>';
+}
+
+function prepararComprobante(p, data){
+  var km = Number(p.kmFin) - Number(p.kmInicio);
+  var h = '<div style="font-family:Arial,Helvetica,sans-serif;color:#101A2C;max-width:640px;margin:0 auto;">'
+    + '<div style="background:#0B2A5B;color:#fff;padding:14px 18px;border-radius:8px 8px 0 0;">'
+    + '<div style="font-size:18px;font-weight:900;">Comprobante de parte de kilometraje</div>'
+    + '<div style="font-size:12px;opacity:.82;margin-top:2px;">Grupo Marcres</div></div>'
+    + '<div style="border:1px solid #D9DEE8;border-top:0;border-radius:0 0 8px 8px;padding:16px 18px;">'
+    + '<table style="font-size:14px;border-collapse:collapse;">'
+    + _filaComp('Técnico', p.tecnico)
+    + _filaComp('Acompañante', p.acompanante)
+    + _filaComp('Furgoneta', p.matricula)
+    + _filaComp('Día del parte', p.fecha + ' · ' + p.hora)
+    + _filaComp('KM inicio', Number(p.kmInicio).toLocaleString('es-ES'))
+    + _filaComp('KM fin', Number(p.kmFin).toLocaleString('es-ES'))
+    + _filaComp('KM recorridos', km.toLocaleString('es-ES') + ' km')
+    + _filaComp('Repostaje', p.repostaje === 'Sí'
+        ? ('Sí · ' + (p.importeRepostaje || '0') + ' €') : 'No')
+    + _filaComp('Averías', p.averias)
+    + '</table>'
+    + '<div style="margin-top:14px;padding-top:12px;border-top:1px solid #E3E7EF;font-size:13px;">'
+    + '<div><b>Nº de justificante:</b> ' + _escC(data.justificante || '—') + '</div>'
+    + '<div style="margin-top:3px;"><b>Guardado en el servidor:</b> ' + _escC(data.registrado || '—') + '</div>'
+    + '<div style="margin-top:3px;color:#5A6478;">Enviado con las dos fotos del cuentakilómetros.</div>'
+    + '</div></div>'
+    + '<div style="font-size:10px;color:#8A94A6;margin-top:10px;text-align:center;">'
+    + 'Comprobante generado por la app de kilometraje de Grupo Marcres.</div></div>';
+  document.getElementById('comprobante').innerHTML = h;
+}
+
+// En el movil, "imprimir" ofrece "Guardar como PDF". Es la forma que funciona
+// en Android y en iPhone sin instalar nada ni abrir ventanas nuevas.
+function guardarComprobante(){
+  if (_recargaFinal){ clearTimeout(_recargaFinal); _recargaFinal = null; }
+  window.print();
+}
+
+function cerrarFinal(){
+  if (_recargaFinal){ clearTimeout(_recargaFinal); _recargaFinal = null; }
+  window.location.reload();
+}
+
 function mandar(payload, tecnico, matricula){
   var btn = document.getElementById('btn-enviar');
   btn.disabled = true;
@@ -987,9 +1065,12 @@ function mandar(payload, tecnico, matricula){
       recordarMatricula(tecnico, matricula);
       borrarBorrador();
       document.getElementById('pf-sub').textContent =
-        tecnico + ' · ' + matricula + '\n' + payload.kmRecorridos.toLocaleString('es-ES') + ' km · ' + payload.fecha;
+        'Parte de kilometraje enviado\n' + tecnico + ' · ' + matricula + '\n' + payload.kmRecorridos.toLocaleString('es-ES') + ' km · ' + payload.fecha;
+      prepararComprobante(payload, data);
       document.getElementById('pantalla-final').classList.add('show');
-      setTimeout(function(){ window.location.reload(); }, 6000);
+      // Antes recargaba a los 6 segundos. Ahora hay que darle tiempo al
+      // tecnico a guardar su comprobante; si toca un boton, no recarga sola.
+      _recargaFinal = setTimeout(function(){ window.location.reload(); }, 45000);
       return;
     }
 
