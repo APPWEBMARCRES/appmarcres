@@ -3085,12 +3085,14 @@ function mostrarDescripcionTarea(texto, enlaceMaps, extra) {
   }
 
   // Dónde se hace el trabajo, si la oficina lo anotó.
+  //
+  // Enseñar o no este apartado NO se decide aquí, sino más abajo, cuando ya
+  // se sabe si la tarea trae enlace de mapa. El botón del mapa va dentro de
+  // este apartado, así que decidirlo aquí escondía la ubicación siempre que
+  // la oficina no hubiera escrito además una dirección de trabajo.
   var dir = String(extra.dirTrabajo || '').trim();
   var wDir = document.getElementById('a-descripcion-dir');
-  if (wDir) {
-    document.getElementById('a-descripcion-dir-texto').textContent = dir;
-    wDir.style.display = dir ? 'block' : 'none';
-  }
+  if (wDir) document.getElementById('a-descripcion-dir-texto').textContent = dir;
 
   // Persona de contacto y su teléfono, pulsable para llamar.
   var quien = String(extra.contacto || '').trim();
@@ -3147,6 +3149,10 @@ function mostrarDescripcionTarea(texto, enlaceMaps, extra) {
     if (valido) { a.href = url; a.style.display = 'inline-flex'; }
     else { a.removeAttribute('href'); a.style.display = 'none'; }
   }
+
+  // Ahora sí: el apartado "Dónde" se enseña si hay dirección de trabajo O si
+  // hay ubicación. Con una sola de las dos cosas ya merece la pena verlo.
+  if (wDir) wDir.style.display = (dir || valido) ? 'block' : 'none';
 
   // Se enseña la sección si hay descripción O enlace: con solo el enlace
   // también merece la pena verla.
