@@ -7,15 +7,28 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root {
+  /* Los mismos valores que MARCA/paleta-apps.css, para que seguimiento se
+     vea igual que partes, kilometraje y planificacion. Aqui van escritos
+     aparte porque esta app tiene sus propios nombres (--azul en vez de
+     --accent) y sus propios colores de mapa. */
   --azul: #184595;
   --celeste: #03A0FB;
-  --amarillo: #FFD700;
-  --ok: #2D6A4F;
-  --bg: #F0EDE8;
-  --surface: #FAFAF7;
-  --border: #D8D4CC;
-  --text: #1A1916;
-  --muted: #7A776F;
+  --amarillo: #FFD700;      /* el anillo de Rivagua en el mapa */
+
+  --bg: #F1F4F9;
+  --surface: #FFFFFF;
+  --surface2: #EEF2F8;
+  --border: #D5DDE9;
+  --text: #0F1115;
+  --muted: #59616E;
+
+  /* Los tres avisos, iguales que en las demas apps. Antes no existian aqui
+     y cada sitio se inventaba el suyo: habia TRES rojos distintos para
+     decir lo mismo. */
+  --ok:   #2D6A4F;  --ok-bg:   #D8F3DC;
+  --warn: #8B5A00;  --warn-bg: #FFF3CD;
+  --bad:  #8B1A1A;  --bad-bg:  #FFE0E0;
+
   --font: 'DM Sans', 'Helvetica Neue', sans-serif;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -53,11 +66,11 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
 .btn-refresh:hover { background: rgba(255,255,255,.25); }
 .status-dot {
   width: 8px; height: 8px; border-radius: 50%;
-  background: #4CAF50; display: inline-block;
+  background: var(--ok); display: inline-block;
   animation: pulse 2s infinite;
 }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
-.status-dot.error { background: #f44336; animation: none; }
+.status-dot.error { background: var(--bad); animation: none; }
 
 .main { padding: 16px; max-width: 1100px; margin: 0 auto; }
 
@@ -68,7 +81,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
   box-shadow: 0 2px 16px rgba(0,0,0,.1);
   margin-bottom: 16px;
   height: 420px;
-  background: #e8e0d8;
+  background: var(--surface2);
   position: relative;
   /* El mapa crea capas con mucha prioridad (400, 500...). Con z-index 0
      quedan encerradas aquí dentro y la barra azul de arriba, al bajar la
@@ -135,7 +148,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
 }
 .tecnico-avatar.rivagua { background: #B7800A; }
 .tecnico-avatar.marcres  { background: var(--azul); }
-.tecnico-avatar.inactivo { background: #999; }
+.tecnico-avatar.inactivo { background: var(--muted); }
 .tecnico-info { flex: 1; min-width: 0; }
 .tecnico-nombre {
   font-size: 13px; font-weight: 700; color: var(--text);
@@ -146,9 +159,9 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
   letter-spacing: .5px; margin-top: 2px;
   padding: 2px 8px; border-radius: 99px; display: inline-block;
 }
-.tecnico-empresa.rivagua { background: #FFF3CD; color: #8B5A00; }
+.tecnico-empresa.rivagua { background: var(--warn-bg); color: var(--warn); }
 .tecnico-empresa.marcres  { background: #E3E8F5; color: var(--azul); }
-.tecnico-empresa.inactivo { background: #F0F0F0; color: #999; }
+.tecnico-empresa.inactivo { background: var(--surface2); color: var(--muted); }
 .tecnico-card-body { padding: 10px 14px; }
 .tecnico-row {
   display: flex; align-items: flex-start; gap: 6px;
@@ -160,7 +173,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
 .matricula {
   font-family: 'DM Mono', ui-monospace, 'Courier New', monospace;
   font-weight: 600; letter-spacing: .5px; color: var(--text);
-  background: #EFECE7; border: 1px solid var(--border);
+  background: var(--surface2); border: 1px solid var(--border);
   border-radius: 5px; padding: 1px 7px;
 }
 .tecnico-card-footer {
@@ -246,7 +259,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
   align-items: flex-end;
 }
 .notif-toast {
-  background: #184595;
+  background: var(--azul);
   color: #fff;
   padding: 12px 18px;
   border-radius: 12px;
@@ -268,7 +281,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
    estorbe al mapa ni a los controles de zoom. */
 .pie-autoria{
   position:fixed; bottom:0; left:0; right:0; z-index:1;
-  text-align:center; font-size:9px; color:#9aa5b8; line-height:1.4;
+  text-align:center; font-size:9px; color:var(--muted); line-height:1.4;
   background:rgba(255,255,255,.85); padding:3px 10px; pointer-events:none;
 }
 </style>
@@ -306,7 +319,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
     <span class="config-label">🔑 Clave del panel:</span>
     <input class="config-input" id="gps-clave-input" type="password" autocomplete="off" placeholder="Opcional: para leer de Cloudflare (más rápido)" value="">
     <button class="btn-guardar" onclick="guardarUrl()">Guardar</button>
-    <span class="config-label" id="gps-clave-aviso" style="color:#E53935;display:none;"></span>
+    <span class="config-label" id="gps-clave-aviso" style="color:var(--bad);display:none;"></span>
   </div>
 
   <!-- Barra estado -->
@@ -389,7 +402,7 @@ function actualizarBotonNotif(){
   if(!btn||!window.Notification) return;
   if(Notification.permission==='granted'){
     btn.innerHTML='<span id="notif-icon">🔔</span> Avisos activos';
-    btn.style.background='#2E7D32';
+    btn.style.background='#2D6A4F';
   }else{
     btn.innerHTML='<span id="notif-icon">🔕</span> Activar avisos';
     btn.style.background='';
@@ -484,7 +497,7 @@ function initMapa() {
       ph.innerHTML = '<div class="icon">⚠️</div>'
         + '<div style="text-align:center;line-height:1.6;">No se ha podido cargar el mapa.<br>'
         + 'Revisa la conexión y recarga la página.<br>'
-        + '<span style="font-size:12px;color:#999;">Las tarjetas de los técnicos siguen funcionando.</span></div>';
+        + '<span style="font-size:12px;color:var(--muted);">Las tarjetas de los técnicos siguen funcionando.</span></div>';
     }
   };
   document.head.appendChild(script);
@@ -774,14 +787,14 @@ function renderizarTecnicos(posiciones) {
       var mapsUrlPopup = 'https://www.google.com/maps?q=' + latReal.toFixed(6) + ',' + lngReal.toFixed(6) + '&z=18';
       var popupHtml = '<div style="font-family:Arial;min-width:160px;">'
         + '<div style="font-weight:700;font-size:13px;margin-bottom:4px;">' + esc(p.tecnico) + '</div>'
-        + '<div style="font-size:11px;color:#888;margin-bottom:6px;">' + esc((p.empresa || '').toUpperCase()) + '</div>'
-        + (p.cliente ? '<div style="font-size:12px;margin-bottom:2px;">👥 ' + esc(p.cliente) + '</div>' : '<div style="font-size:12px;color:#aaa;font-style:italic;margin-bottom:2px;">Sin trabajo asignado</div>')
+        + '<div style="font-size:11px;color:var(--muted);margin-bottom:6px;">' + esc((p.empresa || '').toUpperCase()) + '</div>'
+        + (p.cliente ? '<div style="font-size:12px;margin-bottom:2px;">👥 ' + esc(p.cliente) + '</div>' : '<div style="font-size:12px;color:var(--muted);font-style:italic;margin-bottom:2px;">Sin trabajo asignado</div>')
         + (p.tipo    ? '<div style="font-size:12px;margin-bottom:2px;">📋 ' + esc(p.tipo) + '</div>' : '')
-        + (p.tecnicosExtra ? '<div style="font-size:12px;color:#184595;font-weight:600;margin-bottom:2px;">🤝 Con: ' + esc(p.tecnicosExtra) + '</div>' : '')
+        + (p.tecnicosExtra ? '<div style="font-size:12px;color:var(--azul);font-weight:600;margin-bottom:2px;">🤝 Con: ' + esc(p.tecnicosExtra) + '</div>' : '')
         + (p.matricula ? '<div style="font-size:12px;margin-bottom:2px;">🚐 <b>' + esc(p.matricula) + '</b></div>' : '')
-        + '<div style="font-size:11px;color:#aaa;margin-top:6px;">🕐 ' + esc(p.timestamp || '') + '</div>'
-        + (p.horaInicio ? '<div style="font-size:11px;color:#aaa;">▶ Inicio: ' + esc(p.horaInicio) + '</div>' : '')
-        + '<div style="margin-top:8px;"><a href="' + mapsUrlPopup + '" target="_blank" style="font-size:12px;color:#184595;font-weight:600;">📍 Ver en Maps</a></div>'
+        + '<div style="font-size:11px;color:var(--muted);margin-top:6px;">🕐 ' + esc(p.timestamp || '') + '</div>'
+        + (p.horaInicio ? '<div style="font-size:11px;color:var(--muted);">▶ Inicio: ' + esc(p.horaInicio) + '</div>' : '')
+        + '<div style="margin-top:8px;"><a href="' + mapsUrlPopup + '" target="_blank" style="font-size:12px;color:var(--azul);font-weight:600;">📍 Ver en Maps</a></div>'
         + '</div>';
       if (markers[p.tecnico]) {
         markers[p.tecnico].setLatLng([lat, lng]).setIcon(icono).setPopupContent(popupHtml);
@@ -810,7 +823,7 @@ function renderizarTecnicos(posiciones) {
     var iniciales = getIniciales(p.tecnico);
     var mapsUrl = 'https://www.google.com/maps?q=' + lat.toFixed(6) + ',' + lng.toFixed(6) + '&z=18';
     var avatarClass = p.activo ? empresa : 'inactivo';
-    var cardBorde = p.activo ? '' : 'border-color:#ddd;opacity:.75;';
+    var cardBorde = p.activo ? '' : 'border-color:var(--border);opacity:.75;';
     var tecAttr = esc(p.tecnico);
     return '<div class="tecnico-card" style="' + cardBorde + '">'
       + '<div class="tecnico-card-header">'
@@ -823,17 +836,17 @@ function renderizarTecnicos(posiciones) {
       + '<div class="tecnico-card-body">'
       + (p.cliente ? '<div class="tecnico-row"><b>👥</b> ' + esc(p.cliente) + '</div>' : '<div class="tecnico-row" style="color:var(--muted);font-style:italic;">Sin trabajo asignado</div>')
       + (p.tipo    ? '<div class="tecnico-row"><b>📋</b> ' + esc(p.tipo) + '</div>' : '')
-      + (p.tecnicosExtra ? '<div class="tecnico-row" style="color:#184595;font-weight:600;"><b>🤝</b> Con: ' + esc(p.tecnicosExtra) + '</div>' : '')
+      + (p.tecnicosExtra ? '<div class="tecnico-row" style="color:var(--azul);font-weight:600;"><b>🤝</b> Con: ' + esc(p.tecnicosExtra) + '</div>' : '')
       + (p.matricula ? '<div class="tecnico-row"><b>🚐</b> <span class="matricula">' + esc(p.matricula) + '</span></div>' : '')
-      +   '<div class="tecnico-row"><b>📍</b> ' + lat.toFixed(6) + ', ' + lng.toFixed(6) + (p.precision ? '  <span style="color:#bbb">±' + esc(p.precision) + 'm</span>' : '') + '</div>'
+      +   '<div class="tecnico-row"><b>📍</b> ' + lat.toFixed(6) + ', ' + lng.toFixed(6) + (p.precision ? '  <span style="color:var(--muted)">±' + esc(p.precision) + 'm</span>' : '') + '</div>'
       + (p.horaInicio ? '<div class="tecnico-row"><b>▶</b> Inicio: ' + esc(p.horaInicio) + '</div>' : '')
       + (p.timestamp ? '<div class="tecnico-row"><b>🕐</b> ' + esc(p.timestamp) + '</div>' : '')
       + '</div>'
       + '<div class="tecnico-card-footer">'
       +   '<button class="btn-maps" data-maps="' + esc(mapsUrl) + '" onclick="window.open(this.dataset.maps,\'_blank\')">📍 Ver en Maps</button>'
       +   '<button class="btn-centrar" data-tecnico="' + tecAttr + '" onclick="centrarEnTecnico(this.dataset.tecnico)" title="Centrar y ampliar">🎯</button>'
-      +   '<button class="btn-centrar btn-borrar" style="color:#e53935;border-color:#e53935;" data-tecnico="' + tecAttr + '" onclick="borrarTecnicoBtn(this)">🗑️</button>'
-      +   '<button class="btn-centrar" style="color:#2D6A4F;border-color:#2D6A4F;" data-tecnico="' + tecAttr + '" onclick="verRutaBtn(this)" title="Ver ruta">🗺️</button>'
+      +   '<button class="btn-centrar btn-borrar" style="color:var(--bad);border-color:var(--bad);" data-tecnico="' + tecAttr + '" onclick="borrarTecnicoBtn(this)">🗑️</button>'
+      +   '<button class="btn-centrar" style="color:var(--ok);border-color:var(--ok);" data-tecnico="' + tecAttr + '" onclick="verRutaBtn(this)" title="Ver ruta">🗺️</button>'
       + '</div>'
       + '</div>';
   }).join('');
@@ -1086,7 +1099,7 @@ function toggleAutoRefresh(){
     autoRefreshPausado = true;
     if(icon) icon.textContent = '▶';
     if(btn) btn.innerHTML = '<span id="pausa-icon">▶</span> Reanudar';
-    if(btn) btn.style.background = '#E53935';
+    if(btn) btn.style.background = '#8B1A1A';
   } else {
     // Reanudar: volver a arrancar el mismo refresco de siempre (15s)
     autoRefreshInterval = setInterval(cargarPosiciones, 15 * 1000);
