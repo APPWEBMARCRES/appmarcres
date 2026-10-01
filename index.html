@@ -1109,7 +1109,6 @@ const TECNICOS_ACTIVOS = [
   'RUBÉN BAUDI CORTES',
   'RUBÉN GONZALEZ VILAPLANA',
   'IVAN BAUDI CORTES',
-  'JOSE RUBEN PEREZ',
   'MIGUEL HUERTA MARTINEZ',
   'DENYS IVANOV',
   'JOSE FRANCISCO GARCIA GARCIA',
@@ -2069,6 +2068,30 @@ async function enviarConProgreso(payload,btn,tipoLabel){
     const MAX_INTENTOS = payload.idParte ? 3 : 1;
     const ESPERAS_MS = [3000, 8000];
 
+    // Le pregunta al servidor, cada 6 segundos, si ese parte ya está hecho.
+    // Se insiste dos minutos y medio porque Google, cuando se atasca, suele
+    // terminar poco después. En cuanto contesta que sí, se devuelve su mismo
+    // resultado y el parte se cierra con normalidad, como si no hubiera
+    // pasado nada. Si no, se devuelve null y se da el error de siempre.
+    // Esto solo PREGUNTA: no vuelve a enviar nada, así que no puede duplicar.
+    function preguntarSiLlego(idParte, segundos){
+      var hasta = Date.now() + (segundos||150)*1000;
+      function unaVez(){
+        return fetch(GAS_URL+'?action=estadoParte&id='+encodeURIComponent(idParte))
+          .then(function(r){ return r.text(); })
+          .then(function(t){ try{ return JSON.parse(t); }catch(e){ return null; } })
+          .catch(function(){ return null; });   // sin cobertura: se reintenta
+      }
+      function bucle(){
+        return unaVez().then(function(d){
+          if(d && d.ok && d.listo) return d;
+          if(Date.now() >= hasta) return null;
+          return new Promise(function(ok){ setTimeout(ok,6000); }).then(bucle);
+        });
+      }
+      return bucle();
+    }
+
     function intentar(n){
       arrancarProgreso();
       const xhr=new XMLHttpRequest();
@@ -2085,6 +2108,16 @@ async function enviarConProgreso(payload,btn,tipoLabel){
             setTimeout(function(){ intentar(n+1); }, ESPERAS_MS[n-1]||8000);
             return;
           }
+          // Agotados los reintentos: puede que alguno de ellos SÍ llegara a
+          // hacer el parte y solo se perdiera la respuesta. Se comprueba.
+          if(payload.idParte){
+            btn.textContent='⏳ Comprobando si el parte llegó…';
+            preguntarSiLlego(payload.idParte).then(function(d){
+              if(d){ btn.textContent='⏳ Enviando... 100%'; resolve(d); }
+              else reject(new Error('Respuesta inválida del servidor'));
+            });
+            return;
+          }
           reject(new Error('Respuesta inválida del servidor'));return;
         }
         btn.textContent='⏳ Enviando... 100%';
@@ -2092,7 +2125,21 @@ async function enviarConProgreso(payload,btn,tipoLabel){
         else reject(new Error(data.error||'Error desconocido'));
       };
       xhr.onerror=function(){clearInterval(progresoTimer);reject(new Error('sin conexión'));};
-      xhr.ontimeout=function(){clearInterval(progresoTimer);reject(new Error('Tiempo de espera agotado (120s) — revisa tu señal'));};
+      xhr.ontimeout=function(){
+        clearInterval(progresoTimer);
+        // Que Google tarde más de 2 minutos NO quiere decir que el parte se
+        // haya perdido: casi siempre lo ha hecho y lo que falla es la
+        // respuesta. Antes de dar error, se le pregunta si ya está hecho.
+        if(!payload.idParte){
+          reject(new Error('Tiempo de espera agotado (120s) — revisa tu señal'));
+          return;
+        }
+        btn.textContent='⏳ Google va lento, comprobando si llegó…';
+        preguntarSiLlego(payload.idParte).then(function(d){
+          if(d){ btn.textContent='⏳ Enviando... 100%'; resolve(d); }
+          else reject(new Error('Tiempo de espera agotado (120s) — revisa tu señal'));
+        });
+      };
       xhr.send(JSON.stringify(payload));
     }
     intentar(1);
