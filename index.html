@@ -166,7 +166,7 @@ table.hid-table{width:100%;border-collapse:collapse;font-size:12px;}
 .foto-slot.filled{border-style:solid;border-color:var(--ok);}
 .foto-slot .slot-num{font-size:9px;font-weight:600;color:var(--muted);font-family:var(--mono);}
 .foto-slot .slot-icon{font-size:20px;margin-bottom:2px;}
-.foto-slot img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0;}
+.foto-slot img{width:100%;height:100%;object-fit:contain;position:absolute;inset:0;}
 .foto-slot .remove-btn{position:absolute;top:3px;right:3px;width:18px;height:18px;background:rgba(0,0,0,.6);color:#fff;border-radius:99px;font-size:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:2;border:none;}
 .foto-input-hidden{display:none;}
 .fotos-aviso{font-size:11px;color:var(--bad);font-weight:600;text-align:center;padding:6px;background:var(--bad-bg);border-radius:var(--radius-sm);margin-top:4px;display:none;}
@@ -199,7 +199,7 @@ table.hid-table{width:100%;border-collapse:collapse;font-size:12px;}
 .timer-label{font-size:11px;color:rgba(255,255,255,.7);text-transform:uppercase;}
 .taller-foto-slot{width:100%;height:120px;border-radius:8px;border:1.5px dashed var(--border);background:var(--surface2);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;position:relative;overflow:hidden;}
 .taller-foto-slot.filled{border-style:solid;border-color:var(--ok);}
-.taller-foto-slot img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0;}
+.taller-foto-slot img{width:100%;height:100%;object-fit:contain;position:absolute;inset:0;}
 .taller-foto-slot .remove-btn{position:absolute;top:5px;right:5px;width:22px;height:22px;background:rgba(0,0,0,.6);color:#fff;border-radius:99px;font-size:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:2;border:none;}
 .send-btn{width:100%;padding:16px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius);font-family:var(--font);font-size:16px;font-weight:600;cursor:pointer;margin-top:4px;transition:all .15s;}
 .send-btn:hover{background:var(--accent2);}
@@ -292,7 +292,7 @@ table.hid-table{width:100%;border-collapse:collapse;font-size:12px;}
 .taller-grid{display:flex;gap:8px;flex-wrap:wrap;}
 .taller-slot{width:72px;height:72px;border-radius:8px;border:1.5px dashed var(--border);background:var(--surface2);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;position:relative;overflow:hidden;flex-shrink:0;}
 .taller-slot.filled{border-style:solid;border-color:var(--ok);}
-.taller-slot img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;border-radius:7px;}
+.taller-slot img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:contain;border-radius:7px;}
 .taller-slot .taller-remove{position:absolute;top:2px;right:2px;width:18px;height:18px;background:rgba(0,0,0,.65);color:#fff;border:none;border-radius:50%;font-size:11px;cursor:pointer;z-index:2;line-height:18px;text-align:center;padding:0;}
 </style>
 </head>
@@ -1257,6 +1257,8 @@ async function traerTareasPlanificadas(nombreTecnico) {
         empresa: (t.empresa || '').toLowerCase(),
         prioridad: '',
         referencia: '',
+        miSlot: t.miSlot || 0,
+        totalTecnicos: t.totalTecnicos || 1,
         _panel: true          // marca de origen: al enviar el parte se cierra
       };
     });
@@ -1294,6 +1296,15 @@ function abrirPdfFinal(){
 // Marca como hecha la tarea que puso la oficina. Se llama solo cuando el parte
 // ya está enviado de verdad. Va sin await y con el error capturado: si el panel
 // no contesta, el técnico ya ha terminado y no debe enterarse de nada.
+// En trabajos de 2+ tecnicos, se recuerda a quien rellena en que puesto va,
+// porque cada tecnico manda su PROPIO parte por separado.
+function avisarTecnicoMulti(t){
+  if (!t || !t._panel) return;
+  var total = t.totalTecnicos || 1;
+  if (total > 1 && t.miSlot) {
+    try { showToast('👤 Eres el Técnico ' + t.miSlot + ' de ' + total + ' · tu parte se envía aparte'); } catch(e){}
+  }
+}
 function cerrarTareaDelPanel(){
   var t = _tareaPanelElegida;
   if (!t || !t.id) return;
@@ -1310,7 +1321,8 @@ function cerrarTareaDelPanel(){
     xhr.send(JSON.stringify({
       accion: 'cerrar',
       id: t.id,
-      idEnvio: 'CIERRE-' + t.id,      // si se reintenta, no pasa nada
+      tecnico: (typeof operarioSeleccionado !== 'undefined' && operarioSeleccionado) ? operarioSeleccionado.name : '',
+      idEnvio: 'CIERRE-' + t.id + '-' + (t.miSlot || 1),   // por tecnico: cada uno cierra su parte
       parte: tipo + (t.cliente ? ' · ' + t.cliente : '')
     }));
   } catch(e){ /* el parte ya está enviado: esto no puede molestar al técnico */ }
@@ -1706,7 +1718,7 @@ function removePhoto(key,slot,e){e.stopPropagation();fotosData[key][slot]=null;b
 function removePhotoExtra(key,idx,e){e.stopPropagation();fotosExtra[key].splice(idx,1);buildFotoGrid(key);}
 function openCameraExtra(key){currentFotoKey=key;currentFotoSlot='extra';const inp=document.getElementById('foto-input-'+key);if(inp){inp.value='';inp.click();}}
 function updateFotoCounter(key){const cnt=fotosData[key].filter(Boolean).length;const extra=(fotosExtra[key]||[]).length;const el=document.getElementById('cnt-fotos-'+key)||document.getElementById('cnt-'+key);if(!el)return;el.textContent=cnt+'/5'+(extra>0?' +'+extra:'');el.style.background=cnt===5?'var(--ok-bg)':'var(--bad-bg)';el.style.color=cnt===5?'var(--ok)':'var(--bad)';el.style.borderColor=cnt===5?'var(--ok)':'var(--bad)';}
-function initFotos(){['mant','simple','elec','hid','descal'].forEach(key=>{const inp=document.getElementById('foto-input-'+key);if(!inp)return;inp.addEventListener('change',function(){const file=this.files[0];if(!file)return;const reader=new FileReader();reader.onload=e=>{const img=new Image();img.onload=()=>{const canvas=document.createElement('canvas'),MAX=800;let w=img.width,h=img.height;if(w>MAX){h=Math.round(h*MAX/w);w=MAX;}if(h>MAX){w=Math.round(w*MAX/h);h=MAX;}canvas.width=w;canvas.height=h;canvas.getContext('2d').drawImage(img,0,0,w,h);if(currentFotoSlot==='extra'){fotosExtra[currentFotoKey].push(canvas.toDataURL('image/jpeg',0.75));showToast('✅ Foto extra añadida','success');}else{fotosData[currentFotoKey][currentFotoSlot]=canvas.toDataURL('image/jpeg',0.75);}buildFotoGrid(currentFotoKey);};img.src=e.target.result;};reader.readAsDataURL(file);});buildFotoGrid(key);});}
+function initFotos(){['mant','simple','elec','hid','descal'].forEach(key=>{const inp=document.getElementById('foto-input-'+key);if(!inp)return;inp.addEventListener('change',function(){const file=this.files[0];if(!file)return;const reader=new FileReader();reader.onload=e=>{const img=new Image();img.onload=()=>{const canvas=document.createElement('canvas'),MAX=1024;let w=img.width,h=img.height;if(w>MAX){h=Math.round(h*MAX/w);w=MAX;}if(h>MAX){w=Math.round(w*MAX/h);h=MAX;}canvas.width=w;canvas.height=h;canvas.getContext('2d').drawImage(img,0,0,w,h);if(currentFotoSlot==='extra'){fotosExtra[currentFotoKey].push(canvas.toDataURL('image/jpeg',0.8));showToast('✅ Foto extra añadida','success');}else{fotosData[currentFotoKey][currentFotoSlot]=canvas.toDataURL('image/jpeg',0.8);}buildFotoGrid(currentFotoKey);};img.src=e.target.result;};reader.readAsDataURL(file);});buildFotoGrid(key);});}
 
 function activarFirmaCanvas(canvas){const id=canvas.id;firmaData[id]={signed:false};let drawing=false,lx=0,ly=0;const ctx=canvas.getContext('2d');ctx.strokeStyle='#184595';ctx.lineWidth=2.5;ctx.lineCap='round';ctx.lineJoin='round';function getPos(e){const r=canvas.getBoundingClientRect();const src=e.touches?e.touches[0]:e;return{x:(src.clientX-r.left)*(canvas.width/r.width),y:(src.clientY-r.top)*(canvas.height/r.height)};}function start(e){e.preventDefault();drawing=true;const p=getPos(e);lx=p.x;ly=p.y;ctx.beginPath();ctx.arc(lx,ly,1,0,Math.PI*2);ctx.fill();}function move(e){e.preventDefault();if(!drawing)return;const p=getPos(e);ctx.beginPath();ctx.moveTo(lx,ly);ctx.lineTo(p.x,p.y);ctx.stroke();lx=p.x;ly=p.y;firmaData[id].signed=true;canvas.classList.add('signed');}function end(){drawing=false;}canvas.width=canvas.offsetWidth||300;canvas.height=140;canvas.addEventListener('mousedown',start);canvas.addEventListener('mousemove',move);canvas.addEventListener('mouseup',end);canvas.addEventListener('touchstart',start,{passive:false});canvas.addEventListener('touchmove',move,{passive:false});canvas.addEventListener('touchend',end);}
 function initFirmas(){document.querySelectorAll('.firma-canvas').forEach(activarFirmaCanvas);}
@@ -2462,13 +2474,13 @@ function cargarFotoTaller(input){
   reader.onload=e=>{
     const img=new Image();
     img.onload=()=>{
-      const canvas=document.createElement('canvas'),MAX=800;
+      const canvas=document.createElement('canvas'),MAX=1024;
       let w=img.width,h=img.height;
       if(w>MAX){h=Math.round(h*MAX/w);w=MAX;}
       if(h>MAX){w=Math.round(w*MAX/h);h=MAX;}
       canvas.width=w;canvas.height=h;
       canvas.getContext('2d').drawImage(img,0,0,w,h);
-      tallerFotoData=canvas.toDataURL('image/jpeg',0.75);
+      tallerFotoData=canvas.toDataURL('image/jpeg',0.8);
       const slot=document.getElementById('taller-foto-slot');
       slot.innerHTML=`<img src="${tallerFotoData}" alt="Foto taller"><button class="remove-btn" onclick="borrarFotoTaller(event)">✕</button>`;
       slot.classList.add('filled');
@@ -3077,6 +3089,7 @@ function seleccionarTareaAlbaran(idx) {
   if (radio) radio.classList.add('sel');
   tareaAlbaranSeleccionada = t;
   _tareaPanelElegida = t._panel ? t : null;   // solo las del panel se cierran
+  avisarTecnicoMulti(t);
 
   // Rellenar campos automáticamente
   var cInp = document.getElementById('a-cliente');
@@ -3364,6 +3377,7 @@ function seleccionarTareaChecklist(idx) {
   if (item)  item.classList.add('sel');
   if (radio) radio.classList.add('sel');
   _tareaPanelElegida = t._panel ? t : null;   // solo las del panel se cierran
+  avisarTecnicoMulti(t);
 
   // Rellenar campos
   var cInp = document.getElementById('c-cliente');
@@ -3678,11 +3692,11 @@ function onTallerFoto(input){
   reader.onload=function(e){
     var img=new Image();
     img.onload=function(){
-      var canvas=document.createElement('canvas'),MAX=800;
+      var canvas=document.createElement('canvas'),MAX=1024;
       var w=img.width,h=img.height;
       if(w>MAX){h=Math.round(h*MAX/w);w=MAX;}if(h>MAX){w=Math.round(w*MAX/h);h=MAX;}
       canvas.width=w;canvas.height=h;canvas.getContext('2d').drawImage(img,0,0,w,h);
-      tallerFotoData=canvas.toDataURL('image/jpeg',0.75);
+      tallerFotoData=canvas.toDataURL('image/jpeg',0.8);
       var slot=document.getElementById('taller-slot-nuevo');
       if(slot){
         slot.className='taller-slot filled';slot.onclick=null;
@@ -3706,7 +3720,7 @@ function onBombaFoto(input,idx){
       var slot=document.getElementById('bomba-foto-slot-'+idx);
       if(slot){
         slot.className='taller-slot filled';slot.onclick=null;
-        slot.innerHTML='<img src="'+bombaFotoData[idx]+'" alt="Foto bomba" style="width:100%;height:100%;object-fit:cover;border-radius:8px;"><button class="taller-remove" onclick="quitarFotoBomba(event,'+idx+')">&#x2715;</button>';
+        slot.innerHTML='<img src="'+bombaFotoData[idx]+'" alt="Foto bomba" style="width:100%;height:100%;object-fit:contain;border-radius:8px;"><button class="taller-remove" onclick="quitarFotoBomba(event,'+idx+')">&#x2715;</button>';
       }
       if(bombaFotoData.some(function(f){return f;}))document.getElementById('fotos-aviso-bomba').classList.remove('show');
       input.value='';showToast('✅ Foto '+(idx+1)+' añadida','success');
@@ -3735,7 +3749,7 @@ function pintarFotosPrep(){
   if(!grid) return;
   var h='';
   for(var i=0;i<prepFotoData.length;i++){
-    h+='<div class="taller-slot filled"><img src="'+prepFotoData[i]+'" alt="Foto '+(i+1)+'" style="width:100%;height:100%;object-fit:cover;border-radius:8px;">'
+    h+='<div class="taller-slot filled"><img src="'+prepFotoData[i]+'" alt="Foto '+(i+1)+'" style="width:100%;height:100%;object-fit:contain;border-radius:8px;">'
      + '<button class="taller-remove" onclick="quitarFotoPrep(event,'+i+')">&#x2715;</button></div>';
   }
   if(prepFotoData.length<PREP_MAX_FOTOS){
@@ -3812,7 +3826,7 @@ function _procesarFotoTaller(file, dataArr, slotPrefix, inputPrefix, avisoId, la
       var slot=document.getElementById(slotPrefix+idx);
       if(slot){
         slot.className='taller-slot filled';slot.onclick=null;
-        slot.innerHTML='<img src="'+dataArr[idx]+'" style="width:100%;height:100%;object-fit:cover;border-radius:8px;"><button class="taller-remove" onclick="'+cb+'(event,'+idx+')">&#x2715;</button>';
+        slot.innerHTML='<img src="'+dataArr[idx]+'" style="width:100%;height:100%;object-fit:contain;border-radius:8px;"><button class="taller-remove" onclick="'+cb+'(event,'+idx+')">&#x2715;</button>';
       }
       if(dataArr.every(function(f){return f;}))document.getElementById(avisoId).classList.remove('show');
       file=null;showToast('✅ '+labelPrefix+' '+(idx+1)+' añadida','success');
