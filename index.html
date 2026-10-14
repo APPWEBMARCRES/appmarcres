@@ -2167,6 +2167,13 @@ async function enviarAlbaran(panel){
   if(!tecnico){showToast('⚠ El técnico es obligatorio','error');return;}
   if(!validarFurgoneta('a'))return;
 
+  // Aviso si el "Trabajo realizado" (observaciones) esta vacio.
+  var _idObs={mantenimiento:'mant-obs',simple:'simple-obs',bomba:'bomba-obs',preparacion:'preparacion-obs',taller:'taller-obs'}[panel];
+  if(_idObs){
+    var _valObs=((document.getElementById(_idObs)||{}).value||'').trim();
+    if(!_valObs && !confirm('No has puesto el "Trabajo realizado". ¿Enviar el parte igualmente?')) return;
+  }
+
   // Panel Bombas o Equipos a Taller
   if(panel==='bomba'){
     if(!bombaFotoData.some(function(f){return f;})){
@@ -4777,6 +4784,9 @@ async function enviarChecklist(tipo){
   if(!validarFurgoneta('c'))return;
   if(!validarFotos(tipo))return;
   if(!validarFirmas(tipo))return;
+  // Aviso si el "Trabajo realizado" (observaciones) esta vacio.
+  var _valObsC=(tipo==='elec'?document.getElementById('elec-obs').value:document.getElementById('hid-obs').value).trim();
+  if(!_valObsC && !confirm('No has puesto el "Trabajo realizado". ¿Enviar el parte igualmente?')) return;
   const tipoNombre=tipo==='elec'?'Checklist Eléctrico':'Checklist Hidráulico';
   const btnId=tipo==='elec'?'send-elec-btn':'send-hid-btn';
   const btn=document.getElementById(btnId);
