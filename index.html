@@ -407,7 +407,7 @@ table.hid-table{width:100%;border-collapse:collapse;font-size:12px;}
     <div class="field-group cliente-wrap" id="c-cliente-wrap">
       <label class="field-label">Cliente <span style="color:var(--bad)">*</span> <span class="holded-badge">Holded</span></label>
       <div style="display:flex;align-items:center;gap:6px;">
-        <input type="text" class="field-input" id="c-cliente" placeholder="Escribe para buscar cliente..." autocomplete="off" oninput="mayusAuto(this);buscarHolded(this.value,'c')" onfocus="buscarHolded(this.value,'c')" style="flex:1;">
+        <input type="text" class="field-input" id="c-cliente" placeholder="Escribe para buscar cliente..." autocomplete="off" oninput="mayusAuto(this);buscarHolded(this.value,'c');toggleHidraqua('c')" onfocus="buscarHolded(this.value,'c')" style="flex:1;">
         <button onclick="resetCliente('c')" title="Borrar cliente" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--muted);flex-shrink:0;">✕</button>
       </div>
       <div class="holded-dropdown" id="c-holded-drop" style="display:none;"></div>
@@ -416,6 +416,13 @@ table.hid-table{width:100%;border-collapse:collapse;font-size:12px;}
     <div class="field-group field-row">
       <div><label class="field-label">Población</label><input type="text" class="field-input" id="c-poblacion" placeholder="Población"></div>
       <div><label class="field-label">C.P.</label><input type="text" class="field-input" id="c-cp" placeholder="Código postal" inputmode="numeric"></div>
+    </div>
+    <div class="field-group hidraqua-box" id="c-hidraqua" style="display:none;background:#EEF4FF;border:1px solid #CADBF5;border-radius:10px;padding:10px 12px;">
+      <div style="font-size:11px;font-weight:700;letter-spacing:.3px;color:#184595;text-transform:uppercase;margin-bottom:6px;">Datos Hidraqua</div>
+      <div class="field-row">
+        <div><label class="field-label">🏙️ Ciudad <span style="color:var(--bad)">*</span></label><input type="text" class="field-input" id="c-ciudad" list="lista-ciudades-cv" placeholder="Escribe la ciudad…" autocomplete="off" style="text-transform:uppercase;"></div>
+        <div><label class="field-label">⚙️ Bombeo <span style="color:var(--bad)">*</span></label><input type="text" class="field-input" id="c-bombeo" placeholder="Nombre / nº de bombeo" style="text-transform:uppercase;"></div>
+      </div>
     </div>
     <div class="field-group" style="margin-top:8px;"><label class="field-label">🏢 Bloque / Escalera</label><input type="text" class="field-input" id="c-bloque" placeholder="Ej: A, B, 1, 2... (opcional)" maxlength="30" style="max-width:260px;"></div>
     <div class="field-group">
@@ -650,7 +657,7 @@ table.hid-table{width:100%;border-collapse:collapse;font-size:12px;}
     <div class="field-group cliente-wrap" id="a-cliente-wrap">
       <label class="field-label">Cliente <span style="color:var(--bad)">*</span> <span class="holded-badge">Holded</span></label>
       <div style="display:flex;align-items:center;gap:6px;">
-        <input type="text" class="field-input" id="a-cliente" placeholder="Escribe para buscar cliente..." autocomplete="off" oninput="mayusAuto(this);buscarHolded(this.value,'a')" onfocus="buscarHolded(this.value,'a')" style="flex:1;">
+        <input type="text" class="field-input" id="a-cliente" placeholder="Escribe para buscar cliente..." autocomplete="off" oninput="mayusAuto(this);buscarHolded(this.value,'a');toggleHidraqua('a')" onfocus="buscarHolded(this.value,'a')" style="flex:1;">
         <button onclick="resetCliente('a')" title="Borrar cliente" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--muted);flex-shrink:0;">✕</button>
       </div>
       <div class="holded-dropdown" id="a-holded-drop" style="display:none;"></div>
@@ -659,6 +666,13 @@ table.hid-table{width:100%;border-collapse:collapse;font-size:12px;}
     <div class="field-group field-row">
       <div><label class="field-label">Población</label><input type="text" class="field-input" id="a-poblacion" placeholder="Población"></div>
       <div><label class="field-label">C.P.</label><input type="text" class="field-input" id="a-cp" placeholder="Código postal" inputmode="numeric"></div>
+    </div>
+    <div class="field-group hidraqua-box" id="a-hidraqua" style="display:none;background:#EEF4FF;border:1px solid #CADBF5;border-radius:10px;padding:10px 12px;">
+      <div style="font-size:11px;font-weight:700;letter-spacing:.3px;color:#184595;text-transform:uppercase;margin-bottom:6px;">Datos Hidraqua</div>
+      <div class="field-row">
+        <div><label class="field-label">🏙️ Ciudad <span style="color:var(--bad)">*</span></label><input type="text" class="field-input" id="a-ciudad" list="lista-ciudades-cv" placeholder="Escribe la ciudad…" autocomplete="off" style="text-transform:uppercase;"></div>
+        <div><label class="field-label">⚙️ Bombeo <span style="color:var(--bad)">*</span></label><input type="text" class="field-input" id="a-bombeo" placeholder="Nombre / nº de bombeo" style="text-transform:uppercase;"></div>
+      </div>
     </div>
     <div class="field-group">
       <label class="field-label">🚐 Furgoneta <span style="color:var(--bad)">*</span></label>
@@ -1243,6 +1257,8 @@ async function traerTareasPlanificadas(nombreTecnico) {
         trabajo: t.trabajo || '',
         maps: t.maps || '',
         dirTrabajo: t.dirTrabajo || '',
+        ciudad: t.ciudad || '',
+        bombeo: t.bombeo || '',
         contacto: t.contacto || '',
         telefono: t.telefono || '',
         encargado: t.encargado || '',
@@ -1388,6 +1404,34 @@ function buscarHolded(q,prefix){
   },350);
 }
 
+// HIDRAQUA — Ciudad (lista) + Bombeo (a mano). Solo para el cliente
+// "HIDRAQUA GESTION INTEGRAL DE AGUAS DE LEVANTE SAU". Para otros
+// clientes quedan ocultos y no se envian.
+var CIUDADES_CV=['ADEMUZ','ADOR','ADSUBIA','ADZANETA','ADZANETA DE ALBAIDA','AGOST','AGRES','AGUAS DE BUSOT','AGULLENT','AHÍN','ALACUÁS','ALBAIDA','ALBAL','ALBALAT DE LA RIBERA','ALBALAT DELS SORELLS','ALBALAT DELS TARONCHERS','ALBATERA','ALBERIQUE','ALBOCÁCER','ALBORACHE','ALBORAYA','ALBUIXECH','ALCÁCER','ALCALÁ DE CHIVERT','ALCALALÍ','ALCÁNTARA DE JÚCAR','ALCIRA','ALCOCER DE PLANES','ALCOLECHA','ALCORA','ALCOY','ALCUBLAS','ALCUDIA DE CRESPINS','ALCUDIA DE VEO','ALDAYA','ALFAFAR','ALFAFARA','ALFAHUIR','ALFARA DE LA BARONÍA','ALFARA DEL PATRIARCA','ALFARP','ALFARRASÍ','ALFAZ DEL PI','ALFONDEGUILLA','ALGAR DE PALANCIA','ALGEMESÍ','ALGIMIA DE ALFARA','ALGIMIA DE ALMONACID','ALGINET','ALGORFA','ALGUEÑA','ALICANTE','ALMÁCERA','ALMAZORA','ALMEDÍJAR','ALMENARA','ALMISERAT','ALMOINES','ALMORADÍ','ALMUDAINA','ALMUSAFES','ALPUENTE','ALQUERÍA DE AZNAR','ALQUERÍA DE LA CONDESA','ALQUERÍAS DEL NIÑO PERDIDO','ALTEA','ALTURA','ANDILLA','ANNA','ANTELLA','ARAÑUEL','ARAS DE LOS OLMOS','ARES DEL MAESTRE','ARGELITA','ARTANA','ASPE','AYELO DE MALFERIT','AYELO DE RUGAT','AYÓDAR','AYORA','AZUÉBAR','BALONES','BAÑERES DE MARIOLA','BARCHETA','BÁRIG','BARRACAS','BECHÍ','BEJÍS','BÉLGIDA','BELLREGUART','BELLÚS','BENAFER','BENAFIGOS','BENAGÉBER','BENAGUACIL','BENASAL','BENASAU','BENAVITES','BENEGIDA','BENEJAMA','BENEJÚZAR','BENETÚSER','BENFERRI','BENIARBEIG','BENIARDÁ','BENIARJÓ','BENIARRÉS','BENIATJAR','BENICARLÓ','BENICASIM','BENICHEMBLA','BENICOLET','BENICULL','BENIDOLEIG','BENIDORM','BENIFAIRÓ DE LA VALLDIGNA','BENIFAIRÓ DE LOS VALLES','BENIFALLIM','BENIFATO','BENIFAYÓ','BENIFLÁ','BENIGÁNIM','BENIJÓFAR','BENILLOBA','BENILLUP','BENIMANTELL','BENIMARFULL','BENIMASOT','BENIMELI','BENIMODO','BENIMUSLEM','BENIPARRELL','BENIRREDRÁ','BENISA','BENISANÓ','BENISODA','BENISUERA','BENITACHELL','BENLLOC','BÉTERA','BIAR','BICORP','BIGASTRO','BOCAIRENTE','BOLBAITE','BOLULLA','BONREPÓS Y MIRAMBELL','BORRIOL','BUFALI','BUGARRA','BUÑOL','BURJASOT','BURRIANA','BUSOT','CABANES','CÁLIG','CALLES','CALLOSA DE ENSARRIÁ','CALLOSA DE SEGURA','CALPE','CAMPELLO','CAMPO DE MIRRA','CAMPORROBLES','CANALS','CANET DE BERENGUER','CANET LO ROIG','CAÑADA','CARCAGENTE','CÁRCER','CARLET','CARRÍCOLA','CASAS ALTAS','CASAS BAJAS','CASINOS','CASTALLA','CASTELL DE CABRES','CASTELL DE CASTELLS','CASTELLFORT','CASTELLNOVO','CASTELLÓN DE LA PLANA','CASTELLÓN DE RUGAT','CASTELLONET','CASTIELFABIB','CASTILLO DE VILLAMALEFA','CATADAU','CATARROJA','CATÍ','CATRAL','CAUDETE DE LAS FUENTES','CAUDIEL','CERDÁ','CERVERA DEL MAESTRE','CHELLA','CHELVA','CHERA','CHERT','CHESTE','CHILCHES','CHIRIVELLA','CHIVA','CHODOS','CHÓVAR','CHULILLA','CINCTORRES','CIRAT','COCENTAINA','COFRENTES','CONFRIDES','CORBERA','CORTES DE ARENOSO','CORTES DE PALLÁS','COSTUR','COTES','COX','CREVILLENTE','CUART DE LES VALLS','CUART DE POBLET','CUARTELL','CUATRETONDA','CUATRETONDETA','CUEVAS DE VINROMÁ','CULLA','CULLERA','DAIMUZ','DAYA NUEVA','DAYA VIEJA','DENIA','DOLORES','DOMEÑO','DOS AGUAS','EL PUIG','EL TORO','ELCHE','ELDA','ELS POBLETS','EMPERADOR','ENGUERA','ÉNOVA','ESLIDA','ESPADILLA','ESTIVELLA','ESTUBENY','FACHECA','FAMORCA','FANZARA','FAURA','FAVARA','FIGUEROLES','FINESTRAT','FONTANARES','FORCALL','FORMENTERA DEL SEGURA','FORTALENY','FOYOS','FUENTE ENCARROZ','FUENTE LA HIGUERA','FUENTE LA REINA','FUENTERROBLES','FUENTES DE AYÓDAR','GABARDA','GAIBIEL','GANDÍA','GATA DE GORGOS','GÁTOVA','GAYANES','GELDO','GENOVÉS','GESTALGAR','GILET','GODELLA','GODELLETA','GORGA','GRANJA DE ROCAMORA','GUADALEST','GUADASEQUIES','GUADASUAR','GUARDAMAR DE LA SAFOR','GUARDAMAR DEL SEGURA','HERBÉS','HIGUERAS','HIGUERUELAS','HONDÓN DE LAS NIEVES','HONDÓN DE LOS FRAILES','IBI','JACARILLA','JALANCE','JALÓN','JARACO','JARAFUEL','JÁTIVA','JÁVEA','JERESA','JÉRICA','JIJONA','LA ALCUDIA','LA ELIANA','LA GRANJA DE LA COSTERA','LA JANA','LA LLOSA','LA LLOSA DE RANES','LA MATA DE MORELLA','LA NUCÍA','LA ROMANA','LA YESA','LIRIA','LLANERA DE RANES','LLAURÍ','LLÍBER','LLOMBAY','LLUTXENT','LORCHA','LORIGUILLA','LOS MONTESINOS','LOSA DEL OBISPO','LUCENA DEL CID','LUDIENTE','LUGAR NUEVO DE FENOLLET','LUGAR NUEVO DE LA CORONA','LUGAR NUEVO DE SAN JERÓNIMO','MACASTRE','MANISES','MANUEL','MARINES','MASALAVÉS','MASALFASAR','MASANASA','MASSAMAGRELL','MATET','MELIANA','MILLARES','MILLENA','MIRAMAR','MISLATA','MOGENTE','MONCADA','MONCÓFAR','MONFORTE DEL CID','MONÓVAR','MONSERRAT','MONTABERNER','MONTÁN','MONTANEJOS','MONTESA','MONTICHELVO','MONTROY','MORELLA','MUCHAMIEL','MURLA','MURO DE ALCOY','MUSEROS','NÁQUERA','NAVAJAS','NAVARRÉS','NOVELDA','NOVELÉ','NULES','OLIVA','OLLERÍA','OLOCAU','OLOCÁU DEL REY','ONDA','ONDARA','ONIL','ONTENIENTE','ORBA','ORCHETA','ORIHUELA','OROPESA DEL MAR','OTOS','PAIPORTA','PALANQUES','PALMA DE GANDÍA','PALMERA','PALOMAR','PARCENT','PATERNA','PAVÍAS','PEDRALBA','PEDREGUER','PEGO','PENÁGUILA','PEÑÍSCOLA','PETRER','PETRÉS','PICAÑA','PICASENT','PILAR DE LA HORADADA','PILES','PINA DE MONTALGRAO','PINET','PINOSO','PLANES','POLIÑÁ DE JÚCAR','POLOP','PORTELL DE MORELLA','POTRÍES','PUEBLA DE ARENOSO','PUEBLA DE BENIFASAR','PUEBLA DE FARNALS','PUEBLA DE SAN MIGUEL','PUEBLA DE VALLBONA','PUEBLA DEL DUC','PUEBLA LARGA','PUEBLA-TORNESA','PUZOL','QUESA','RAFAL','RAFELBUÑOL','RAFELCOFER','RAFELGUARAF','RÁFOL DE ALMUNIA','RÁFOL DE SALEM','REAL','REAL DE GANDÍA','REDOVÁN','RELLEU','REQUENA','RIBARROJA DEL TURIA','RIBESALBES','RIOLA','ROCAFORT','ROJALES','ROSELL','ROTGLÁ Y CORBERA','RÓTOVA','RUGAT','SACAÑET','SAGRA','SAGUNTO','SALEM','SALINAS','SALSADELLA','SAN ANTONIO DE BENAGÉBER','SAN FULGENCIO','SAN ISIDRO','SAN JORGE','SAN JUAN DE ALICANTE','SAN JUAN DE ÉNOVA','SAN MATEO','SAN MIGUEL DE SALINAS','SAN RAFAEL DEL RÍO','SAN VICENTE DEL RASPEIG','SANET Y NEGRALS','SANT JOAN DEL MORÓ','SANTA MAGDALENA DE PULPIS','SANTA POLA','SARRATELLA','SAX','SEDAVÍ','SEGART','SEGORBE','SELLA','SELLENT','SEMPERE','SENIJA','SEÑERA','SERRA','SIERRA ENGARCERÁN','SIETE AGUAS','SILLA','SIMAT DE VALLDIGNA','SINARCAS','SOLLANA','SONEJA','SOT DE CHERA','SOT DE FERRER','SUECA','SUERAS','SUMACÁRCEL','TABERNES BLANQUES','TABERNES DE VALLDIGNA','TALES','TÁRBENA','TERESA','TERESA DE COFRENTES','TERRATEIG','TEULADA','TIBI','TÍRIG','TITAGUAS','TODOLELLA','TOGA','TOLLOS','TORÁS','TORMOS','TORRALBA DEL PINAR','TORRE EMBESORA','TORRE ENDOMÉNECH','TORREBAJA','TORREBLANCA','TORRECHIVA','TORRELLA','TORREMANZANAS','TORRENTE','TORRES TORRES','TORREVIEJA','TOUS','TRAIGUERA','TUÉJAR','TURÍS','USERAS','UTIEL','VALENCIA','VALL D\'ALBA','VALL DE ALCALÁ','VALL DE ALMONACID','VALL DE EBO','VALL DE GALLINERA','VALL DE LAGUART','VALL DE UXÓ','VALLADA','VALLANCA','VALLAT','VALLÉS','VALLIBONA','VENTA DEL MORO','VERGEL','VILAMARXANT','VILLAFAMÉS','VILLAFRANCA DEL CID','VILLAHERMOSA DEL RÍO','VILLAJOYOSA','VILLALONGA','VILLAMALUR','VILLANUEVA DE ALCOLEA','VILLANUEVA DE CASTELLÓN','VILLANUEVA DE VIVER','VILLAR DE CANES','VILLAR DEL ARZOBISPO','VILLARGORDO DEL CABRIEL','VILLARREAL','VILLAVIEJA','VILLENA','VILLORES','VINALESA','VINAROZ','VISTABELLA DEL MAESTRAZGO','VIVER','YÁTOVA','ZARRA','ZORITA DEL MAESTRAZGO','ZUCAINA'];
+function poblarCiudades(){
+  var dl=document.getElementById('lista-ciudades-cv');
+  if(!dl){ dl=document.createElement('datalist'); dl.id='lista-ciudades-cv'; document.body.appendChild(dl); }
+  if(dl.childElementCount) return;
+  dl.innerHTML=CIUDADES_CV.map(function(c){ return '<option value="'+c.replace(/"/g,'&quot;')+'"></option>'; }).join('');
+}
+function esHidraqua(prefix){ var el=document.getElementById(prefix+'-cliente'); return !!(el && /hidraqua/i.test(el.value||'')); }
+function toggleHidraqua(prefix){
+  var box=document.getElementById(prefix+'-hidraqua'); if(!box) return;
+  var on=esHidraqua(prefix);
+  box.style.display = on ? '' : 'none';
+  if(!on){ var c=document.getElementById(prefix+'-ciudad'); if(c) c.value=''; var b=document.getElementById(prefix+'-bombeo'); if(b) b.value=''; }
+}
+function getHidraqua(prefix){
+  if(!esHidraqua(prefix)) return {};
+  var c=document.getElementById(prefix+'-ciudad'), b=document.getElementById(prefix+'-bombeo');
+  return { ciudad:((c&&c.value)||'').toUpperCase(), bombeo:((b&&(b.value||'').trim())||'').toUpperCase() };
+}
+if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',poblarCiudades); } else { poblarCiudades(); }
+// "Dónde se hace" (lo anota la oficina en Planificación): se guarda al elegir
+// la tarea y se manda al PDF. Sin tarea elegida, va vacío.
+var __donde={a:'',c:''};
+function getDonde(p){ return (__donde[p]||''); }
+
 const clienteElegido={c:false,a:false};
 function elegirClienteId(id,prefix){
   const c=holdedContactos[id];
@@ -1401,6 +1445,7 @@ function elegirClienteId(id,prefix){
   const inp=document.getElementById(prefix+'-cliente');
   inp.style.color='var(--ok)';
   inp.style.fontWeight='600';
+  toggleHidraqua(prefix);
 }
 function resetCliente(prefix){
   clienteElegido[prefix]=false;
@@ -1410,6 +1455,8 @@ function resetCliente(prefix){
   document.getElementById(prefix+'-direccion').value='';
   if(document.getElementById(prefix+'-poblacion'))document.getElementById(prefix+'-poblacion').value='';
   if(document.getElementById(prefix+'-cp'))document.getElementById(prefix+'-cp').value='';
+  toggleHidraqua(prefix);
+  __donde[prefix]='';
 }
 
 function seleccionarCliente(prefix,c){
@@ -1418,6 +1465,7 @@ function seleccionarCliente(prefix,c){
   if(document.getElementById(prefix+'-poblacion')) document.getElementById(prefix+'-poblacion').value=c.city||'';
   if(document.getElementById(prefix+'-cp')) document.getElementById(prefix+'-cp').value=c.postalCode||'';
   document.getElementById(prefix+'-holded-drop').style.display='none';
+  toggleHidraqua(prefix);
 }
 
 document.addEventListener('click',e=>{
@@ -2187,7 +2235,7 @@ async function enviarAlbaran(panel){
     const ubicacion=await obtenerUbicacionFinal();
     if(!ubicacion.ok){if(ubicacion.motivo==='senal'){showToast('📡 Sin señal de ubicación — busca un sitio con mejor cobertura e inténtalo de nuevo.','error');}else{registrarIncidenciaUbicacion('Ubicación desactivada al intentar enviar el parte');mostrarAvisoUbicacionManual('No se puede enviar el parte porque el permiso de ubicación está desactivado o denegado en este dispositivo.');}btn.disabled=false;btn.textContent='📤 Enviar Bombas o Equipos a Taller';return;}
     btn.textContent='⏳ Generando PDF...';
-    const payload={empresa:empresaAlbaran,tipo:'Bombas o Equipos a Taller',fecha:fechaTexto,horaInicio:document.getElementById('a-hora-inicio').value,horaFin:calcHoraFin(),totalHoras:calcDuracion(),tiempoTranscurrido:getTiempoTranscurrido(),cliente,direccion:document.getElementById('a-direccion').value.trim(),poblacion:document.getElementById('a-poblacion').value.trim(),cp:document.getElementById('a-cp').value.trim(),tecnico,tecnicosExtra:getTecnicosExtra('a'),...getFurgoneta('a'),bloque:document.getElementById('a-bloque')?.value.trim()||'',observaciones:document.getElementById('bomba-obs').value.trim(),incidencia:document.getElementById('bomba-incidencia')?.value.trim()||'',fotos:bombaFotoData.filter(Boolean),firmaTecnico:getFirmasTecnicosArray('bomba')[0]?.firma||null,firmasTecnicos:getFirmasTecnicosArray('bomba'),firmaCliente:null,clienteAusente:true,motivoAusencia:'No requerida',numDoc:genNumDoc(),idParte:_idParteActual.a,ubicacion,ubicacionInicio:getUbicacionInicio(),incidenciasUbicacion:_incidenciasUbicacion,horaEnvio:calcHoraFin()};
+    const payload={empresa:empresaAlbaran,tipo:'Bombas o Equipos a Taller',fecha:fechaTexto,horaInicio:document.getElementById('a-hora-inicio').value,horaFin:calcHoraFin(),totalHoras:calcDuracion(),tiempoTranscurrido:getTiempoTranscurrido(),cliente,direccion:document.getElementById('a-direccion').value.trim(),poblacion:document.getElementById('a-poblacion').value.trim(),cp:document.getElementById('a-cp').value.trim(),tecnico,tecnicosExtra:getTecnicosExtra('a'),...getFurgoneta('a'),...getHidraqua('a'),dondeSeHace:getDonde('a'),bloque:document.getElementById('a-bloque')?.value.trim()||'',observaciones:document.getElementById('bomba-obs').value.trim(),incidencia:document.getElementById('bomba-incidencia')?.value.trim()||'',fotos:bombaFotoData.filter(Boolean),firmaTecnico:getFirmasTecnicosArray('bomba')[0]?.firma||null,firmasTecnicos:getFirmasTecnicosArray('bomba'),firmaCliente:null,clienteAusente:true,motivoAusencia:'No requerida',numDoc:genNumDoc(),idParte:_idParteActual.a,ubicacion,ubicacionInicio:getUbicacionInicio(),incidenciasUbicacion:_incidenciasUbicacion,horaEnvio:calcHoraFin()};
     try{const data=await enviarConProgreso(payload,btn,'Bombas o Equipos a Taller');mostrarPantallaFinal(data.url||null);}
     catch(err){showToast('❌ Error: '+(err.message||'sin conexión')+' — Espera 30s','error');btn.textContent='⏳ Espera 30s...';setTimeout(function(){btn.disabled=false;btn.textContent='📤 Enviar Bombas o Equipos a Taller';},30000);}
     return;
@@ -2208,7 +2256,7 @@ async function enviarAlbaran(panel){
     const ubicacion=await obtenerUbicacionFinal();
     if(!ubicacion.ok){if(ubicacion.motivo==='senal'){showToast('📡 Sin señal de ubicación — busca un sitio con mejor cobertura e inténtalo de nuevo.','error');}else{registrarIncidenciaUbicacion('Ubicación desactivada al intentar enviar el parte');mostrarAvisoUbicacionManual('No se puede enviar el parte porque el permiso de ubicación está desactivado o denegado en este dispositivo.');}btn.disabled=false;btn.textContent='📤 Enviar Prep. Material / Presupuesto';return;}
     btn.textContent='⏳ Generando PDF...';
-    const payload={empresa:empresaAlbaran,tipo:'Preparación Materiales',fecha:fechaTexto,horaInicio:document.getElementById('a-hora-inicio').value,horaFin:calcHoraFin(),totalHoras:calcDuracion(),tiempoTranscurrido:getTiempoTranscurrido(),cliente,direccion:document.getElementById('a-direccion').value.trim(),poblacion:document.getElementById('a-poblacion').value.trim(),cp:document.getElementById('a-cp').value.trim(),tecnico,tecnicosExtra:getTecnicosExtra('a'),...getFurgoneta('a'),bloque:document.getElementById('a-bloque')?.value.trim()||'',observaciones:document.getElementById('preparacion-obs').value.trim(),incidencia:document.getElementById('preparacion-incidencia')?.value.trim()||'',materiales:getMaterilesFor('preparacion'),horasPresupuestadas:document.getElementById('horas-pres-preparacion')?.value.trim()||'',numTecnicos:document.getElementById('num-tec-preparacion')?.value.trim()||'',fotos:prepFotoData.slice(),firmaTecnico:getFirmasTecnicosArray('preparacion')[0]?.firma||null,firmasTecnicos:getFirmasTecnicosArray('preparacion'),firmaCliente:null,clienteAusente:true,motivoAusencia:'No requerida',numDoc:genNumDoc(),idParte:_idParteActual.a,ubicacion,ubicacionInicio:getUbicacionInicio(),incidenciasUbicacion:_incidenciasUbicacion,horaEnvio:calcHoraFin()};
+    const payload={empresa:empresaAlbaran,tipo:'Preparación Materiales',fecha:fechaTexto,horaInicio:document.getElementById('a-hora-inicio').value,horaFin:calcHoraFin(),totalHoras:calcDuracion(),tiempoTranscurrido:getTiempoTranscurrido(),cliente,direccion:document.getElementById('a-direccion').value.trim(),poblacion:document.getElementById('a-poblacion').value.trim(),cp:document.getElementById('a-cp').value.trim(),tecnico,tecnicosExtra:getTecnicosExtra('a'),...getFurgoneta('a'),...getHidraqua('a'),dondeSeHace:getDonde('a'),bloque:document.getElementById('a-bloque')?.value.trim()||'',observaciones:document.getElementById('preparacion-obs').value.trim(),incidencia:document.getElementById('preparacion-incidencia')?.value.trim()||'',materiales:getMaterilesFor('preparacion'),horasPresupuestadas:document.getElementById('horas-pres-preparacion')?.value.trim()||'',numTecnicos:document.getElementById('num-tec-preparacion')?.value.trim()||'',fotos:prepFotoData.slice(),firmaTecnico:getFirmasTecnicosArray('preparacion')[0]?.firma||null,firmasTecnicos:getFirmasTecnicosArray('preparacion'),firmaCliente:null,clienteAusente:true,motivoAusencia:'No requerida',numDoc:genNumDoc(),idParte:_idParteActual.a,ubicacion,ubicacionInicio:getUbicacionInicio(),incidenciasUbicacion:_incidenciasUbicacion,horaEnvio:calcHoraFin()};
     try{const data=await enviarConProgreso(payload,btn,'Prep. Material / Presupuesto');mostrarPantallaFinal(data.url||null);}
     catch(err){showToast('❌ Error: '+(err.message||'sin conexión')+' — Espera 30s','error');btn.textContent='⏳ Espera 30s...';setTimeout(function(){btn.disabled=false;btn.textContent='📤 Enviar Prep. Material / Presupuesto';},30000);}
     return;
@@ -2223,7 +2271,7 @@ async function enviarAlbaran(panel){
     const ubicacion=await obtenerUbicacionFinal();
     if(!ubicacion.ok){if(ubicacion.motivo==='senal'){showToast('📡 Sin señal de ubicación — busca un sitio con mejor cobertura e inténtalo de nuevo.','error');}else{registrarIncidenciaUbicacion('Ubicación desactivada al intentar enviar el parte');mostrarAvisoUbicacionManual('No se puede enviar el parte porque el permiso de ubicación está desactivado o denegado en este dispositivo.');}btn.disabled=false;btn.textContent='📤 Enviar Descalcificadores';return;}
     btn.textContent='⏳ Generando PDF...';
-    const payload={empresa:empresaAlbaran,tipo:'Descalcificadores',fecha:fechaTexto,horaInicio:document.getElementById('a-hora-inicio').value,horaFin:calcHoraFin(),totalHoras:calcDuracion(),tiempoTranscurrido:getTiempoTranscurrido(),cliente,direccion:document.getElementById('a-direccion').value.trim(),poblacion:document.getElementById('a-poblacion').value.trim(),cp:document.getElementById('a-cp').value.trim(),tecnico,tecnicosExtra:getTecnicosExtra('a'),...getFurgoneta('a'),bloque:document.getElementById('a-bloque')?.value.trim()||'',resumen:window._descalResumen||'',observaciones:window._descalObs||'',incidencia:window._descalIncidencia||'',materiales:window._descalMateriales||'',fotos:window._descalFotos||[],firmaTecnico:getFirmasTecnicosArray('descal')[0]?.firma||null,firmasTecnicos:getFirmasTecnicosArray('descal'),firmaCliente:ausenteState.descal?null:getFirmaBase64('cliente-descal'),nombreFirmanteCliente:document.getElementById('nombre-firma-cliente-descal')?.value.trim()||'',clienteAusente:ausenteState.descal,motivoAusencia:document.getElementById('ausente-motivo-descal')?.value.trim()||'',numDoc:genNumDoc(),idParte:_idParteActual.a,ubicacion,ubicacionInicio:getUbicacionInicio(),incidenciasUbicacion:_incidenciasUbicacion,horaEnvio:calcHoraFin()};
+    const payload={empresa:empresaAlbaran,tipo:'Descalcificadores',fecha:fechaTexto,horaInicio:document.getElementById('a-hora-inicio').value,horaFin:calcHoraFin(),totalHoras:calcDuracion(),tiempoTranscurrido:getTiempoTranscurrido(),cliente,direccion:document.getElementById('a-direccion').value.trim(),poblacion:document.getElementById('a-poblacion').value.trim(),cp:document.getElementById('a-cp').value.trim(),tecnico,tecnicosExtra:getTecnicosExtra('a'),...getFurgoneta('a'),...getHidraqua('a'),dondeSeHace:getDonde('a'),bloque:document.getElementById('a-bloque')?.value.trim()||'',resumen:window._descalResumen||'',observaciones:window._descalObs||'',incidencia:window._descalIncidencia||'',materiales:window._descalMateriales||'',fotos:window._descalFotos||[],firmaTecnico:getFirmasTecnicosArray('descal')[0]?.firma||null,firmasTecnicos:getFirmasTecnicosArray('descal'),firmaCliente:ausenteState.descal?null:getFirmaBase64('cliente-descal'),nombreFirmanteCliente:document.getElementById('nombre-firma-cliente-descal')?.value.trim()||'',clienteAusente:ausenteState.descal,motivoAusencia:document.getElementById('ausente-motivo-descal')?.value.trim()||'',numDoc:genNumDoc(),idParte:_idParteActual.a,ubicacion,ubicacionInicio:getUbicacionInicio(),incidenciasUbicacion:_incidenciasUbicacion,horaEnvio:calcHoraFin()};
     try{const data=await enviarConProgreso(payload,btn,'Descalcificadores');mostrarPantallaFinal(data.url||null);}
     catch(err){showToast('❌ Error: '+(err.message||'sin conexión')+' — Espera 30s','error');btn.textContent='⏳ Espera 30s...';setTimeout(function(){btn.disabled=false;btn.textContent='📤 Enviar Descalcificadores';},30000);}
     return;
@@ -2241,7 +2289,7 @@ async function enviarAlbaran(panel){
     const ubicacion=await obtenerUbicacionFinal();
     if(!ubicacion.ok){if(ubicacion.motivo==='senal'){showToast('📡 Sin señal de ubicación — busca un sitio con mejor cobertura e inténtalo de nuevo.','error');}else{registrarIncidenciaUbicacion('Ubicación desactivada al intentar enviar el parte');mostrarAvisoUbicacionManual('No se puede enviar el parte porque el permiso de ubicación está desactivado o denegado en este dispositivo.');}btn.disabled=false;btn.textContent='📤 Enviar Trabajo en Taller';return;}
     btn.textContent='⏳ Generando PDF...';
-    const payload={empresa:empresaAlbaran,tipo:'Trabajo en Taller',fecha:fechaTexto,horaInicio:document.getElementById('a-hora-inicio').value,horaFin:calcHoraFin(),totalHoras:calcDuracion(),tiempoTranscurrido:getTiempoTranscurrido(),cliente,direccion:document.getElementById('a-direccion').value.trim(),poblacion:document.getElementById('a-poblacion').value.trim(),cp:document.getElementById('a-cp').value.trim(),tecnico,tecnicosExtra:getTecnicosExtra('a'),...getFurgoneta('a'),bloque:document.getElementById('a-bloque')?.value.trim()||'',observaciones:document.getElementById('taller-obs').value.trim(),incidencia:document.getElementById('taller-incidencia')?.value.trim()||'',horasPresupuestadas:document.getElementById('horas-pres-taller')?.value.trim()||'',numTecnicos:document.getElementById('num-tec-taller')?.value.trim()||'',materiales:getMaterilesFor('taller'),fotosAntes:tallerAntesData.filter(Boolean),fotosDespues:tallerDespuesData.filter(Boolean),firmaTecnico:getFirmasTecnicosArray('taller')[0]?.firma||null,firmasTecnicos:getFirmasTecnicosArray('taller'),firmaCliente:null,clienteAusente:true,motivoAusencia:'No requerida',numDoc:genNumDoc(),idParte:_idParteActual.a,ubicacion,ubicacionInicio:getUbicacionInicio(),incidenciasUbicacion:_incidenciasUbicacion,horaEnvio:calcHoraFin()};
+    const payload={empresa:empresaAlbaran,tipo:'Trabajo en Taller',fecha:fechaTexto,horaInicio:document.getElementById('a-hora-inicio').value,horaFin:calcHoraFin(),totalHoras:calcDuracion(),tiempoTranscurrido:getTiempoTranscurrido(),cliente,direccion:document.getElementById('a-direccion').value.trim(),poblacion:document.getElementById('a-poblacion').value.trim(),cp:document.getElementById('a-cp').value.trim(),tecnico,tecnicosExtra:getTecnicosExtra('a'),...getFurgoneta('a'),...getHidraqua('a'),dondeSeHace:getDonde('a'),bloque:document.getElementById('a-bloque')?.value.trim()||'',observaciones:document.getElementById('taller-obs').value.trim(),incidencia:document.getElementById('taller-incidencia')?.value.trim()||'',horasPresupuestadas:document.getElementById('horas-pres-taller')?.value.trim()||'',numTecnicos:document.getElementById('num-tec-taller')?.value.trim()||'',materiales:getMaterilesFor('taller'),fotosAntes:tallerAntesData.filter(Boolean),fotosDespues:tallerDespuesData.filter(Boolean),firmaTecnico:getFirmasTecnicosArray('taller')[0]?.firma||null,firmasTecnicos:getFirmasTecnicosArray('taller'),firmaCliente:null,clienteAusente:true,motivoAusencia:'No requerida',numDoc:genNumDoc(),idParte:_idParteActual.a,ubicacion,ubicacionInicio:getUbicacionInicio(),incidenciasUbicacion:_incidenciasUbicacion,horaEnvio:calcHoraFin()};
     try{const data=await enviarConProgreso(payload,btn,'Trabajo en Taller');mostrarPantallaFinal(data.url||null);}
     catch(err){showToast('❌ Error: '+(err.message||'sin conexión')+' — Espera 30s','error');btn.textContent='⏳ Espera 30s...';setTimeout(function(){btn.disabled=false;btn.textContent='📤 Enviar Trabajo en Taller';},30000);}
     return;
@@ -2260,7 +2308,7 @@ async function enviarAlbaran(panel){
   const ubicacion=await obtenerUbicacionFinal();
   if(!ubicacion.ok){if(ubicacion.motivo==='senal'){showToast('📡 Sin señal de ubicación — busca un sitio con mejor cobertura e inténtalo de nuevo.','error');}else{registrarIncidenciaUbicacion('Ubicación desactivada al intentar enviar el parte');mostrarAvisoUbicacionManual('No se puede enviar el parte porque el permiso de ubicación está desactivado o denegado en este dispositivo.');}btn.disabled=false;btn.textContent='📤 Enviar '+tipoLabel;return;}
   btn.textContent='⏳ Generando PDF...';
-  const payload={empresa:empresaAlbaran,tipo:tipoLabel,fecha:fechaTexto,horaInicio:document.getElementById('a-hora-inicio').value,horaFin:calcHoraFin(),totalHoras:calcDuracion(),tiempoTranscurrido:getTiempoTranscurrido(),cliente,direccion:document.getElementById('a-direccion').value.trim(),poblacion:document.getElementById('a-poblacion').value.trim(),cp:document.getElementById('a-cp').value.trim(),tecnico,tecnicosExtra:getTecnicosExtra('a'),...getFurgoneta('a'),corte:getPill('a-corte'),corteHoras:document.getElementById('a-corte-horas-val')?.value.trim()||'',bloque:document.getElementById('a-bloque')?.value.trim()||'',materialTaller:tallerEstado||'—',fotoTaller:tallerFotoData||null,estadoGeneral:getPill('estado-general'),resumen:isMant?buildResumenMant():'',observaciones:isMant?document.getElementById('mant-obs').value.trim():document.getElementById('simple-obs').value.trim(),incidencia:isMant?document.getElementById('mant-incidencia').value.trim():document.getElementById('simple-incidencia')?.value.trim()||'',horasPresupuestadas:document.getElementById('horas-pres-'+pKey)?.value.trim()||'',numTecnicos:document.getElementById('num-tec-'+pKey)?.value.trim()||'',materiales:getMaterilesFor(pKey),numDoc:genNumDoc(),idParte:_idParteActual.a,fotos:[...fotosData[fotoKey].filter(Boolean),...(fotosExtra[fotoKey]||[])],firmaTecnico:getFirmasTecnicosArray(pKey)[0]?.firma||null,firmasTecnicos:getFirmasTecnicosArray(pKey),firmaCliente:ausenteState[pKey]?null:getFirmaBase64('cliente-'+pKey),nombreFirmanteCliente:document.getElementById('nombre-firma-cliente-'+pKey)?.value.trim()||'',clienteAusente:ausenteState[pKey],motivoAusencia:document.getElementById('ausente-motivo-'+pKey)?.value.trim()||'',presupuestoPdf:pdfData[pKey]||null,ubicacion,ubicacionInicio:getUbicacionInicio(),incidenciasUbicacion:_incidenciasUbicacion,horaEnvio:calcHoraFin()};
+  const payload={empresa:empresaAlbaran,tipo:tipoLabel,fecha:fechaTexto,horaInicio:document.getElementById('a-hora-inicio').value,horaFin:calcHoraFin(),totalHoras:calcDuracion(),tiempoTranscurrido:getTiempoTranscurrido(),cliente,direccion:document.getElementById('a-direccion').value.trim(),poblacion:document.getElementById('a-poblacion').value.trim(),cp:document.getElementById('a-cp').value.trim(),tecnico,tecnicosExtra:getTecnicosExtra('a'),...getFurgoneta('a'),...getHidraqua('a'),dondeSeHace:getDonde('a'),corte:getPill('a-corte'),corteHoras:document.getElementById('a-corte-horas-val')?.value.trim()||'',bloque:document.getElementById('a-bloque')?.value.trim()||'',materialTaller:tallerEstado||'—',fotoTaller:tallerFotoData||null,estadoGeneral:getPill('estado-general'),resumen:isMant?buildResumenMant():'',observaciones:isMant?document.getElementById('mant-obs').value.trim():document.getElementById('simple-obs').value.trim(),incidencia:isMant?document.getElementById('mant-incidencia').value.trim():document.getElementById('simple-incidencia')?.value.trim()||'',horasPresupuestadas:document.getElementById('horas-pres-'+pKey)?.value.trim()||'',numTecnicos:document.getElementById('num-tec-'+pKey)?.value.trim()||'',materiales:getMaterilesFor(pKey),numDoc:genNumDoc(),idParte:_idParteActual.a,fotos:[...fotosData[fotoKey].filter(Boolean),...(fotosExtra[fotoKey]||[])],firmaTecnico:getFirmasTecnicosArray(pKey)[0]?.firma||null,firmasTecnicos:getFirmasTecnicosArray(pKey),firmaCliente:ausenteState[pKey]?null:getFirmaBase64('cliente-'+pKey),nombreFirmanteCliente:document.getElementById('nombre-firma-cliente-'+pKey)?.value.trim()||'',clienteAusente:ausenteState[pKey],motivoAusencia:document.getElementById('ausente-motivo-'+pKey)?.value.trim()||'',presupuestoPdf:pdfData[pKey]||null,ubicacion,ubicacionInicio:getUbicacionInicio(),incidenciasUbicacion:_incidenciasUbicacion,horaEnvio:calcHoraFin()};
   try{const data=await enviarConProgreso(payload,btn,tipoLabel);mostrarPantallaFinal(data.url||null);}
   catch(err){showToast('❌ Error: '+(err.message||'sin conexión')+' — Espera 30s','error');btn.textContent='⏳ Espera 30s...';setTimeout(function(){btn.disabled=false;btn.textContent='📤 Enviar '+tipoLabel;},30000);}
 }
@@ -2539,6 +2587,22 @@ function iniciarParte(prefix) {
     cliente.focus();
     setTimeout(()=>{ cliente.style.border = ''; }, 3000);
     return;
+  }
+
+  // Si el cliente es Hidraqua, Ciudad y Bombeo son obligatorios para iniciar
+  if(esHidraqua(prefix)){
+    var _ciu=document.getElementById(prefix+'-ciudad');
+    var _bom=document.getElementById(prefix+'-bombeo');
+    if(!_ciu || !(_ciu.value||'').trim()){
+      showToast('⚠ Pon la Ciudad (Datos Hidraqua) para iniciar','error');
+      if(_ciu){ _ciu.style.border='2px solid var(--bad)'; _ciu.focus(); setTimeout(function(){ _ciu.style.border=''; },3000); }
+      return;
+    }
+    if(!_bom || !(_bom.value||'').trim()){
+      showToast('⚠ Pon el Bombeo (Datos Hidraqua) para iniciar','error');
+      if(_bom){ _bom.style.border='2px solid var(--bad)'; _bom.focus(); setTimeout(function(){ _bom.style.border=''; },3000); }
+      return;
+    }
   }
 
   // Validar furgoneta obligatoria (Sí/No, y matrícula si es Sí)
@@ -3108,6 +3172,9 @@ function seleccionarTareaAlbaran(idx) {
   if (document.getElementById('a-direccion')) document.getElementById('a-direccion').value = t.direccion || '';
   if (document.getElementById('a-poblacion')) document.getElementById('a-poblacion').value = t.poblacion || t.city || '';
   if (document.getElementById('a-cp'))        document.getElementById('a-cp').value        = t.cp || t.postalCode || '';
+  toggleHidraqua('a');
+  if (esHidraqua('a')){ if(t.ciudad && document.getElementById('a-ciudad')) document.getElementById('a-ciudad').value = t.ciudad; if(t.bombeo && document.getElementById('a-bombeo')) document.getElementById('a-bombeo').value = t.bombeo; }
+  __donde.a = String(t.dirTrabajo||'').trim();
 
   // Mostrar confirmación y cerrar la lista
   document.getElementById('a-tarea-sel-titulo').textContent  = t.titulo || t.nombre || '—';
@@ -3396,6 +3463,9 @@ function seleccionarTareaChecklist(idx) {
   if (document.getElementById('c-direccion')) document.getElementById('c-direccion').value = t.direccion || '';
   if (document.getElementById('c-poblacion')) document.getElementById('c-poblacion').value = t.poblacion || t.city || '';
   if (document.getElementById('c-cp'))        document.getElementById('c-cp').value        = t.cp || t.postalCode || '';
+  toggleHidraqua('c');
+  if (esHidraqua('c')){ if(t.ciudad && document.getElementById('c-ciudad')) document.getElementById('c-ciudad').value = t.ciudad; if(t.bombeo && document.getElementById('c-bombeo')) document.getElementById('c-bombeo').value = t.bombeo; }
+  __donde.c = String(t.dirTrabajo||'').trim();
 
   document.getElementById('c-tarea-sel-titulo').textContent  = t.titulo || t.nombre || '—';
   document.getElementById('c-tarea-sel-cliente').textContent = t.cliente || t.direccion || '—';
@@ -4794,7 +4864,7 @@ async function enviarChecklist(tipo){
   const ubicacion=await obtenerUbicacionFinal();
   if(!ubicacion.ok){if(ubicacion.motivo==='senal'){showToast('📡 Sin señal de ubicación — busca un sitio con mejor cobertura e inténtalo de nuevo.','error');}else{registrarIncidenciaUbicacion('Ubicación desactivada al intentar enviar el parte');mostrarAvisoUbicacionManual('No se puede enviar el parte porque el permiso de ubicación está desactivado o denegado en este dispositivo.');}btn.disabled=false;btn.textContent='📤 Enviar '+tipoNombre.toLowerCase();return;}
   btn.textContent='⏳ Enviando...';
-  const payload={empresa:empresaChecklist,tipo:tipoNombre,fecha:fechaTexto,horaInicio:document.getElementById('c-hora-inicio').value,horaFin:calcHoraFin(),totalHoras:calcDuracion(),tiempoTranscurrido:getTiempoTranscurrido(),cliente,direccion:document.getElementById('c-direccion').value.trim(),poblacion:document.getElementById('c-poblacion').value.trim(),cp:document.getElementById('c-cp').value.trim(),tecnico,tecnicosExtra:getTecnicosExtra('c'),...getFurgoneta('c'),corte:getPill('c-'+tipo+'-corte'),corteHoras:document.getElementById('c-'+tipo+'-corte-horas-val')?.value.trim()||'',bloque:document.getElementById('c-bloque')?.value.trim()||'',resumen:buildResumenChecklist(tipo),observaciones:tipo==='elec'?document.getElementById('elec-obs').value.trim():document.getElementById('hid-obs').value.trim(),incidencia:tipo==='elec'?document.getElementById('elec-incidencia')?.value.trim()||'':document.getElementById('hid-incidencia')?.value.trim()||'',horasPresupuestadas:document.getElementById('horas-pres-'+tipo)?.value.trim()||'',numTecnicos:document.getElementById('num-tec-'+tipo)?.value.trim()||'',materiales:getMaterilesFor(tipo),estadoGeneral:null,numDoc:genNumDoc(),idParte:_idParteActual.c,fotos:[...fotosData[tipo].filter(Boolean),...(fotosExtra[tipo]||[])],firmaTecnico:getFirmasTecnicosArray(tipo)[0]?.firma||null,firmasTecnicos:getFirmasTecnicosArray(tipo),firmaCliente:ausenteState[tipo]?null:getFirmaBase64('cliente-'+tipo),nombreFirmanteCliente:document.getElementById('nombre-firma-cliente-'+tipo)?.value.trim()||'',clienteAusente:ausenteState[tipo],motivoAusencia:document.getElementById('ausente-motivo-'+tipo)?.value.trim()||'',presupuestoPdf:pdfData[tipo]||null,ubicacion,ubicacionInicio:getUbicacionInicio(),incidenciasUbicacion:_incidenciasUbicacion,horaEnvio:calcHoraFin()};
+  const payload={empresa:empresaChecklist,tipo:tipoNombre,fecha:fechaTexto,horaInicio:document.getElementById('c-hora-inicio').value,horaFin:calcHoraFin(),totalHoras:calcDuracion(),tiempoTranscurrido:getTiempoTranscurrido(),cliente,direccion:document.getElementById('c-direccion').value.trim(),poblacion:document.getElementById('c-poblacion').value.trim(),cp:document.getElementById('c-cp').value.trim(),tecnico,tecnicosExtra:getTecnicosExtra('c'),...getFurgoneta('c'),...getHidraqua('c'),dondeSeHace:getDonde('c'),corte:getPill('c-'+tipo+'-corte'),corteHoras:document.getElementById('c-'+tipo+'-corte-horas-val')?.value.trim()||'',bloque:document.getElementById('c-bloque')?.value.trim()||'',resumen:buildResumenChecklist(tipo),observaciones:tipo==='elec'?document.getElementById('elec-obs').value.trim():document.getElementById('hid-obs').value.trim(),incidencia:tipo==='elec'?document.getElementById('elec-incidencia')?.value.trim()||'':document.getElementById('hid-incidencia')?.value.trim()||'',horasPresupuestadas:document.getElementById('horas-pres-'+tipo)?.value.trim()||'',numTecnicos:document.getElementById('num-tec-'+tipo)?.value.trim()||'',materiales:getMaterilesFor(tipo),estadoGeneral:null,numDoc:genNumDoc(),idParte:_idParteActual.c,fotos:[...fotosData[tipo].filter(Boolean),...(fotosExtra[tipo]||[])],firmaTecnico:getFirmasTecnicosArray(tipo)[0]?.firma||null,firmasTecnicos:getFirmasTecnicosArray(tipo),firmaCliente:ausenteState[tipo]?null:getFirmaBase64('cliente-'+tipo),nombreFirmanteCliente:document.getElementById('nombre-firma-cliente-'+tipo)?.value.trim()||'',clienteAusente:ausenteState[tipo],motivoAusencia:document.getElementById('ausente-motivo-'+tipo)?.value.trim()||'',presupuestoPdf:pdfData[tipo]||null,ubicacion,ubicacionInicio:getUbicacionInicio(),incidenciasUbicacion:_incidenciasUbicacion,horaEnvio:calcHoraFin()};
   try{const data=await enviarConProgreso(payload,btn,tipoNombre);mostrarPantallaFinal(data.url||null);}
   catch(err){showToast('❌ Error: '+(err.message||'sin conexión')+' — Espera 30s antes de reintentar','error');btn.textContent='⏳ Espera 30s...';setTimeout(function(){btn.disabled=false;btn.textContent='📤 Enviar '+tipoNombre.toLowerCase();},30000);}
 }
