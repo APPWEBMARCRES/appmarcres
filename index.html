@@ -1181,13 +1181,19 @@ function avisoOtraEmpresa(todas, visibles, empresa){
          "Cambia de empresa ahi arriba para verlas.</div>";
 }
 
-// Solo las tareas de HOY. El panel de la oficina manda las de hoy y mañana, y
-// Holded todas las abiertas: ver las de otros días confundía a los técnicos
-// (petición de Cristhian, 22/09/2026). Las que no traen fecha (algunas de
-// Holded) se dejan: no son de otro día, y así no se pierde ninguna.
+// Tareas que se le enseñan al técnico: siempre las de HOY (y las que no traen
+// fecha). A partir de las 15:00, TAMBIÉN las de MAÑANA, marcadas con "MAÑANA",
+// para que pueda ir preparando el día siguiente.
+// (Antes solo se veían las de hoy —petición de Cristhian, 22/09/2026—; lo de
+//  ver mañana por la tarde lo pidió el 21/10/2026.)
+var HORA_VER_MANANA = 15;   // desde esta hora se ven también las de mañana
 function soloDeHoy(tareas){
   if (!tareas || !tareas.length) return tareas || [];
   var h = new Date();
+  var hoyD = h.getDate(), hoyM = h.getMonth() + 1, hoyY = h.getFullYear();
+  var man = new Date(h.getFullYear(), h.getMonth(), h.getDate() + 1);
+  var manD = man.getDate(), manM = man.getMonth() + 1, manY = man.getFullYear();
+  var verManana = h.getHours() >= HORA_VER_MANANA;
   return tareas.filter(function(t){
     var f = String(t && t.fecha || '').trim();
     if (!f) return true;
@@ -1197,7 +1203,14 @@ function soloDeHoy(tareas){
       if (iso) m = [iso[0], iso[3], iso[2], iso[1]];
     }
     if (!m) return true;   // fecha en un formato desconocido: mejor enseñarla
-    return +m[1] === h.getDate() && +m[2] === h.getMonth() + 1 && +m[3] === h.getFullYear();
+    var d = +m[1], mo = +m[2], y = +m[3];
+    if (d === hoyD && mo === hoyM && y === hoyY) return true;      // HOY
+    if (verManana && d === manD && mo === manM && y === manY){     // MAÑANA (por la tarde)
+      // Se marca para que el técnico no la confunda con las de hoy.
+      if (t && t.titulo && String(t.titulo).indexOf('MAÑANA') < 0) t.titulo = '🔜 MAÑANA · ' + t.titulo;
+      return true;
+    }
+    return false;
   });
 }
 
